@@ -1,0 +1,29 @@
+{
+  "name": "@repo/schema",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "files": ["dist"],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint src --max-warnings 0"
+  },
+  "dependencies": {
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@repo/eslint-config": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "eslint": "10.8.1",
+    "typescript": "7.0.2"
+  }
+}
