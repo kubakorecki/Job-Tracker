@@ -4,6 +4,8 @@ packages:
 
 allowBuilds:
   "@parcel/watcher": true
+  # drizzle-kit runs its config and migrations through esbuild.
+  esbuild: true
 
 minimumReleaseAgeExclude:
   - '@supabase/auth-js@2.114.0'

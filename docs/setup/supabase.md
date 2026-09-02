@@ -25,14 +25,18 @@ There is no sign-up page and there will not be one (ADR-0001). In each project:
 and password and tick _Auto Confirm User_ (without it, sign-in fails with
 "email address hasn't been confirmed").
 
-For the dev project, create three separate users, so no run can disturb
-another:
+For the dev project, create two separate users, so neither run disturbs the
+other:
 
-| User               | Belongs to                             |
-| ------------------ | -------------------------------------- |
-| your own address   | hands-on development                   |
-| an API-test user   | the API test suite (ticket 03 onwards) |
-| an end-to-end user | the Playwright smoke test (ticket 13)  |
+| User               | Belongs to                            |
+| ------------------ | ------------------------------------- |
+| your own address   | hands-on development                  |
+| an end-to-end user | the Playwright smoke test (ticket 13) |
+
+The API test suite needs no account at all. No table carries a foreign key into
+the auth schema, so its two users are fixed identifiers in
+`apps/web/lib/test-support/users.ts` rather than sessions — which is also why
+they can never collide with the account you just made.
 
 ## 3. Fill in the environment file
 
@@ -44,11 +48,26 @@ cp apps/web/.env.example apps/web/.env.local
 production the same four variables are set in the deployment's environment
 rather than in a file, pointing at `job-tracker-prod`.
 
-Both the pooled and the direct database URL are recorded even though nothing
-reads them yet — the tables arrive in ticket 03, and having them in place is
-part of this ticket's definition of done.
+Take both database URLs from the dashboard's **Connect** panel, and take the
+**pooler** ones: `DATABASE_URL` is the transaction pooler on port 6543, and
+`DIRECT_URL` is the session pooler on port 5432. The "Direct connection" the
+panel offers alongside them — `db.<ref>.supabase.co` — resolves to IPv6 only,
+and a machine with no IPv6 route cannot reach it at all: every query fails with
+`ENOTFOUND`. The session pooler is the same connection over IPv4 and does run
+the session-level DDL that migrations need.
 
-## 4. Sign in
+## 4. Create the tables
+
+```sh
+pnpm --filter web db:migrate
+```
+
+This applies `apps/web/drizzle/` over `DIRECT_URL`. Do it for the production
+project too, with that project's URL in the environment. Changing the schema
+means editing `apps/web/lib/db/schema.ts` and running
+`pnpm --filter web db:generate` to write the next migration.
+
+## 5. Sign in
 
 ```sh
 pnpm dev

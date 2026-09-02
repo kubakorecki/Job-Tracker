@@ -34,3 +34,32 @@ export function supabaseEnv(): SupabaseEnv {
 
   return parsed.data;
 }
+
+/**
+ * Where Drizzle connects. Read lazily for the same reason as `supabaseEnv` —
+ * a build with no environment file should still succeed.
+ *
+ * Two variables rather than one switched by environment: the application uses
+ * the transaction pooler, whose port cannot run session-level DDL, so
+ * migration tooling needs the direct connection alongside it (ADR-0003).
+ */
+export function databaseUrl(): string {
+  return requireEnv("DATABASE_URL", process.env.DATABASE_URL);
+}
+
+/** The direct connection, used only by migration tooling. */
+export function directDatabaseUrl(): string {
+  return requireEnv("DIRECT_URL", process.env.DIRECT_URL);
+}
+
+function requireEnv(name: string, value: string | undefined): string {
+  const parsed = z.string().min(1).safeParse(value);
+
+  if (!parsed.success) {
+    throw new Error(
+      `${name} is not set. Copy apps/web/.env.example to apps/web/.env.local and fill it in from the Supabase dashboard.`,
+    );
+  }
+
+  return parsed.data;
+}

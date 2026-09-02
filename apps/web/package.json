@@ -7,6 +7,8 @@
     "dev": "next dev --port 3000",
     "build": "next build",
     "start": "next start",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
     "lint": "eslint --max-warnings 0",
     "test": "vitest run",
     "check-types": "next typegen && tsc --noEmit"
@@ -16,8 +18,10 @@
     "@repo/ui": "workspace:*",
     "@supabase/ssr": "0.12.5",
     "@supabase/supabase-js": "2.114.0",
+    "drizzle-orm": "0.45.2",
     "geist": "1.7.2",
     "next": "16.3.1",
+    "postgres": "3.4.9",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "zod": "4.4.3"
@@ -31,6 +35,7 @@
     "@types/node": "26.2.0",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",
+    "drizzle-kit": "0.31.10",
     "eslint": "10.8.1",
     "postcss": "8.5.26",
     "tailwindcss": "4.3.3",

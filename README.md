@@ -41,6 +41,10 @@ pnpm check-types   # type-check all apps and packages
 pnpm test          # run every workspace's tests
 ```
 
+The web app's API tests talk to the dev Supabase project, so they need
+`apps/web/.env.local` filled in and the project unpaused (ADR-0003). They run
+serially, create the rows they need, and delete them afterwards.
+
 ## Extension permissions
 
 The manifest only requests `storage`, `activeTab`, `scripting`, and
@@ -49,6 +53,20 @@ extraction to run on demand via `chrome.scripting.executeScript` against the
 active tab when the user opens the side panel, rather than an always-on
 content script. That extraction endpoint isn't wired up yet — this is just
 the scaffold.
+
+## Database
+
+Postgres on Supabase, through Drizzle. The schema is
+`apps/web/lib/db/schema.ts` and migrations live in `apps/web/drizzle/`:
+
+```sh
+pnpm --filter web db:generate   # write a migration for a schema change
+pnpm --filter web db:migrate    # apply migrations to DIRECT_URL
+```
+
+Every query lives in a repository module under `apps/web/lib/job-applications/` and takes
+the owner's user id as an argument — nothing else in the app builds a query,
+which is the only thing keeping one user's data away from another (ADR-0001).
 
 ## Auth
 
@@ -65,9 +83,9 @@ where each value lives in the dashboard.
 
 ## Not set up yet
 
-- Database (Postgres) + Drizzle ORM
-- API route handlers (CRUD on job applications)
+- The rest of the Job Application endpoints: read, update and delete
+- Personal Access Tokens and Bearer authentication for the extension
 - The LLM extraction endpoint and its call from the extension
-- The actual dashboard UI (kanban/list views, forms)
+- The kanban board, the table view and the detail view
 
 See the project plan for the phased build-out of these.
