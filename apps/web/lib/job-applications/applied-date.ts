@@ -1,4 +1,5 @@
 import type { JobStatus } from "@repo/schema";
+import { dayOf } from "../day";
 
 /**
  * What a Job Application's applied date reads as after a move to `status`.
@@ -20,22 +21,6 @@ export function appliedAtAfterMove(
 ): string | null {
   if (status !== "applied" || appliedAt !== null) return appliedAt;
   return new Date().toISOString();
-}
-
-/**
- * A fixed locale and time zone rather than the reader's: a Job Application can
- * be rendered on the server and again on the client, and a date that changes
- * with the machine would be a different date in each. Every date the dashboard
- * shows goes through it, so they all agree.
- */
-const APPLIED_ON = new Intl.DateTimeFormat("en-GB", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
-
-/** Any of the contract's instants, as a day the user can read. */
-export function dayOf(iso: string): string {
-  return APPLIED_ON.format(new Date(iso));
 }
 
 export function appliedOn(appliedAt: string | null): string {

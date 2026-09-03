@@ -5,6 +5,8 @@ import {
   updateJobApplicationResponse,
 } from "../../../../lib/job-applications/api";
 
+export { OPTIONS } from "../../../../lib/api/cors";
+
 type Params = Awaited<RouteContext<"/api/job-applications/[id]">["params"]>;
 
 export const GET = authenticatedRoute<Params>(readJobApplicationResponse);

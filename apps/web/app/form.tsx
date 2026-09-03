@@ -1,11 +1,11 @@
 import type { ReactNode } from "react";
 
 /**
- * The pieces every form on the dashboard is built from. They live here rather
- * than in each form so that the add form and the detail view cannot drift into
- * two different-looking ways of asking for a company name — and so that
- * `packages/ui`, which has to carry its own Tailwind prefix and its own build,
- * stays for what more than one app needs.
+ * The pieces every form in this app is built from. They live here rather than
+ * in each form so that the add form, the detail view and the settings page
+ * cannot drift into three different-looking ways of asking for a name — and so
+ * that `packages/ui`, which has to carry its own Tailwind prefix and its own
+ * build, stays for what more than one app needs.
  */
 
 export const FIELD =

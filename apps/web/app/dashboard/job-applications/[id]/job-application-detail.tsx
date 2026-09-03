@@ -12,10 +12,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type ChangeEvent, type FormEvent } from "react";
-import { dayOf } from "../../../../lib/job-applications/applied-date";
+import { dayOf } from "../../../../lib/day";
+import { describeFailure } from "../../../../lib/api/client";
 import {
   deleteJobApplication,
-  describeFailure,
   patchJobApplication,
 } from "../../../../lib/job-applications/client";
 import {
@@ -24,7 +24,7 @@ import {
   type JobApplicationEdits,
 } from "../../../../lib/job-applications/edits";
 import { describeIssues } from "../../../../lib/zod-issues";
-import { FIELD, Field, PRIMARY_BUTTON, Problems, Row } from "../../form";
+import { FIELD, Field, PRIMARY_BUTTON, Problems, Row } from "../../../form";
 import { JOB_APPLICATIONS_KEY } from "../../use-job-applications";
 
 /** How each remote type is written, the way `JOB_STATUS_LABELS` writes a Status. */

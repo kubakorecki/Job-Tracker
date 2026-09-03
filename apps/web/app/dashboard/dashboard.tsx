@@ -10,7 +10,7 @@ import {
   type JobApplicationFilter,
 } from "../../lib/job-applications/filtering";
 import { Board } from "./board";
-import { FIELD, Field } from "./form";
+import { FIELD, Field } from "../form";
 import { JobApplicationTable } from "./job-application-table";
 import { MoveFailure } from "./move-failure";
 import { useDashboardView } from "./use-dashboard-view";

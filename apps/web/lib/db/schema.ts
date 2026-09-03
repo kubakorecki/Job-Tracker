@@ -95,3 +95,42 @@ export const jobApplications = pgTable(
 );
 
 export type JobApplicationRow = typeof jobApplications.$inferSelect;
+
+/**
+ * A Personal Access Token: the long-lived credential the user pastes into the
+ * extension, standing in for the session cookie an extension origin cannot
+ * have. Only the SHA-256 hash of the raw value is stored, so a reader of this
+ * table — a backup, a support session, a leaked dump — cannot act as the user.
+ *
+ * Revocation is soft: the row survives with `revokedAt` set, so a token that
+ * had to be revoked leaves a trace of when it existed and when it was last
+ * used, rather than vanishing along with the evidence.
+ */
+export const personalAccessTokens = pgTable(
+  "personal_access_tokens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** No foreign key into `auth.users`, for the same reason as above. */
+    userId: uuid("user_id").notNull(),
+    /** How the user tells one machine's token from another's. */
+    name: text("name").notNull(),
+    /**
+     * SHA-256 of the raw token, hex. Unique because authentication looks a
+     * token up by this column alone — it is the only thing a request carries.
+     */
+    tokenHash: text("token_hash").notNull().unique(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow(),
+    /** Null until the token is first used to reach the API. */
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true, mode: "date" }),
+    /** Null while the token still works. Set once, and never unset. */
+    revokedAt: timestamp("revoked_at", { withTimezone: true, mode: "date" }),
+  },
+  (table) => [
+    /** The settings page reads every token of one user, newest first. */
+    index("personal_access_tokens_user_id_idx").on(table.userId),
+  ],
+);
+
+export type PersonalAccessTokenRow = typeof personalAccessTokens.$inferSelect;

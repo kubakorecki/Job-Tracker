@@ -1,4 +1,5 @@
 import { Card } from "@repo/ui/card";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "../../lib/auth/current-user";
 import { SIGN_IN_PATH } from "../../lib/auth/route-access";
@@ -28,7 +29,15 @@ export default async function DashboardPage() {
             Signed in as {user.email ?? user.id}
           </p>
         </div>
-        <SignOutButton />
+        <div className="flex items-center gap-4">
+          <Link
+            className="text-sm underline underline-offset-2 opacity-60"
+            href="/settings/tokens"
+          >
+            Personal Access Tokens
+          </Link>
+          <SignOutButton />
+        </div>
       </header>
 
       {/* Both the form and the dashboard write to the one cached list the

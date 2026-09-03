@@ -5,11 +5,9 @@ import { JOB_STATUS_LABELS } from "@repo/ui/status-badge";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 import { describeIssues } from "../../lib/zod-issues";
-import {
-  describeFailure,
-  postJobApplication,
-} from "../../lib/job-applications/client";
-import { FIELD, Field, PRIMARY_BUTTON, Problems, Row } from "./form";
+import { describeFailure } from "../../lib/api/client";
+import { postJobApplication } from "../../lib/job-applications/client";
+import { FIELD, Field, PRIMARY_BUTTON, Problems, Row } from "../form";
 import { JOB_APPLICATIONS_KEY } from "./use-job-applications";
 
 /**

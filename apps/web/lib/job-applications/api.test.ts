@@ -1,6 +1,12 @@
 import type { JobApplication } from "@repo/schema";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, describe, expect, it } from "vitest";
+import { authenticatedRoute } from "../api/authenticated-route";
 import type { CurrentUser } from "../auth/current-user";
+import {
+  bearer,
+  forgetTestTokens,
+  issueTestToken,
+} from "../test-support/personal-access-tokens";
 import { OTHER_TEST_USER, TEST_USER } from "../test-support/users";
 import {
   createJobApplicationResponse,
@@ -16,12 +22,36 @@ import { deleteJobApplication } from "./repository";
  * fixed test users. Every assertion is about what a client can see — a status
  * code, a response body — never about how it was produced. The one query they
  * make is the delete that takes their own rows away again.
+ *
+ * They reach the endpoints the way the extension does: through the wrapper
+ * that resolves the caller, carrying a Bearer Personal Access Token and no
+ * session at all. That is what proves the whole API is reachable without the
+ * auth service.
  */
 
 const ENDPOINT = "https://job-tracker.test/api/job-applications";
 
+/** The routes, assembled exactly as `app/api/job-applications` assembles them. */
+const collection = {
+  get: authenticatedRoute(listJobApplicationsResponse),
+  post: authenticatedRoute(createJobApplicationResponse),
+};
+
+type Params = { id: string };
+
+const item = {
+  get: authenticatedRoute<Params>(readJobApplicationResponse),
+  patch: authenticatedRoute<Params>(updateJobApplicationResponse),
+  delete: authenticatedRoute<Params>(deleteJobApplicationResponse),
+};
+
+/** What Next.js hands a handler on a route with no dynamic segment. */
+const noParams = { params: Promise.resolve({}) };
+
 /** Everything this file has written, so it can be taken away again. */
 const saved: { userId: string; id: string }[] = [];
+
+afterAll(forgetTestTokens);
 
 afterEach(async () => {
   // No test may assume an empty database, so each one leaves it as it found it.
@@ -31,9 +61,13 @@ afterEach(async () => {
 });
 
 async function post(user: CurrentUser, body: unknown): Promise<Response> {
-  const response = await createJobApplicationResponse(
-    new Request(ENDPOINT, { method: "POST", body: JSON.stringify(body) }),
-    user,
+  const response = await collection.post(
+    new Request(ENDPOINT, {
+      method: "POST",
+      headers: await bearer(user),
+      body: JSON.stringify(body),
+    }),
+    noParams,
   );
 
   if (response.status === 201) {
@@ -52,7 +86,10 @@ async function save(user: CurrentUser, body: unknown): Promise<JobApplication> {
 }
 
 async function list(user: CurrentUser, query = ""): Promise<Response> {
-  return listJobApplicationsResponse(new Request(`${ENDPOINT}${query}`), user);
+  return collection.get(
+    new Request(`${ENDPOINT}${query}`, { headers: await bearer(user) }),
+    noParams,
+  );
 }
 
 async function patch(
@@ -60,27 +97,30 @@ async function patch(
   id: string,
   body: unknown,
 ): Promise<Response> {
-  return updateJobApplicationResponse(
+  return item.patch(
     new Request(`${ENDPOINT}/${id}`, {
       method: "PATCH",
+      headers: await bearer(user),
       body: JSON.stringify(body),
     }),
-    user,
-    { id },
+    { params: Promise.resolve({ id }) },
   );
 }
 
 async function read(user: CurrentUser, id: string): Promise<Response> {
-  return readJobApplicationResponse(new Request(`${ENDPOINT}/${id}`), user, {
-    id,
-  });
+  return item.get(
+    new Request(`${ENDPOINT}/${id}`, { headers: await bearer(user) }),
+    { params: Promise.resolve({ id }) },
+  );
 }
 
 async function remove(user: CurrentUser, id: string): Promise<Response> {
-  return deleteJobApplicationResponse(
-    new Request(`${ENDPOINT}/${id}`, { method: "DELETE" }),
-    user,
-    { id },
+  return item.delete(
+    new Request(`${ENDPOINT}/${id}`, {
+      method: "DELETE",
+      headers: await bearer(user),
+    }),
+    { params: Promise.resolve({ id }) },
   );
 }
 
@@ -185,9 +225,13 @@ describe("POST /api/job-applications", () => {
   });
 
   it("refuses a body that is not JSON", async () => {
-    const response = await createJobApplicationResponse(
-      new Request(ENDPOINT, { method: "POST", body: "not json" }),
-      TEST_USER,
+    const response = await collection.post(
+      new Request(ENDPOINT, {
+        method: "POST",
+        headers: await bearer(TEST_USER),
+        body: "not json",
+      }),
+      noParams,
     );
 
     expect(response.status).toBe(400);
@@ -440,13 +484,13 @@ describe("PATCH /api/job-applications/:id", () => {
       jobTitle: "API Engineer",
     });
 
-    const response = await updateJobApplicationResponse(
+    const response = await item.patch(
       new Request(`${ENDPOINT}/${created.id}`, {
         method: "PATCH",
+        headers: await bearer(TEST_USER),
         body: "not json",
       }),
-      TEST_USER,
-      { id: created.id },
+      { params: Promise.resolve({ id: created.id }) },
     );
 
     expect(response.status).toBe(400);
@@ -714,5 +758,41 @@ describe("DELETE /api/job-applications/:id", () => {
     const response = await remove(TEST_USER, NO_SUCH_ID);
 
     expect(response.status).toBe(404);
+  });
+});
+
+describe("reaching the API as the extension does", () => {
+  it("answers a Bearer Personal Access Token, with no session anywhere", async () => {
+    const created = await save(TEST_USER, {
+      company: "Tailscale",
+      jobTitle: "Network Engineer",
+    });
+
+    const response = await list(TEST_USER);
+
+    expect(response.status).toBe(200);
+    const listed: JobApplication[] = await response.json();
+    expect(listed.map(({ id }) => id)).toContain(created.id);
+  });
+
+  it("refuses a request whose token has been revoked", async () => {
+    const { token, revoke } = await issueTestToken(TEST_USER, "Lost laptop");
+    await revoke();
+
+    const response = await collection.get(
+      new Request(ENDPOINT, { headers: { authorization: `Bearer ${token}` } }),
+      noParams,
+    );
+
+    expect(response.status).toBe(401);
+  });
+
+  it("refuses a token that was never issued", async () => {
+    const response = await collection.get(
+      new Request(ENDPOINT, { headers: { authorization: "Bearer jbt_nope" } }),
+      noParams,
+    );
+
+    expect(response.status).toBe(401);
   });
 });

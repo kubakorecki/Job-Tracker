@@ -6,6 +6,7 @@ import {
 } from "@repo/schema";
 import type { CurrentUser } from "../auth/current-user";
 import { errorResponse } from "../api/response";
+import { jsonBody } from "../api/request";
 import { describeIssues } from "../zod-issues";
 import {
   createJobApplication,
@@ -52,14 +53,10 @@ export async function createJobApplicationResponse(
   request: Request,
   user: CurrentUser,
 ): Promise<Response> {
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return errorResponse("Expected a JSON body.", 400);
-  }
+  const read = await jsonBody(request);
+  if ("refusal" in read) return read.refusal;
 
-  const input = CreateJobApplication.safeParse(body);
+  const input = CreateJobApplication.safeParse(read.body);
   if (!input.success) {
     return errorResponse(
       "That Job Application is not valid.",
@@ -92,14 +89,10 @@ export async function updateJobApplicationResponse(
 ): Promise<Response> {
   if (!isJobApplicationId(id)) return notFound();
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return errorResponse("Expected a JSON body.", 400);
-  }
+  const read = await jsonBody(request);
+  if ("refusal" in read) return read.refusal;
 
-  const patch = UpdateJobApplication.safeParse(body);
+  const patch = UpdateJobApplication.safeParse(read.body);
   if (!patch.success) {
     return errorResponse(
       "That change is not valid.",
