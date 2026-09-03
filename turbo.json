@@ -8,6 +8,7 @@
     "DIRECT_URL",
     "EXTENSION_ORIGIN",
     "GEMINI_API_KEY",
+    "WXT_API_BASE_URL",
     "NODE_ENV"
   ],
   "tasks": {

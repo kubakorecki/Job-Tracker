@@ -9,8 +9,9 @@ Claude API.
 - `apps/web` — Next.js dashboard (App Router, Tailwind v4). Will host both the
   UI and the backend API route handlers.
 - `apps/extension` — Chrome extension (Manifest V3, built with [WXT](https://wxt.dev)).
-  Currently a side panel scaffold with no popup — the toolbar icon opens the
-  side panel directly.
+  A side panel with no popup — the toolbar icon opens it directly. It asks for
+  a Personal Access Token and an API base URL on first run, and lists the most
+  recent Job Applications afterwards.
 - `packages/schema` — Zod schemas (`JobApplication`, `Contact`,
   `ActivityEvent`, ...). The single source of truth for data shapes, consumed
   by both apps.

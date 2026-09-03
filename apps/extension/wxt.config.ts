@@ -1,8 +1,8 @@
-import { defineConfig } from 'wxt';
+import { defineConfig } from "wxt";
 
 // See https://wxt.dev/api/config.html
 export default defineConfig({
-  modules: ['@wxt-dev/module-react'],
+  modules: ["@wxt-dev/module-react"],
   dev: {
     server: {
       /**
@@ -21,9 +21,9 @@ export default defineConfig({
     },
   },
   manifest: {
-    name: 'Job Tracker',
-    description: 'Save job postings to your Job Tracker in one click.',
-    permissions: ['storage', 'activeTab', 'scripting', 'sidePanel'],
+    name: "Job Tracker",
+    description: "Save job postings to your Job Tracker in one click.",
+    permissions: ["storage", "activeTab", "scripting", "sidePanel"],
     action: {},
     /**
      * Pins the extension's identity. Without a `key`, Chrome derives the id of
@@ -46,6 +46,6 @@ export default defineConfig({
      * different extension with a different id, which is why the allowlist
      * takes a list rather than a single origin.
      */
-    key: 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAn/HqO1/wlFgZvjXfbgg22SvwRASYIH1exgWn0SQhm8ik5D3v1O0K7M7i2TLYoWpqa3IJlfOB/yC0pZVq22b2+8/tIele7x1Yi1rqiYxYzBxazl8NIfICFWkTnsf5AdJOJQMlpvBqKQi7G5n4jMjhHg4ofX7IDkGQGjEVccGl3B24F54KQfbWd4kM0G8bB5/LQKk7W/c72NFKEpuyjwRe+SkSEPRaxTjk+l1ihiu6PGDwI2Rz9ARgl/2N0pgpwNuFhvITKAFRPDxh3edRqkxUUcBMpK4V3m30/owgzrEfsY2Zjof2XzpKIaYMoDXes3ACw18ASOAVeWtMSFuOBF7KhwIDAQAB',
+    key: "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAn/HqO1/wlFgZvjXfbgg22SvwRASYIH1exgWn0SQhm8ik5D3v1O0K7M7i2TLYoWpqa3IJlfOB/yC0pZVq22b2+8/tIele7x1Yi1rqiYxYzBxazl8NIfICFWkTnsf5AdJOJQMlpvBqKQi7G5n4jMjhHg4ofX7IDkGQGjEVccGl3B24F54KQfbWd4kM0G8bB5/LQKk7W/c72NFKEpuyjwRe+SkSEPRaxTjk+l1ihiu6PGDwI2Rz9ARgl/2N0pgpwNuFhvITKAFRPDxh3edRqkxUUcBMpK4V3m30/owgzrEfsY2Zjof2XzpKIaYMoDXes3ACw18ASOAVeWtMSFuOBF7KhwIDAQAB",
   },
 });

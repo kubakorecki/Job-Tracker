@@ -1,26 +1,178 @@
+:root {
+  color-scheme: light dark;
+
+  --border: #e5e5e5;
+  --link: #2563eb;
+  --problem: #dc2626;
+  --button-background: #171717;
+  --button-foreground: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --border: #333333;
+    --link: #60a5fa;
+    --problem: #f87171;
+    --button-background: #ffffff;
+    --button-foreground: #171717;
+  }
+}
+
+body {
+  margin: 0;
+}
+
 .panel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
   padding: 16px;
   font-family:
     system-ui,
     -apple-system,
     sans-serif;
-}
-
-.panel h1 {
-  font-size: 18px;
-  font-weight: 600;
-  margin: 0 0 4px;
-}
-
-.subtitle {
   font-size: 13px;
-  opacity: 0.6;
-  margin: 0 0 16px;
+  line-height: 1.4;
 }
 
-.badges {
+.panel-header {
   display: flex;
-  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
   gap: 8px;
-  margin-top: 8px;
+}
+
+.panel-header h1 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.panel-header nav {
+  display: flex;
+  gap: 12px;
+}
+
+.panel h2 {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.6;
+  margin: 0 0 8px;
+}
+
+.hint {
+  margin: 0 0 12px;
+  opacity: 0.7;
+}
+
+.muted {
+  margin: 0;
+  opacity: 0.7;
+}
+
+.field {
+  display: block;
+  margin-bottom: 12px;
+}
+
+.field span {
+  display: block;
+  margin-bottom: 4px;
+  opacity: 0.7;
+}
+
+.field input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.problem {
+  margin: 0 0 12px;
+  padding-left: 0;
+  list-style: none;
+  color: var(--problem);
+}
+
+.button {
+  padding: 6px 14px;
+  font: inherit;
+  font-weight: 500;
+  color: var(--button-foreground);
+  background: var(--button-background);
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* A link and a button that opens something in place read the same way here. */
+.link {
+  padding: 0;
+  font: inherit;
+  color: var(--link);
+  background: none;
+  border: 0;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+.job-applications {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.job-application {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+/* The company and the title share what the badge leaves, and truncate. */
+.job-application-name {
+  min-width: 0;
+}
+
+.job-application p {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.company {
+  font-weight: 500;
+}
+
+.job-title {
+  opacity: 0.6;
 }
