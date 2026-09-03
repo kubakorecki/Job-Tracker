@@ -3,9 +3,13 @@ packages:
   - "packages/*"
 
 allowBuilds:
+  # Its only install script echoes that it is a no-op; the package ships built.
+  '@google/genai': false
   "@parcel/watcher": true
   # drizzle-kit runs its config and migrations through esbuild.
   esbuild: true
+  # Pulled in by the Gemini SDK's tokenizer, which this app never loads.
+  protobufjs: false
 
 minimumReleaseAgeExclude:
   - '@supabase/auth-js@2.114.0'

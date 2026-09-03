@@ -109,6 +109,22 @@ export const JobExtraction = JobApplication.pick({
 }).partial();
 export type JobExtraction = z.infer<typeof JobExtraction>;
 
+/**
+ * What the extraction endpoint is asked for: the Posting's URL, and the
+ * visible text of the page as the extension read it. It lives in the contract
+ * rather than in the API, because the extension is the only caller that will
+ * ever build one and it compiles against this package.
+ *
+ * The text is not bounded here. How much of it the provider is shown is the
+ * API's business and moves with the model; a client should send the page it
+ * has and not have to guess.
+ */
+export const ExtractJobRequest = z.object({
+  url: z.url(),
+  pageText: z.string().min(1),
+});
+export type ExtractJobRequest = z.infer<typeof ExtractJobRequest>;
+
 export const ExtractionFailureReason = z.enum([
   "no_job_found",
   "provider_error",

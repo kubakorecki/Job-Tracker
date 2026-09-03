@@ -1,11 +1,13 @@
 import { JobStatus, RemoteType } from "@repo/schema";
 import { sql } from "drizzle-orm";
 import {
+  date,
   index,
   numeric,
   integer,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -134,3 +136,25 @@ export const personalAccessTokens = pgTable(
 );
 
 export type PersonalAccessTokenRow = typeof personalAccessTokens.$inferSelect;
+
+/**
+ * How many extractions a user has spent today. One row per user per day, and
+ * the day is UTC — a counter that reset at the reader's midnight would reset
+ * twice for a user who flew somewhere, or not at all.
+ *
+ * The key is the pair, so the request that spends an extraction can insert and
+ * increment in a single upsert and read the new total back. Nothing prunes old
+ * rows: they are three columns each, and a hundred a year is not a table.
+ */
+export const extractionUsage = pgTable(
+  "extraction_usage",
+  {
+    /** No foreign key into `auth.users`, for the same reason as above. */
+    userId: uuid("user_id").notNull(),
+    day: date("day", { mode: "string" }).notNull(),
+    count: integer("count").notNull().default(0),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.day] })],
+);
+
+export type ExtractionUsageRow = typeof extractionUsage.$inferSelect;

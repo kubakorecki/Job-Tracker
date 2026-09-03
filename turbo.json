@@ -7,6 +7,7 @@
     "DATABASE_URL",
     "DIRECT_URL",
     "EXTENSION_ORIGIN",
+    "GEMINI_API_KEY",
     "NODE_ENV"
   ],
   "tasks": {

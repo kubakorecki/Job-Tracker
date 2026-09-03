@@ -52,12 +52,25 @@ export function directDatabaseUrl(): string {
   return requireEnv("DIRECT_URL", process.env.DIRECT_URL);
 }
 
-function requireEnv(name: string, value: string | undefined): string {
+/**
+ * The AI Studio developer key the extraction endpoint calls Gemini with. Read
+ * lazily like the rest, and read nowhere else: extraction is the only thing
+ * that needs it, so a test run and a build both start without it.
+ */
+export function geminiApiKey(): string {
+  return requireEnv("GEMINI_API_KEY", process.env.GEMINI_API_KEY, "AI Studio");
+}
+
+function requireEnv(
+  name: string,
+  value: string | undefined,
+  where = "the Supabase dashboard",
+): string {
   const parsed = z.string().min(1).safeParse(value);
 
   if (!parsed.success) {
     throw new Error(
-      `${name} is not set. Copy apps/web/.env.example to apps/web/.env.local and fill it in from the Supabase dashboard.`,
+      `${name} is not set. Copy apps/web/.env.example to apps/web/.env.local and fill it in from ${where}.`,
     );
   }
 
