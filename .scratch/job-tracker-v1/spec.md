@@ -179,10 +179,13 @@ hash; creation returns the raw value once and never again.
 
 Because the side panel runs on an extension origin, every extension call is
 cross-origin. A shared CORS layer with an allowlist covering the pinned
-extension origin and the local development origin applies to every route,
-including preflight handlers, with the authorization header permitted and
-credentials off. The extension's ID is pinned in the WXT manifest so it
-survives unpacked reloads and the allowlist doesn't go stale.
+extension origin applies to every route, including preflight handlers, with the
+authorization header permitted and credentials off. The local development
+origin is on that allowlist outside a deployment and deliberately not on it in
+production: there the dashboard is same-origin and has no use for CORS, so a
+localhost entry would be an allowance with no beneficiary but a stranger
+running a page on their own machine. The extension's ID is pinned in the WXT
+manifest so it survives unpacked reloads and the allowlist doesn't go stale.
 
 ### Extraction
 

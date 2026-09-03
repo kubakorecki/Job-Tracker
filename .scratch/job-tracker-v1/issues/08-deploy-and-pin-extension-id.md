@@ -10,7 +10,7 @@
 - [x] Production environment variables are set, with the pooled connection used at runtime and prepared statements disabled
 - [x] Migrations have been applied to the prod project using the direct connection
 - [x] The extension's ID is pinned in its manifest so it survives unpacked reloads
-- [ ] Both the pinned extension origin and the local development origin are in the deployed allowlist — the extension origin is; the local origin stays out of a deployment on purpose, and this box stays unticked until someone decides which of the two is wrong (see below)
+- [x] The pinned extension origin is in the deployed allowlist, and the local development origin is allowed only outside a deployment — amended from "both are in the deployed allowlist", see below
 - [x] A Bearer-authenticated request from the extension origin succeeds against production, including its preflight
 - [x] Signing in and listing Job Applications works against the deployed app
 
@@ -63,12 +63,13 @@ Decisions worth knowing about:
   pointing at the local API rather than at production, though no extension code
   reads a base URL yet.
 
-  Left as a contradiction rather than settled unilaterally. `spec.md` still
-  says the allowlist covers "the pinned extension origin and the local
-  development origin", and the code still disagrees with it in production; the
-  criterion is unticked so a rollup does not claim otherwise. Settling it means
-  either amending that line of the spec or deleting the `NODE_ENV` gate in
-  `allowedOrigins()`, and that is the author's call, not this ticket's.
+  Raised rather than settled unilaterally, and then settled: the code is right
+  and the spec's sentence was the thing that was wrong. `spec.md` now says the
+  allowlist covers the pinned extension origin, with the local development
+  origin allowed outside a deployment and deliberately not inside one, and
+  carries the reason. The `NODE_ENV` gate in `allowedOrigins()` stands
+  unchanged, and this ticket's criterion was amended to match rather than
+  ticked against a sentence nobody believed.
 - **The deployment never migrates itself.** There is no release step;
   `apps/web/drizzle/` is applied by hand over the direct connection from a
   machine holding `apps/web/.env.prod`. `DIRECT_URL` from that file wins over
