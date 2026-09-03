@@ -19,25 +19,25 @@ import {
   DraggableJobApplicationCard,
   JobApplicationCard,
 } from "./job-application-card";
-import {
-  useJobApplications,
-  useMoveJobApplication,
-  type FailedMove,
-} from "./use-job-applications";
+import type { Move } from "./use-job-applications";
 
 /**
- * The pipeline as columns. Every Job Application arrives in one cached list
- * and is grouped here, in the browser, so that a card dropped into another
- * column is a change to that one list rather than a second thing to keep in
- * step with it.
+ * The pipeline as columns. The Job Applications arrive already narrowed by the
+ * dashboard's search and Status filter, out of the one cached list, and are
+ * grouped here in the browser — so a card dropped into another column is a
+ * change to that one list rather than a second thing to keep in step with it.
+ *
+ * Dropping a card reports the move upwards rather than making it here: the
+ * move outlives this component, which the user can unmount by switching to the
+ * table while the request is still in flight.
  */
 export function Board({
-  initialJobApplications,
+  jobApplications,
+  onMove,
 }: {
-  initialJobApplications: JobApplication[];
+  jobApplications: JobApplication[];
+  onMove: (move: Move) => void;
 }) {
-  const { data: jobApplications } = useJobApplications(initialJobApplications);
-  const { failures, move, retry, dismiss } = useMoveJobApplication();
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
   const columns = useMemo(
@@ -72,49 +72,37 @@ export function Board({
       return;
     }
 
-    move({ id: jobApplication.id, status });
+    onMove({ id: jobApplication.id, status });
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      {failures.map((failed) => (
-        <MoveFailure
-          company={find(failed.move.id)?.company}
-          failed={failed}
-          key={failed.move.id}
-          onDismiss={() => dismiss(failed)}
-          onRetry={() => retry(failed)}
-        />
-      ))}
+    <DndContext
+      accessibility={{ announcements: announcementsFor(find) }}
+      collisionDetection={closestCorners}
+      onDragCancel={() => setDraggingId(null)}
+      onDragEnd={onDragEnd}
+      onDragStart={({ active }) => setDraggingId(String(active.id))}
+      sensors={sensors}
+    >
+      <div className="flex gap-3 overflow-x-auto pb-2">
+        {JobStatus.options.map((status) => (
+          <Column
+            jobApplications={columns[status]}
+            key={status}
+            status={status}
+          />
+        ))}
+      </div>
 
-      <DndContext
-        accessibility={{ announcements: announcementsFor(find) }}
-        collisionDetection={closestCorners}
-        onDragCancel={() => setDraggingId(null)}
-        onDragEnd={onDragEnd}
-        onDragStart={({ active }) => setDraggingId(String(active.id))}
-        sensors={sensors}
-      >
-        <div className="flex gap-3 overflow-x-auto pb-2">
-          {JobStatus.options.map((status) => (
-            <Column
-              jobApplications={columns[status]}
-              key={status}
-              status={status}
-            />
-          ))}
-        </div>
-
-        {/* What follows the cursor, so the card stays legible in flight. */}
-        <DragOverlay>
-          {dragging === undefined ? null : (
-            <div className="w-64 cursor-grabbing opacity-90 shadow-lg">
-              <JobApplicationCard jobApplication={dragging} />
-            </div>
-          )}
-        </DragOverlay>
-      </DndContext>
-    </div>
+      {/* What follows the cursor, so the card stays legible in flight. */}
+      <DragOverlay>
+        {dragging === undefined ? null : (
+          <div className="w-64 cursor-grabbing opacity-90 shadow-lg">
+            <JobApplicationCard jobApplication={dragging} />
+          </div>
+        )}
+      </DragOverlay>
+    </DndContext>
   );
 }
 
@@ -151,49 +139,6 @@ function Column({
         ))}
       </div>
     </section>
-  );
-}
-
-/**
- * The explanation behind a card that snapped back. It names the move that
- * failed rather than reading the board, so retrying reattempts that same
- * change however the board has moved on since.
- */
-function MoveFailure({
-  failed,
-  company,
-  onRetry,
-  onDismiss,
-}: {
-  failed: FailedMove;
-  company: string | undefined;
-  onRetry: () => void;
-  onDismiss: () => void;
-}) {
-  return (
-    <div
-      className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300"
-      role="alert"
-    >
-      <span>
-        Could not move {company ?? "that Job Application"} to{" "}
-        {JOB_STATUS_LABELS[failed.move.status]}. {failed.reason}
-      </span>
-      <button
-        className="font-medium underline underline-offset-2"
-        onClick={onRetry}
-        type="button"
-      >
-        Retry
-      </button>
-      <button
-        className="opacity-60 underline underline-offset-2"
-        onClick={onDismiss}
-        type="button"
-      >
-        Dismiss
-      </button>
-    </div>
   );
 }
 
