@@ -3,8 +3,9 @@ import {
   type CreateJobApplication,
   type JobApplication,
   type JobStatus,
+  type UpdateJobApplication,
 } from "@repo/schema";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "../db/client";
 import { jobApplications, type JobApplicationRow } from "../db/schema";
 
@@ -74,6 +75,55 @@ export async function listJobApplications(
 }
 
 /**
+ * Applies a patch, returning the Job Application as it now stands — or `null`
+ * when this user has no such row, which is the same answer for a Job
+ * Application that does not exist and one belonging to somebody else.
+ *
+ * A patch omitting a field leaves that field as it was; only `status` carries
+ * a side effect, and only ever an additive one.
+ */
+export async function updateJobApplication(
+  userId: string,
+  id: string,
+  patch: UpdateJobApplication,
+): Promise<JobApplication | null> {
+  // The two fields the row does not store the way the contract states them:
+  // a timestamp rather than an ISO string, and a URL that drags its normalized
+  // form along with it.
+  const { appliedAt, jobUrl, ...fields } = patch;
+
+  const updated = await db()
+    .update(jobApplications)
+    .set({
+      ...fields,
+      ...(appliedAt === undefined
+        ? {}
+        : { appliedAt: appliedAt === null ? null : new Date(appliedAt) }),
+      // The stored identity has to move with the URL it is derived from, or
+      // the unique index would go on guarding the Posting this Job Application
+      // used to point at (ADR-0002).
+      ...(jobUrl === undefined
+        ? {}
+        : {
+            jobUrl,
+            normalizedJobUrl: jobUrl === null ? null : normalizeJobUrl(jobUrl),
+          }),
+      ...appliedAtOnStatusChange(patch),
+    })
+    .where(and(eq(jobApplications.userId, userId), eq(jobApplications.id, id)))
+    .returning()
+    .catch((error: unknown) => {
+      if (patch.jobUrl != null && isUniqueViolation(error)) {
+        throw new DuplicatePostingError(patch.jobUrl);
+      }
+      throw error;
+    });
+
+  const [row] = updated;
+  return row === undefined ? null : toJobApplication(row);
+}
+
+/**
  * Returns whether a Job Application was removed — `false` if this user has no
  * such row. It has no endpoint until ticket 05; it exists now because the
  * tests must take their own rows away again, and a query may not live anywhere
@@ -94,12 +144,26 @@ export async function deleteJobApplication(
 /**
  * When a Job Application was applied for. One created as `applied` with no date
  * is stamped now, so the list can never show "Not applied" against a Job
- * Application whose Status says otherwise. Ticket 04 owes the same rule to a
- * Status change, where the date must also survive a later move.
+ * Application whose Status says otherwise.
  */
 function appliedAtOnCreate(input: CreateJobApplication): Date | null {
   if (input.appliedAt !== null) return new Date(input.appliedAt);
   return input.status === "applied" ? new Date() : null;
+}
+
+/**
+ * The applied date's half of a Status change. Moving to `applied` stamps the
+ * date when it is unset — `coalesce` rather than a read, so nothing can slip
+ * between the check and the write. Every other move contributes no column at
+ * all, which is precisely what stops a move backwards, or to `rejected` or
+ * `withdrawn`, from erasing when the user applied. `appliedAtAfterMove` in
+ * `./applied-date` is the client's copy of this rule.
+ *
+ * A patch naming `appliedAt` outright has already said what it wants, and wins.
+ */
+function appliedAtOnStatusChange(patch: UpdateJobApplication) {
+  if (patch.status !== "applied" || patch.appliedAt !== undefined) return {};
+  return { appliedAt: sql`coalesce(${jobApplications.appliedAt}, now())` };
 }
 
 /**

@@ -4,6 +4,9 @@ import { TEST_USER } from "../test-support/users";
 
 const request = () => new Request("https://job-tracker.test/api/anything");
 
+/** What Next.js hands a handler on a route with no dynamic segment. */
+const noParams = { params: Promise.resolve({}) };
+
 describe("authenticatedRoute", () => {
   it("refuses a request the resolver cannot identify", async () => {
     const route = authenticatedRoute(
@@ -11,7 +14,7 @@ describe("authenticatedRoute", () => {
       async () => null,
     );
 
-    const response = await route(request());
+    const response = await route(request(), noParams);
 
     expect(response.status).toBe(401);
     await expect(response.json()).resolves.toEqual({
@@ -25,7 +28,7 @@ describe("authenticatedRoute", () => {
       async () => TEST_USER,
     );
 
-    const response = await route(request());
+    const response = await route(request(), noParams);
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ userId: TEST_USER.id });

@@ -1,4 +1,9 @@
-import { CreateJobApplication, JobStatus } from "@repo/schema";
+import {
+  CreateJobApplication,
+  JobApplication,
+  JobStatus,
+  UpdateJobApplication,
+} from "@repo/schema";
 import type { CurrentUser } from "../auth/current-user";
 import { errorResponse } from "../api/response";
 import { describeIssues } from "../zod-issues";
@@ -6,6 +11,7 @@ import {
   createJobApplication,
   DuplicatePostingError,
   listJobApplications,
+  updateJobApplication,
 } from "./repository";
 
 /**
@@ -69,4 +75,57 @@ export async function createJobApplicationResponse(
     }
     throw error;
   }
+}
+
+/**
+ * `PATCH /api/job-applications/:id`, carrying any subset of a Job
+ * Application's fields. Status arrives here like every other field: a
+ * dedicated status endpoint would need this one's ownership check and its
+ * applied-date rule, and the two would drift.
+ */
+export async function updateJobApplicationResponse(
+  request: Request,
+  user: CurrentUser,
+  { id }: { id: string },
+): Promise<Response> {
+  // An id that could never be a Job Application's is answered the same way as
+  // one that simply isn't the caller's, rather than reaching Postgres and
+  // coming back as a cast error.
+  if (!JobApplication.shape.id.safeParse(id).success) {
+    return notFound();
+  }
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return errorResponse("Expected a JSON body.", 400);
+  }
+
+  const patch = UpdateJobApplication.safeParse(body);
+  if (!patch.success) {
+    return errorResponse(
+      "That change is not valid.",
+      400,
+      describeIssues(patch.error),
+    );
+  }
+
+  try {
+    const updated = await updateJobApplication(user.id, id, patch.data);
+    return updated === null ? notFound() : Response.json(updated);
+  } catch (error) {
+    if (error instanceof DuplicatePostingError) {
+      return errorResponse(error.message, 409);
+    }
+    throw error;
+  }
+}
+
+/**
+ * Somebody else's Job Application is indistinguishable from one that does not
+ * exist, so that the API never confirms a stranger's row is real.
+ */
+function notFound(): Response {
+  return errorResponse("No such Job Application.", 404);
 }

@@ -5,6 +5,7 @@ import { OTHER_TEST_USER, TEST_USER } from "../test-support/users";
 import {
   createJobApplicationResponse,
   listJobApplicationsResponse,
+  updateJobApplicationResponse,
 } from "./api";
 import { deleteJobApplication } from "./repository";
 
@@ -50,6 +51,21 @@ async function save(user: CurrentUser, body: unknown): Promise<JobApplication> {
 
 async function list(user: CurrentUser, query = ""): Promise<Response> {
   return listJobApplicationsResponse(new Request(`${ENDPOINT}${query}`), user);
+}
+
+async function patch(
+  user: CurrentUser,
+  id: string,
+  body: unknown,
+): Promise<Response> {
+  return updateJobApplicationResponse(
+    new Request(`${ENDPOINT}/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+    user,
+    { id },
+  );
 }
 
 describe("POST /api/job-applications", () => {
@@ -254,5 +270,209 @@ describe("GET /api/job-applications", () => {
     await expect(response.json()).resolves.toMatchObject({
       error: expect.stringContaining("ghosted"),
     });
+  });
+});
+
+describe("PATCH /api/job-applications/:id", () => {
+  it("changes a Job Application's Status", async () => {
+    const created = await save(TEST_USER, {
+      company: "Cloudflare",
+      jobTitle: "Systems Engineer",
+    });
+
+    const response = await patch(TEST_USER, created.id, {
+      status: "interviewing",
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      id: created.id,
+      status: "interviewing",
+    });
+  });
+
+  it("keeps a Status change, so it survives a reload", async () => {
+    const created = await save(TEST_USER, {
+      company: "Sentry",
+      jobTitle: "Reliability Engineer",
+    });
+    await patch(TEST_USER, created.id, { status: "offer" });
+
+    const jobApplications: JobApplication[] = await (
+      await list(TEST_USER)
+    ).json();
+
+    expect(jobApplications.find(({ id }) => id === created.id)).toMatchObject({
+      status: "offer",
+    });
+  });
+
+  it("stamps the applied date when a Job Application moves to applied", async () => {
+    const created = await save(TEST_USER, {
+      company: "Fly.io",
+      jobTitle: "Infrastructure Engineer",
+    });
+    expect(created.appliedAt).toBeNull();
+
+    const moved: JobApplication = await (
+      await patch(TEST_USER, created.id, { status: "applied" })
+    ).json();
+
+    expect(moved.appliedAt).not.toBeNull();
+  });
+
+  it("leaves an applied date alone when a Job Application moves to applied again", async () => {
+    const appliedAt = "2026-02-14T10:00:00.000Z";
+    const created = await save(TEST_USER, {
+      company: "Railway",
+      jobTitle: "Platform Engineer",
+      status: "interviewing",
+      appliedAt,
+    });
+
+    const moved: JobApplication = await (
+      await patch(TEST_USER, created.id, { status: "applied" })
+    ).json();
+
+    expect(moved.appliedAt).toBe(appliedAt);
+  });
+
+  it.each(["rejected", "withdrawn", "bookmarked"] as const)(
+    "never clears the applied date on a move to %s",
+    async (status) => {
+      const appliedAt = "2026-03-01T12:00:00.000Z";
+      const created = await save(TEST_USER, {
+        company: `Retool ${status}`,
+        jobTitle: "Product Engineer",
+        status: "applied",
+        appliedAt,
+      });
+
+      const moved: JobApplication = await (
+        await patch(TEST_USER, created.id, { status })
+      ).json();
+
+      expect(moved).toMatchObject({ status, appliedAt });
+    },
+  );
+
+  it("changes only the fields the patch names", async () => {
+    const created = await save(TEST_USER, {
+      company: "Grafana",
+      jobTitle: "Observability Engineer",
+      location: "Stockholm",
+      keywords: ["go", "prometheus"],
+    });
+
+    const updated: JobApplication = await (
+      await patch(TEST_USER, created.id, { notes: "Recruiter call on Friday" })
+    ).json();
+
+    expect(updated).toMatchObject({
+      company: "Grafana",
+      jobTitle: "Observability Engineer",
+      location: "Stockholm",
+      keywords: ["go", "prometheus"],
+      notes: "Recruiter call on Friday",
+    });
+  });
+
+  it("never changes another user's Job Application", async () => {
+    const theirs = await save(OTHER_TEST_USER, {
+      company: "Datadog",
+      jobTitle: "Backend Engineer",
+    });
+
+    const response = await patch(TEST_USER, theirs.id, { status: "offer" });
+
+    expect(response.status).toBe(404);
+
+    const forThem: JobApplication[] = await (
+      await list(OTHER_TEST_USER)
+    ).json();
+    expect(forThem.find(({ id }) => id === theirs.id)).toMatchObject({
+      status: "bookmarked",
+    });
+  });
+
+  it("refuses a Job Application that does not exist", async () => {
+    const response = await patch(
+      TEST_USER,
+      "00000000-0000-4000-8000-00000000dead",
+      { status: "offer" },
+    );
+
+    expect(response.status).toBe(404);
+  });
+
+  it("refuses a Status it does not recognise", async () => {
+    const created = await save(TEST_USER, {
+      company: "Elastic",
+      jobTitle: "Search Engineer",
+    });
+
+    const response = await patch(TEST_USER, created.id, { status: "ghosted" });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      issues: expect.arrayContaining([expect.stringContaining("status")]),
+    });
+  });
+
+  it("refuses a body that is not JSON", async () => {
+    const created = await save(TEST_USER, {
+      company: "Twilio",
+      jobTitle: "API Engineer",
+    });
+
+    const response = await updateJobApplicationResponse(
+      new Request(`${ENDPOINT}/${created.id}`, {
+        method: "PATCH",
+        body: "not json",
+      }),
+      TEST_USER,
+      { id: created.id },
+    );
+
+    expect(response.status).toBe(400);
+  });
+
+  it("refuses a patch that would duplicate a Posting the user has already saved", async () => {
+    const jobUrl = "https://gitlab.com/jobs/staff-engineer";
+    await save(TEST_USER, {
+      company: "GitLab",
+      jobTitle: "Staff Engineer",
+      jobUrl,
+    });
+    const other = await save(TEST_USER, {
+      company: "GitLab",
+      jobTitle: "Senior Engineer",
+      jobUrl: "https://gitlab.com/jobs/senior-engineer",
+    });
+
+    const response = await patch(TEST_USER, other.id, {
+      jobUrl: `${jobUrl}?utm_source=hn`,
+    });
+
+    expect(response.status).toBe(409);
+  });
+
+  it("recognises the Posting a patch moved a Job Application to", async () => {
+    const created = await save(TEST_USER, {
+      company: "Render",
+      jobTitle: "Cloud Engineer",
+    });
+
+    await patch(TEST_USER, created.id, {
+      jobUrl: "https://render.com/careers/cloud-engineer?ref=twitter",
+    });
+
+    const duplicate = await post(TEST_USER, {
+      company: "Render",
+      jobTitle: "Cloud Engineer",
+      jobUrl: "https://render.com/careers/cloud-engineer",
+    });
+
+    expect(duplicate.status).toBe(409);
   });
 });

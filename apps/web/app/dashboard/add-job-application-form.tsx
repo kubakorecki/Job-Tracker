@@ -2,10 +2,14 @@
 
 import { CreateJobApplication, JobStatus } from "@repo/schema";
 import { JOB_STATUS_LABELS } from "@repo/ui/status-badge";
-import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 import { describeIssues } from "../../lib/zod-issues";
-import type { ApiError } from "../../lib/api/response";
+import {
+  ApiRequestError,
+  postJobApplication,
+} from "../../lib/job-applications/client";
+import { JOB_APPLICATIONS_KEY } from "./use-job-applications";
 
 const FIELD =
   "w-full rounded-md border border-neutral-300 bg-transparent px-3 py-2 text-sm dark:border-neutral-700";
@@ -17,7 +21,7 @@ const FIELD =
  * the extension will post to it too.
  */
 export function AddJobApplicationForm() {
-  const router = useRouter();
+  const queryClient = useQueryClient();
   const [problems, setProblems] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -47,23 +51,16 @@ export function AddJobApplicationForm() {
     setSaving(true);
 
     try {
-      const response = await fetch("/api/job-applications", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(input.data),
-      });
-
-      if (!response.ok) {
-        const failure: ApiError = await response.json();
-        setProblems(failure.issues ?? [failure.error]);
-        return;
-      }
-
+      await postJobApplication(input.data);
       form.reset();
-      // The list is rendered on the server; this is what re-reads it.
-      router.refresh();
-    } catch {
-      setProblems(["Could not reach the server. Try again."]);
+      // The board reads one cached list; this is what re-reads it.
+      await queryClient.invalidateQueries({ queryKey: JOB_APPLICATIONS_KEY });
+    } catch (error) {
+      setProblems(
+        error instanceof ApiRequestError
+          ? error.problems
+          : ["Could not reach the server. Try again."],
+      );
     } finally {
       setSaving(false);
     }
