@@ -34,6 +34,10 @@ pnpm dev      # runs web + extension in watch mode
   extension pre-loaded (WXT's dev server). To load it manually instead:
   `chrome://extensions` → enable Developer Mode → "Load unpacked" →
   `apps/extension/.output/chrome-mv3`.
+- The extension's id is pinned by a public key in its manifest, so it is
+  `okeljopaafaojopfkhjioaceeohjplhb` wherever this repository is built rather
+  than something Chrome invents per checkout. That is what the API's CORS
+  allowlist trusts, as `EXTENSION_ORIGIN`.
 
 Other useful commands, run from the repo root:
 
@@ -84,11 +88,19 @@ and there is no local stack (ADR-0003). Copy `apps/web/.env.example` to
 `apps/web/.env.local` before `pnpm dev`; see `docs/setup/supabase.md` for
 where each value lives in the dashboard.
 
+## Deployment
+
+The web app is on Vercel at https://job-tracker-web-pi.vercel.app, against the
+`job-tracker-prod` Supabase project. Pushing to `main` deploys; migrations are
+applied by hand from a developer's machine, because there is no release step.
+`docs/setup/deployment.md` has the environment variables, the migration command
+and the curl commands that verify a deployment — including the one that
+exercises CORS, Bearer authentication and the database in a single request.
+
 ## Not set up yet
 
-- The rest of the Job Application endpoints: read, update and delete
-- Personal Access Tokens and Bearer authentication for the extension
 - The LLM extraction endpoint and its call from the extension
-- The kanban board, the table view and the detail view
+- The side panel itself: saving the current Posting, and recognising one
+  already saved
 
 See the project plan for the phased build-out of these.

@@ -45,7 +45,7 @@ cp apps/web/.env.example apps/web/.env.local
 ```
 
 `apps/web/.env.example` names where each value lives in the dashboard. For
-production the same four variables are set in the deployment's environment
+production the same five variables are set in the deployment's environment
 rather than in a file, pointing at `job-tracker-prod`.
 
 Take both database URLs from the dashboard's **Connect** panel, and take the

@@ -7,11 +7,15 @@ import {
 } from "./cors";
 
 /**
- * The allowlist as ticket 08 will pin it: the extension's own origin, plus the
+ * The allowlist as ticket 08 pinned it: the extension's own origin, plus the
  * origin the dashboard is served from in development. Passed explicitly so
  * these assertions do not depend on what is in the environment.
+ *
+ * The id is the one the `key` in `apps/extension/wxt.config.ts` derives — the
+ * same in every build of this repository — so a reader comparing the two finds
+ * the same string rather than a stand-in.
  */
-const EXTENSION_ORIGIN = "chrome-extension://ekmpfclbdolbkjahfkifhlkmagncckip";
+const EXTENSION_ORIGIN = "chrome-extension://okeljopaafaojopfkhjioaceeohjplhb";
 const ORIGINS = [LOCAL_DEVELOPMENT_ORIGIN, EXTENSION_ORIGIN];
 
 const ENDPOINT = "https://job-tracker.test/api/job-applications";
