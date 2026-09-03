@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { JobExtraction, RemoteType } from "@repo/schema";
+import { ExtractJobRequest, JobExtraction, RemoteType } from "@repo/schema";
 import { z } from "zod";
 import { geminiApiKey } from "../env";
 
@@ -15,29 +15,28 @@ import { geminiApiKey } from "../env";
  * identifier moves, and a string spread across a prompt builder, a config and
  * a log would move unevenly.
  *
- * Deliberately a stable identifier rather than the newest preview. A preview
- * carries tighter rate limits and a two-week deprecation notice, and this is
- * the only model in the product — there is nothing to fall back to when it is
+ * Confirmed against ai.google.dev/gemini-api/docs/models on 2026-09-03, which
+ * lists this as the current stable Pro model. The other Pro identifier there,
+ * `gemini-3.1-pro-preview`, is deliberately not used: a preview carries
+ * tighter rate limits and a two-week deprecation notice, and this is the only
+ * model in the product — there is nothing to fall back to when it is
  * withdrawn.
  */
 export const EXTRACTION_MODEL = "gemini-2.5-pro";
 
-/** A Posting, as much of it as the caller decided to send. */
-export type ExtractionRequest = {
-  url: string;
-  pageText: string;
-};
-
 /**
- * Reads a Posting and answers with what it says. A Draft with nothing in it is
- * a real answer — the page was not a Posting — so this rejects only when the
- * provider could not be asked or could not be understood, and the endpoint
- * turns any rejection into `provider_error`. Distinguishing an outage from a
- * malformed reply would gain the caller nothing: both mean fall back to manual
- * entry.
+ * Reads a Posting and answers with what it says. It takes the endpoint's own
+ * request shape, already truncated — deciding how much of a page a model is
+ * worth showing is the endpoint's business, not a provider's.
+ *
+ * A Draft with nothing in it is a real answer: the page was not a Posting. So
+ * this rejects only when the provider could not be asked or could not be
+ * understood, and the endpoint turns any rejection into `provider_error`.
+ * Distinguishing an outage from a malformed reply would gain the caller
+ * nothing: both mean fall back to manual entry.
  */
 export type ExtractJob = (
-  request: ExtractionRequest,
+  request: ExtractJobRequest,
 ) => Promise<JobExtraction>;
 
 /**
@@ -181,20 +180,20 @@ export function readDraft(json: string): JobExtraction {
   const raw = ProviderDraft.parse(JSON.parse(json));
 
   return {
-    company: stated(raw.company),
-    jobTitle: stated(raw.jobTitle),
-    location: stated(raw.location),
+    company: nonEmpty(raw.company),
+    jobTitle: nonEmpty(raw.jobTitle),
+    location: nonEmpty(raw.location),
     remoteType: raw.remoteType === "" ? undefined : raw.remoteType,
     salaryMin: raw.salaryMin === 0 ? undefined : raw.salaryMin,
     salaryMax: raw.salaryMax === 0 ? undefined : raw.salaryMax,
-    currency: stated(raw.currency),
-    description: stated(raw.description),
+    currency: nonEmpty(raw.currency),
+    description: nonEmpty(raw.description),
     keywords: raw.keywords.length === 0 ? undefined : raw.keywords,
   };
 }
 
 /** One text field, trimmed, and undefined when it was only ever whitespace. */
-function stated(value: string): string | undefined {
+function nonEmpty(value: string): string | undefined {
   const trimmed = value.trim();
   return trimmed === "" ? undefined : trimmed;
 }

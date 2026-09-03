@@ -1,7 +1,7 @@
 import {
+  ExtractJobRequest,
   ExtractJobResponse,
   type JobExtraction,
-  type ExtractJobRequest,
 } from "@repo/schema";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import type { CurrentUser } from "../auth/current-user";
@@ -9,9 +9,9 @@ import { OTHER_TEST_USER, TEST_USER } from "../test-support/users";
 import {
   DAILY_EXTRACTION_LIMIT,
   MAX_PAGE_TEXT_LENGTH,
-  extractJobRoute,
+  extractJobResponse,
 } from "./api";
-import type { ExtractionRequest, ExtractJob } from "./provider";
+import type { ExtractJob } from "./provider";
 import { forgetExtractionUsage, setExtractionCount } from "./repository";
 
 /**
@@ -61,10 +61,10 @@ async function clearCounters(): Promise<void> {
  * asked. An `Error` means the provider could not be reached or understood,
  * which is the only way the real one fails.
  */
-type FakeProvider = { extract: ExtractJob; asked: ExtractionRequest[] };
+type FakeProvider = { extract: ExtractJob; asked: ExtractJobRequest[] };
 
 function answering(reply: JobExtraction | Error): FakeProvider {
-  const asked: ExtractionRequest[] = [];
+  const asked: ExtractJobRequest[] = [];
 
   return {
     asked,
@@ -81,7 +81,7 @@ async function extract(
   body: unknown,
   provider: FakeProvider = answering(DRAFT),
 ): Promise<Response> {
-  return extractJobRoute(provider.extract)(
+  return extractJobResponse(provider.extract)(
     new Request(ENDPOINT, { method: "POST", body: JSON.stringify(body) }),
     user,
   );
@@ -201,7 +201,7 @@ describe("POST /api/extract-job", () => {
   });
 
   it("refuses a body that is not JSON at all", async () => {
-    const response = await extractJobRoute(answering(DRAFT).extract)(
+    const response = await extractJobResponse(answering(DRAFT).extract)(
       new Request(ENDPOINT, { method: "POST", body: "not json" }),
       TEST_USER,
     );

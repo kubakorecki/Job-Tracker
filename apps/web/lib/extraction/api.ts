@@ -1,7 +1,6 @@
 import {
   ExtractJobRequest,
   type ExtractJobResponse,
-  type ExtractionFailureReason,
   type JobExtraction,
 } from "@repo/schema";
 import { jsonBody } from "../api/request";
@@ -45,7 +44,7 @@ export const MAX_PAGE_TEXT_LENGTH = 30_000;
  * The extraction function is substitutable so the endpoint can be exercised
  * with no API key and no network; nothing but a test ever passes one.
  */
-export function extractJobRoute(extract: ExtractJob = extractWithGemini) {
+export function extractJobResponse(extract: ExtractJob = extractWithGemini) {
   return async (request: Request, user: CurrentUser): Promise<Response> => {
     const read = await jsonBody(request);
     if ("refusal" in read) return read.refusal;
@@ -60,10 +59,16 @@ export function extractJobRoute(extract: ExtractJob = extractWithGemini) {
     }
 
     // Spent before the provider is called, not after, so that a request which
-    // costs the grant counts whether or not it comes back with a Draft — and
-    // so a refused request above costs nothing at all.
+    // reached the provider counts whether or not it came back with a Draft —
+    // and so a request refused above costs nothing at all.
+    //
+    // Spending and deciding are one statement rather than a read and then a
+    // write, so two requests arriving together cannot both find room. The
+    // counter therefore keeps climbing past the limit for a client that keeps
+    // asking; nothing reads it but this line, and a refusal is a refusal at
+    // 101 as much as at 5,000.
     if ((await spendExtraction(user.id)) > DAILY_EXTRACTION_LIMIT) {
-      return failure("rate_limited", 429);
+      return json({ ok: false, reason: "rate_limited" }, 429);
     }
 
     let draft: JobExtraction;
@@ -77,13 +82,13 @@ export function extractJobRoute(extract: ExtractJob = extractWithGemini) {
       // an exhausted quota, a malformed reply — is the same answer here. There
       // is deliberately no second attempt on a cheaper model: a visible failure
       // is how the user learns the grant is spent.
-      return failure("provider_error", 200);
+      return json({ ok: false, reason: "provider_error" });
     }
 
     // A Posting always names at least one of the two. Neither means the page
     // was not a Posting, which is a real answer rather than an error.
-    if (!stated(draft.company) && !stated(draft.jobTitle)) {
-      return failure("no_job_found", 200);
+    if (isBlank(draft.company) && isBlank(draft.jobTitle)) {
+      return json({ ok: false, reason: "no_job_found" });
     }
 
     return json({ ok: true, draft });
@@ -91,19 +96,12 @@ export function extractJobRoute(extract: ExtractJob = extractWithGemini) {
 }
 
 /**
- * Whether the Draft actually carries this field. The rule lives here rather
- * than in the provider so that "the page does not say" means the same thing
- * however a provider chose to express it — absent, null, or a blank string.
+ * Whether the Draft says nothing here. The rule lives in the endpoint rather
+ * than in a provider so that "the page does not say" means the same thing
+ * whichever provider answered — an absent field and a blank one alike.
  */
-function stated(value: string | null | undefined): boolean {
-  return value !== undefined && value !== null && value.trim() !== "";
-}
-
-function failure(
-  reason: ExtractionFailureReason,
-  status: number,
-): Response {
-  return json({ ok: false, reason }, status);
+function isBlank(value: string | undefined): boolean {
+  return value === undefined || value.trim() === "";
 }
 
 /** Typed so a variant that is not in the contract cannot be answered with. */
