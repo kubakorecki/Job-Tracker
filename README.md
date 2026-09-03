@@ -27,6 +27,9 @@ pnpm dev      # runs web + extension in watch mode
 ```
 
 - Web app: http://localhost:3000
+- Extension dev server: http://localhost:3001 — pinned in `wxt.config.ts` so it
+  cannot land on the web app's port, where both servers would answer and a
+  browser would reach whichever address it resolved first.
 - Extension: `pnpm --filter extension dev` opens a Chrome instance with the
   extension pre-loaded (WXT's dev server). To load it manually instead:
   `chrome://extensions` → enable Developer Mode → "Load unpacked" →
