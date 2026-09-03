@@ -7,6 +7,7 @@ import {
   UpdateJobApplication,
   type JobApplication,
 } from "@repo/schema";
+import { REMOTE_TYPE_LABELS } from "@repo/ui/remote-type";
 import { JOB_STATUS_LABELS, StatusBadge } from "@repo/ui/status-badge";
 import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
@@ -26,13 +27,6 @@ import {
 import { describeIssues } from "../../../../lib/zod-issues";
 import { FIELD, Field, PRIMARY_BUTTON, Problems, Row } from "../../../form";
 import { JOB_APPLICATIONS_KEY } from "../../use-job-applications";
-
-/** How each remote type is written, the way `JOB_STATUS_LABELS` writes a Status. */
-const REMOTE_TYPE_LABELS: Record<RemoteType, string> = {
-  remote: "Remote",
-  hybrid: "Hybrid",
-  onsite: "On site",
-};
 
 /**
  * One Job Application, whole and editable. Every field the contract carries

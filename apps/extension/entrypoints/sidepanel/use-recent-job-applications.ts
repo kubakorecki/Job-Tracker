@@ -8,8 +8,16 @@ import type { Settings } from "../../lib/settings";
  */
 export type Recent = { kind: "idle" } | { kind: "loading" } | RecentOutcome;
 
-export function useRecentJobApplications(settings: Settings | null): Recent {
+export function useRecentJobApplications(settings: Settings | null): {
+  recent: Recent;
+  refresh: () => void;
+} {
   const [recent, setRecent] = useState<Recent>({ kind: "idle" });
+
+  // Counts the times the list has been asked for again. The panel writes
+  // through the same endpoint it reads, so after a save the list it is holding
+  // is one Job Application out of date, and nothing else would tell it.
+  const [reloads, setReloads] = useState(0);
 
   // The two values the request is made of, rather than the object holding
   // them: settings that are re-saved unchanged are a new object every time,
@@ -33,7 +41,7 @@ export function useRecentJobApplications(settings: Settings | null): Recent {
     return () => {
       cancelled = true;
     };
-  }, [token, apiBaseUrl]);
+  }, [token, apiBaseUrl, reloads]);
 
-  return recent;
+  return { recent, refresh: () => setReloads((times) => times + 1) };
 }

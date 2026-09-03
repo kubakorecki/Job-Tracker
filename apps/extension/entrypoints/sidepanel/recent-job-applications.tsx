@@ -1,4 +1,5 @@
 import { StatusBadge } from "@repo/ui/status-badge";
+import { Problems } from "./problems";
 import type { Recent } from "./use-recent-job-applications";
 
 /**
@@ -32,11 +33,7 @@ function contents(recent: Recent) {
       return <p className="muted">Loading…</p>;
 
     case "failed":
-      return (
-        <p className="problem" role="alert">
-          {recent.problem}
-        </p>
-      );
+      return <Problems problems={recent.problems} />;
 
     case "ready":
       return recent.jobApplications.length === 0 ? (

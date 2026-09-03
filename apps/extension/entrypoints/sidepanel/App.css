@@ -83,7 +83,9 @@ body {
   opacity: 0.7;
 }
 
-.field input {
+.field input,
+.field select,
+.field textarea {
   width: 100%;
   box-sizing: border-box;
   padding: 6px 8px;
@@ -92,6 +94,21 @@ body {
   background: transparent;
   border: 1px solid var(--border);
   border-radius: 6px;
+}
+
+.field textarea {
+  resize: vertical;
+}
+
+/* Boxes that read as one line of a form: a salary range, a pair of choices. */
+.row {
+  display: flex;
+  gap: 8px;
+}
+
+.row > .field {
+  flex: 1;
+  min-width: 0;
 }
 
 .actions {
@@ -107,6 +124,18 @@ body {
   color: var(--problem);
 }
 
+/*
+ * Why a form opened with nothing in it. Not a problem colour: nothing here is
+ * the user's mistake and there is nothing to correct — the form below is the
+ * way on, and colouring it red would say otherwise.
+ */
+.explanation {
+  margin: 0 0 12px;
+  padding-left: 10px;
+  border-left: 2px solid var(--border);
+  opacity: 0.8;
+}
+
 .button {
   padding: 6px 14px;
   font: inherit;
@@ -118,7 +147,8 @@ body {
   cursor: pointer;
 }
 
-.button:disabled {
+.button:disabled,
+.link:disabled {
   opacity: 0.5;
   cursor: default;
 }
@@ -134,7 +164,8 @@ body {
   cursor: pointer;
 }
 
-.link:hover {
+.link:hover:enabled,
+a.link:hover {
   text-decoration: underline;
 }
 

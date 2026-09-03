@@ -5,6 +5,7 @@ import {
   parseApiBaseUrl,
   type Settings,
 } from "../../lib/settings";
+import { Problems } from "./problems";
 
 /**
  * The panel's first run: a token to act with, and an address to act against.
@@ -99,13 +100,7 @@ export function SetupForm({
           />
         </label>
 
-        {problems.length > 0 && (
-          <ul className="problem" role="alert">
-            {problems.map((problem) => (
-              <li key={problem}>{problem}</li>
-            ))}
-          </ul>
-        )}
+        <Problems problems={problems} />
 
         <div className="actions">
           <button className="button" disabled={saving} type="submit">
