@@ -5,7 +5,6 @@ import { SIGN_IN_PATH } from "../../lib/auth/route-access";
 import { listJobApplications } from "../../lib/job-applications/repository";
 import { AddJobApplicationForm } from "./add-job-application-form";
 import { Board } from "./board";
-import { QueryProvider } from "./query-provider";
 import { SignOutButton } from "./sign-out-button";
 
 export default async function DashboardPage() {
@@ -32,17 +31,15 @@ export default async function DashboardPage() {
         <SignOutButton />
       </header>
 
-      {/* Both the form and the board write to the one cached list, so they
-          share a cache rather than each holding their own. */}
-      <QueryProvider>
-        <Card title="Add a Job Application">
-          <AddJobApplicationForm />
-        </Card>
+      {/* Both the form and the board write to the one cached list the layout
+          holds, so neither keeps a copy of its own. */}
+      <Card title="Add a Job Application">
+        <AddJobApplicationForm />
+      </Card>
 
-        <Card title="Your Job Applications">
-          <Board initialJobApplications={jobApplications} />
-        </Card>
-      </QueryProvider>
+      <Card title="Your Job Applications">
+        <Board initialJobApplications={jobApplications} />
+      </Card>
     </main>
   );
 }

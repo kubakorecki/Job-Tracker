@@ -3,6 +3,7 @@
 import { useDraggable } from "@dnd-kit/core";
 import type { JobApplication } from "@repo/schema";
 import { StatusBadge } from "@repo/ui/status-badge";
+import Link from "next/link";
 import { appliedOn } from "../../lib/job-applications/applied-date";
 
 const CARD =
@@ -31,7 +32,15 @@ export function JobApplicationCard({
   );
 }
 
-/** The same card, pickable up. */
+/**
+ * The same card, pickable up — and, since ticket 05, a link through to the
+ * detail view. dnd-kit dresses a draggable as a button; here the element is an
+ * anchor, so it is told to keep the link role rather than announce itself as a
+ * button that cannot be pressed. Clicking still opens the Job Application: the
+ * pointer sensor only swallows the click once a drag has actually begun, four
+ * pixels of travel later, and the keyboard sensor picks a card up with Space,
+ * leaving Enter to follow the link.
+ */
 export function DraggableJobApplicationCard({
   jobApplication,
 }: {
@@ -39,18 +48,20 @@ export function DraggableJobApplicationCard({
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: jobApplication.id,
+    attributes: { role: "link" },
   });
 
   return (
-    <div
+    <Link
       // While dragging, the original stays in place as a gap: what follows the
       // cursor is the copy in the overlay.
       className={`cursor-grab touch-none focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${isDragging ? "opacity-30" : ""}`}
+      href={`/dashboard/job-applications/${jobApplication.id}`}
       ref={setNodeRef}
       {...listeners}
       {...attributes}
     >
       <JobApplicationCard jobApplication={jobApplication} />
-    </div>
+    </Link>
   );
 }

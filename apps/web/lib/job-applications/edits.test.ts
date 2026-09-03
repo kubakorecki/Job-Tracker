@@ -1,0 +1,158 @@
+import type { JobApplication } from "@repo/schema";
+import { describe, expect, it } from "vitest";
+import { changesFrom, editsFrom } from "./edits";
+
+/**
+ * The detail view's arithmetic, with no form and no database in sight: what a
+ * Job Application looks like as text a form can hold, and what a patch made of
+ * that text says once the user has finished with it.
+ */
+
+const SAVED: JobApplication = {
+  id: "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+  userId: "00000000-0000-4000-8000-000000000001",
+  company: "Basecamp",
+  jobTitle: "Programmer",
+  jobUrl: "https://basecamp.com/jobs/programmer",
+  location: "Chicago",
+  remoteType: "hybrid",
+  salaryMin: 120000,
+  salaryMax: 160000,
+  currency: "USD",
+  description: "Works on Basecamp and HEY.",
+  keywords: ["ruby", "rails"],
+  status: "applied",
+  source: "referral",
+  appliedAt: "2026-02-14T10:30:00.000Z",
+  excitement: 4,
+  notes: "Second interview on the 9th.",
+  createdAt: "2026-01-01T00:00:00.000Z",
+  updatedAt: "2026-01-01T00:00:00.000Z",
+};
+
+describe("editsFrom", () => {
+  it("renders every field of a Job Application as text a form can hold", () => {
+    expect(editsFrom(SAVED)).toEqual({
+      company: "Basecamp",
+      jobTitle: "Programmer",
+      jobUrl: "https://basecamp.com/jobs/programmer",
+      location: "Chicago",
+      remoteType: "hybrid",
+      salaryMin: "120000",
+      salaryMax: "160000",
+      currency: "USD",
+      description: "Works on Basecamp and HEY.",
+      keywords: "ruby, rails",
+      status: "applied",
+      source: "referral",
+      appliedAt: "2026-02-14",
+      excitement: "4",
+      notes: "Second interview on the 9th.",
+    });
+  });
+
+  it("renders every unset field as an empty box rather than the word null", () => {
+    const bare: JobApplication = {
+      ...SAVED,
+      jobUrl: null,
+      location: null,
+      remoteType: null,
+      salaryMin: null,
+      salaryMax: null,
+      currency: null,
+      description: null,
+      keywords: [],
+      source: null,
+      appliedAt: null,
+      excitement: null,
+      notes: null,
+    };
+
+    expect(editsFrom(bare)).toMatchObject({
+      jobUrl: "",
+      location: "",
+      remoteType: "",
+      salaryMin: "",
+      salaryMax: "",
+      currency: "",
+      description: "",
+      keywords: "",
+      source: "",
+      appliedAt: "",
+      excitement: "",
+      notes: "",
+    });
+  });
+});
+
+describe("changesFrom", () => {
+  it("names nothing when the user changed nothing", () => {
+    expect(changesFrom(editsFrom(SAVED), SAVED)).toEqual({});
+  });
+
+  it("names only the fields the user actually touched", () => {
+    const edits = { ...editsFrom(SAVED), notes: "Offer expected Friday." };
+
+    expect(changesFrom(edits, SAVED)).toEqual({
+      notes: "Offer expected Friday.",
+    });
+  });
+
+  it("clears a field the user emptied", () => {
+    const edits = { ...editsFrom(SAVED), location: "", excitement: "" };
+
+    expect(changesFrom(edits, SAVED)).toEqual({
+      location: null,
+      excitement: null,
+    });
+  });
+
+  it("reads salary and excitement as numbers", () => {
+    const edits = { ...editsFrom(SAVED), salaryMin: "130000", excitement: "5" };
+
+    expect(changesFrom(edits, SAVED)).toEqual({
+      salaryMin: 130000,
+      excitement: 5,
+    });
+  });
+
+  it("reads a date the user picked as an applied date", () => {
+    const edits = { ...editsFrom(SAVED), appliedAt: "2025-11-20" };
+
+    expect(changesFrom(edits, SAVED)).toEqual({
+      appliedAt: "2025-11-20T00:00:00.000Z",
+    });
+  });
+
+  it("leaves an applied date alone when the user did not touch the day it names", () => {
+    // The box holds a day; the stored date holds a time too. Saving an
+    // untouched form must not quietly move the date back to midnight.
+    expect(changesFrom(editsFrom(SAVED), SAVED).appliedAt).toBeUndefined();
+  });
+
+  it("splits keywords on commas, keeping neither blanks nor stray spaces", () => {
+    const edits = { ...editsFrom(SAVED), keywords: " ruby ,, rails, hotwire " };
+
+    expect(changesFrom(edits, SAVED)).toEqual({
+      keywords: ["ruby", "rails", "hotwire"],
+    });
+  });
+
+  it("empties the keywords when the box is emptied", () => {
+    expect(changesFrom({ ...editsFrom(SAVED), keywords: "" }, SAVED)).toEqual({
+      keywords: [],
+    });
+  });
+
+  it("trims what the user typed", () => {
+    const edits = { ...editsFrom(SAVED), company: "  37signals  " };
+
+    expect(changesFrom(edits, SAVED)).toEqual({ company: "37signals" });
+  });
+
+  it("keeps a change the shared contract will refuse, so the contract can say why", () => {
+    expect(changesFrom({ ...editsFrom(SAVED), company: "" }, SAVED)).toEqual({
+      company: "",
+    });
+  });
+});

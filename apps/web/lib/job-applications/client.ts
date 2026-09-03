@@ -47,9 +47,14 @@ export async function patchJobApplication(
   return send(`${ENDPOINT}/${id}`, { method: "PATCH", body: patch });
 }
 
-async function send<Result>(
+/** Removing a Job Application. The confirmation step is the caller's. */
+export async function deleteJobApplication(id: string): Promise<void> {
+  await send(`${ENDPOINT}/${id}`, { method: "DELETE" });
+}
+
+async function send<Result = void>(
   url: string,
-  request: { method: string; body: unknown } | undefined = undefined,
+  request: { method: string; body?: unknown } | undefined = undefined,
 ): Promise<Result> {
   const response = await fetch(
     url,
@@ -57,13 +62,30 @@ async function send<Result>(
       ? undefined
       : {
           method: request.method,
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify(request.body),
+          ...(request.body === undefined
+            ? {}
+            : {
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify(request.body),
+              }),
         },
   );
 
   if (!response.ok) throw new ApiRequestError(await problems(response));
-  return response.json();
+
+  // A delete answers 204 and says nothing more; everything else answers with
+  // the Job Application it wrote.
+  return response.status === 204 ? (undefined as Result) : response.json();
+}
+
+/**
+ * What a caught failure amounts to, in the endpoint's own words where it gave
+ * any. A request that never arrived has none, and says so.
+ */
+export function describeFailure(error: unknown): string[] {
+  return error instanceof ApiRequestError
+    ? error.problems
+    : ["Could not reach the server. Try again."];
 }
 
 /**

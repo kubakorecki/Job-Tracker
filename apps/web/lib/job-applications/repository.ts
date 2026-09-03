@@ -75,6 +75,25 @@ export async function listJobApplications(
 }
 
 /**
+ * One Job Application, or `null` when this user has no such row — which is the
+ * same answer for one that does not exist and one belonging to somebody else,
+ * so that a caller cannot tell a stranger's row apart from a missing one.
+ */
+export async function getJobApplication(
+  userId: string,
+  id: string,
+): Promise<JobApplication | null> {
+  const rows = await db()
+    .select()
+    .from(jobApplications)
+    .where(and(eq(jobApplications.userId, userId), eq(jobApplications.id, id)))
+    .limit(1);
+
+  const [row] = rows;
+  return row === undefined ? null : toJobApplication(row);
+}
+
+/**
  * Applies a patch, returning the Job Application as it now stands — or `null`
  * when this user has no such row, which is the same answer for a Job
  * Application that does not exist and one belonging to somebody else.
@@ -125,9 +144,8 @@ export async function updateJobApplication(
 
 /**
  * Returns whether a Job Application was removed — `false` if this user has no
- * such row. It has no endpoint until ticket 05; it exists now because the
- * tests must take their own rows away again, and a query may not live anywhere
- * but here (ADR-0001).
+ * such row, so a caller can answer a stranger's id the same way it answers one
+ * that never existed.
  */
 export async function deleteJobApplication(
   userId: string,

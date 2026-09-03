@@ -93,6 +93,25 @@ describe("UpdateJobApplication", () => {
       status: "applied",
     });
   });
+
+  it.each([1, 2, 3, 4, 5])("accepts excitement of %i", (excitement) => {
+    expect(UpdateJobApplication.safeParse({ excitement }).success).toBe(true);
+  });
+
+  it.each([0, 6, 2.5])(
+    "rejects excitement of %s, which is off the one-to-five scale",
+    (excitement) => {
+      expect(UpdateJobApplication.safeParse({ excitement }).success).toBe(
+        false,
+      );
+    },
+  );
+
+  it("accepts excitement being cleared", () => {
+    expect(UpdateJobApplication.safeParse({ excitement: null }).success).toBe(
+      true,
+    );
+  });
 });
 
 describe("JobApplication", () => {

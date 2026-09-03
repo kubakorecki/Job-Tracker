@@ -9,7 +9,9 @@ import { errorResponse } from "../api/response";
 import { describeIssues } from "../zod-issues";
 import {
   createJobApplication,
+  deleteJobApplication,
   DuplicatePostingError,
+  getJobApplication,
   listJobApplications,
   updateJobApplication,
 } from "./repository";
@@ -88,12 +90,7 @@ export async function updateJobApplicationResponse(
   user: CurrentUser,
   { id }: { id: string },
 ): Promise<Response> {
-  // An id that could never be a Job Application's is answered the same way as
-  // one that simply isn't the caller's, rather than reaching Postgres and
-  // coming back as a cast error.
-  if (!JobApplication.shape.id.safeParse(id).success) {
-    return notFound();
-  }
+  if (!isJobApplicationId(id)) return notFound();
 
   let body: unknown;
   try {
@@ -123,8 +120,53 @@ export async function updateJobApplicationResponse(
 }
 
 /**
+ * `GET /api/job-applications/:id`, the whole of one Job Application — every
+ * field the detail view puts in front of the user, and every field it may
+ * send back.
+ */
+export async function readJobApplicationResponse(
+  _request: Request,
+  user: CurrentUser,
+  { id }: { id: string },
+): Promise<Response> {
+  if (!isJobApplicationId(id)) return notFound();
+
+  const jobApplication = await getJobApplication(user.id, id);
+  return jobApplication === null ? notFound() : Response.json(jobApplication);
+}
+
+/**
+ * `DELETE /api/job-applications/:id`. The confirmation step lives in the
+ * client — an endpoint asked to delete something has already been told twice.
+ * A second delete of the same Job Application is a 404, because by then there
+ * is nothing there to be the caller's.
+ */
+export async function deleteJobApplicationResponse(
+  _request: Request,
+  user: CurrentUser,
+  { id }: { id: string },
+): Promise<Response> {
+  if (!isJobApplicationId(id)) return notFound();
+
+  const deleted = await deleteJobApplication(user.id, id);
+  return deleted ? new Response(null, { status: 204 }) : notFound();
+}
+
+/**
+ * Whether the address could name a Job Application at all. An id that could
+ * never be one is answered the same way as one that simply isn't the caller's,
+ * rather than reaching Postgres and coming back as a cast error. The detail
+ * page asks the same question before it reads, so a mistyped URL is a 404
+ * there too.
+ */
+export function isJobApplicationId(id: string): boolean {
+  return JobApplication.shape.id.safeParse(id).success;
+}
+
+/**
  * Somebody else's Job Application is indistinguishable from one that does not
- * exist, so that the API never confirms a stranger's row is real.
+ * exist, so that the API never confirms a stranger's row is real. It is the
+ * one answer the read, the patch and the delete all give.
  */
 function notFound(): Response {
   return errorResponse("No such Job Application.", 404);

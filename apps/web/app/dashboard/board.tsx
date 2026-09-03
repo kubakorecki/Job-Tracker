@@ -48,10 +48,18 @@ export function Board({
   const dragging = draggingId === null ? undefined : find(draggingId);
 
   const sensors = useSensors(
-    // A few pixels of travel before a drag begins, so that ticket 05's click
-    // through to the detail view is not swallowed by the drag handle.
+    // A few pixels of travel before a drag begins, so that a click through to
+    // the detail view is not swallowed by the card's drag listeners.
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-    useSensor(KeyboardSensor),
+    // Space picks a card up; Enter is left to the link on the card, which is
+    // how the detail view is reached from the keyboard.
+    useSensor(KeyboardSensor, {
+      keyboardCodes: {
+        start: ["Space"],
+        cancel: ["Escape"],
+        end: ["Space", "Tab"],
+      },
+    }),
   );
 
   function onDragEnd({ active, over }: DragEndEvent) {

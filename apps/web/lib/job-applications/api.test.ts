@@ -4,7 +4,9 @@ import type { CurrentUser } from "../auth/current-user";
 import { OTHER_TEST_USER, TEST_USER } from "../test-support/users";
 import {
   createJobApplicationResponse,
+  deleteJobApplicationResponse,
   listJobApplicationsResponse,
+  readJobApplicationResponse,
   updateJobApplicationResponse,
 } from "./api";
 import { deleteJobApplication } from "./repository";
@@ -67,6 +69,23 @@ async function patch(
     { id },
   );
 }
+
+async function read(user: CurrentUser, id: string): Promise<Response> {
+  return readJobApplicationResponse(new Request(`${ENDPOINT}/${id}`), user, {
+    id,
+  });
+}
+
+async function remove(user: CurrentUser, id: string): Promise<Response> {
+  return deleteJobApplicationResponse(
+    new Request(`${ENDPOINT}/${id}`, { method: "DELETE" }),
+    user,
+    { id },
+  );
+}
+
+/** An id shaped like a Job Application's, belonging to none. */
+const NO_SUCH_ID = "00000000-0000-4000-8000-00000000dead";
 
 describe("POST /api/job-applications", () => {
   it("records a Job Application given only a company and a job title", async () => {
@@ -396,11 +415,7 @@ describe("PATCH /api/job-applications/:id", () => {
   });
 
   it("refuses a Job Application that does not exist", async () => {
-    const response = await patch(
-      TEST_USER,
-      "00000000-0000-4000-8000-00000000dead",
-      { status: "offer" },
-    );
+    const response = await patch(TEST_USER, NO_SUCH_ID, { status: "offer" });
 
     expect(response.status).toBe(404);
   });
@@ -474,5 +489,230 @@ describe("PATCH /api/job-applications/:id", () => {
     });
 
     expect(duplicate.status).toBe(409);
+  });
+
+  it("edits every field the user owns, and keeps the edits so they survive a reload", async () => {
+    const created = await save(TEST_USER, {
+      company: "Basecamp",
+      jobTitle: "Programmer",
+    });
+
+    const edited = {
+      company: "37signals",
+      jobTitle: "Senior Programmer",
+      jobUrl: "https://37signals.com/jobs/senior-programmer",
+      location: "Chicago",
+      remoteType: "hybrid",
+      salaryMin: 120000,
+      salaryMax: 160000,
+      currency: "USD",
+      description: "Works on Basecamp and HEY.",
+      keywords: ["ruby", "rails"],
+      status: "interviewing",
+      source: "referral",
+      appliedAt: "2026-04-02T00:00:00.000Z",
+      excitement: 4,
+      notes: "Second interview on the 9th.",
+    } as const;
+
+    const response = await patch(TEST_USER, created.id, edited);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject(edited);
+
+    const reloaded: JobApplication = await (
+      await read(TEST_USER, created.id)
+    ).json();
+    expect(reloaded).toMatchObject(edited);
+  });
+
+  it("clears the fields a patch names as empty", async () => {
+    const created = await save(TEST_USER, {
+      company: "Zapier",
+      jobTitle: "Backend Engineer",
+      location: "Remote",
+      notes: "Applied through a friend.",
+      excitement: 5,
+    });
+
+    const cleared: JobApplication = await (
+      await patch(TEST_USER, created.id, {
+        location: null,
+        notes: null,
+        excitement: null,
+        keywords: [],
+      })
+    ).json();
+
+    expect(cleared).toMatchObject({
+      location: null,
+      notes: null,
+      excitement: null,
+      keywords: [],
+    });
+  });
+
+  it.each([1, 2, 3, 4, 5])("records excitement of %i", async (excitement) => {
+    const created = await save(TEST_USER, {
+      company: `Airtable ${excitement}`,
+      jobTitle: "Product Engineer",
+    });
+
+    const updated: JobApplication = await (
+      await patch(TEST_USER, created.id, { excitement })
+    ).json();
+
+    expect(updated.excitement).toBe(excitement);
+  });
+
+  it.each([0, 6, 2.5])(
+    "refuses excitement of %s, which is off the one-to-five scale",
+    async (excitement) => {
+      const created = await save(TEST_USER, {
+        company: `Vanta ${excitement}`,
+        jobTitle: "Security Engineer",
+      });
+
+      const response = await patch(TEST_USER, created.id, { excitement });
+
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toMatchObject({
+        issues: expect.arrayContaining([expect.stringContaining("excitement")]),
+      });
+    },
+  );
+
+  it("backfills an applied date for a Job Application applied for before the tool existed", async () => {
+    const created = await save(TEST_USER, {
+      company: "Buffer",
+      jobTitle: "Full Stack Engineer",
+      status: "applied",
+    });
+    expect(created.appliedAt).not.toBeNull();
+
+    const backfilled: JobApplication = await (
+      await patch(TEST_USER, created.id, {
+        appliedAt: "2025-11-20T00:00:00.000Z",
+      })
+    ).json();
+
+    expect(backfilled.appliedAt).toBe("2025-11-20T00:00:00.000Z");
+  });
+
+  it("takes the applied date a patch names over the stamp a move to applied would leave", async () => {
+    const created = await save(TEST_USER, {
+      company: "Doist",
+      jobTitle: "Backend Engineer",
+    });
+
+    const moved: JobApplication = await (
+      await patch(TEST_USER, created.id, {
+        status: "applied",
+        appliedAt: "2025-09-15T00:00:00.000Z",
+      })
+    ).json();
+
+    expect(moved).toMatchObject({
+      status: "applied",
+      appliedAt: "2025-09-15T00:00:00.000Z",
+    });
+  });
+});
+
+describe("GET /api/job-applications/:id", () => {
+  it("returns every field of a Job Application", async () => {
+    const created = await save(TEST_USER, {
+      company: "Postman",
+      jobTitle: "API Engineer",
+      jobUrl: "https://postman.com/careers/api-engineer",
+      location: "Bangalore",
+      remoteType: "onsite",
+      salaryMin: 40000,
+      salaryMax: 60000,
+      currency: "INR",
+      description: "Owns the collection runner.",
+      keywords: ["node", "api"],
+      status: "applied",
+      source: "LinkedIn",
+      excitement: 3,
+      notes: "Take-home due Monday.",
+    });
+
+    const response = await read(TEST_USER, created.id);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual(created);
+  });
+
+  it("never returns another user's Job Application", async () => {
+    const theirs = await save(OTHER_TEST_USER, {
+      company: "Intercom",
+      jobTitle: "Product Engineer",
+    });
+
+    const response = await read(TEST_USER, theirs.id);
+
+    expect(response.status).toBe(404);
+  });
+
+  it("refuses a Job Application that does not exist", async () => {
+    const response = await read(TEST_USER, NO_SUCH_ID);
+
+    expect(response.status).toBe(404);
+  });
+
+  it("refuses an id that could never be a Job Application's", async () => {
+    const response = await read(TEST_USER, "not-a-uuid");
+
+    expect(response.status).toBe(404);
+  });
+});
+
+describe("DELETE /api/job-applications/:id", () => {
+  it("removes a Job Application, and it stays gone", async () => {
+    const created = await save(TEST_USER, {
+      company: "Loom",
+      jobTitle: "Video Engineer",
+    });
+
+    const response = await remove(TEST_USER, created.id);
+
+    expect(response.status).toBe(204);
+    expect((await read(TEST_USER, created.id)).status).toBe(404);
+
+    const jobApplications: JobApplication[] = await (
+      await list(TEST_USER)
+    ).json();
+    expect(jobApplications.map(({ id }) => id)).not.toContain(created.id);
+  });
+
+  it("refuses to delete the same Job Application twice", async () => {
+    const created = await save(TEST_USER, {
+      company: "Miro",
+      jobTitle: "Canvas Engineer",
+    });
+    await remove(TEST_USER, created.id);
+
+    const again = await remove(TEST_USER, created.id);
+
+    expect(again.status).toBe(404);
+  });
+
+  it("never deletes another user's Job Application", async () => {
+    const theirs = await save(OTHER_TEST_USER, {
+      company: "Amplitude",
+      jobTitle: "Data Engineer",
+    });
+
+    const response = await remove(TEST_USER, theirs.id);
+
+    expect(response.status).toBe(404);
+    expect((await read(OTHER_TEST_USER, theirs.id)).status).toBe(200);
+  });
+
+  it("refuses a Job Application that does not exist", async () => {
+    const response = await remove(TEST_USER, NO_SUCH_ID);
+
+    expect(response.status).toBe(404);
   });
 });

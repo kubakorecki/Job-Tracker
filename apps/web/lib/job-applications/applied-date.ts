@@ -25,15 +25,37 @@ export function appliedAtAfterMove(
 /**
  * A fixed locale and time zone rather than the reader's: a Job Application can
  * be rendered on the server and again on the client, and a date that changes
- * with the machine would be a different date in each.
+ * with the machine would be a different date in each. Every date the dashboard
+ * shows goes through it, so they all agree.
  */
 const APPLIED_ON = new Intl.DateTimeFormat("en-GB", {
   dateStyle: "medium",
   timeZone: "UTC",
 });
 
+/** Any of the contract's instants, as a day the user can read. */
+export function dayOf(iso: string): string {
+  return APPLIED_ON.format(new Date(iso));
+}
+
 export function appliedOn(appliedAt: string | null): string {
-  return appliedAt === null
-    ? "Not applied"
-    : APPLIED_ON.format(new Date(appliedAt));
+  return appliedAt === null ? "Not applied" : dayOf(appliedAt);
+}
+
+/**
+ * The applied date as an `<input type="date">` holds it, or an empty box when
+ * there is none. Sliced in UTC rather than read in the browser's zone, so the
+ * day in the box is the day `appliedOn` prints.
+ */
+export function appliedDateInput(appliedAt: string | null): string {
+  return appliedAt === null ? "" : appliedAt.slice(0, 10);
+}
+
+/**
+ * The reverse: a day the user picked, as the instant the contract stores.
+ * Midnight UTC, because a date box says nothing about a time and the tracker
+ * has no use for one.
+ */
+export function appliedAtFromDateInput(day: string): string | null {
+  return day === "" ? null : `${day}T00:00:00.000Z`;
 }

@@ -17,6 +17,13 @@ export const RemoteType = z.enum(["remote", "hybrid", "onsite"]);
 export type RemoteType = z.infer<typeof RemoteType>;
 
 /**
+ * The steps a user records how much they want a role on. The `excitement`
+ * field below is the rule; this is the list, exported so that the control
+ * offering the steps reads them from the contract rather than restating them.
+ */
+export const EXCITEMENT_SCALE = [1, 2, 3, 4, 5] as const;
+
+/**
  * The fields of a Job Application a client owns, in their stored form — no
  * defaults, so that a persisted row missing one is an error rather than a
  * silent fill-in. Every other Job Application schema is derived from these, so
@@ -37,7 +44,8 @@ const jobApplicationFields = {
   status: JobStatus,
   source: z.string().nullable(),
   appliedAt: z.iso.datetime().nullable(),
-  excitement: z.number().min(1).max(5).nullable(),
+  /** Whole steps of `EXCITEMENT_SCALE`; the column that stores it is an integer. */
+  excitement: z.number().int().min(1).max(5).nullable(),
   notes: z.string().nullable(),
 };
 

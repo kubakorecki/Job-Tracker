@@ -6,13 +6,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 import { describeIssues } from "../../lib/zod-issues";
 import {
-  ApiRequestError,
+  describeFailure,
   postJobApplication,
 } from "../../lib/job-applications/client";
+import { FIELD, Field, PRIMARY_BUTTON, Problems, Row } from "./form";
 import { JOB_APPLICATIONS_KEY } from "./use-job-applications";
-
-const FIELD =
-  "w-full rounded-md border border-neutral-300 bg-transparent px-3 py-2 text-sm dark:border-neutral-700";
 
 /**
  * Records a Job Application by hand. It validates against the shared contract
@@ -56,11 +54,7 @@ export function AddJobApplicationForm() {
       // The board reads one cached list; this is what re-reads it.
       await queryClient.invalidateQueries({ queryKey: JOB_APPLICATIONS_KEY });
     } catch (error) {
-      setProblems(
-        error instanceof ApiRequestError
-          ? error.problems
-          : ["Could not reach the server. Try again."],
-      );
+      setProblems(describeFailure(error));
     } finally {
       setSaving(false);
     }
@@ -68,24 +62,20 @@ export function AddJobApplicationForm() {
 
   return (
     <form className="flex flex-col gap-3" onSubmit={onSubmit}>
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <label className="flex-1 text-sm">
-          <span className="mb-1 block opacity-60">Company</span>
+      <Row>
+        <Field label="Company">
           <input className={FIELD} name="company" />
-        </label>
-        <label className="flex-1 text-sm">
-          <span className="mb-1 block opacity-60">Job title</span>
+        </Field>
+        <Field label="Job title">
           <input className={FIELD} name="jobTitle" />
-        </label>
-      </div>
+        </Field>
+      </Row>
 
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <label className="flex-1 text-sm">
-          <span className="mb-1 block opacity-60">Posting URL (optional)</span>
+      <Row>
+        <Field label="Posting URL (optional)">
           <input className={FIELD} name="jobUrl" />
-        </label>
-        <label className="text-sm sm:w-48">
-          <span className="mb-1 block opacity-60">Status</span>
+        </Field>
+        <Field label="Status">
           <select className={FIELD} defaultValue="bookmarked" name="status">
             {JobStatus.options.map((status) => (
               <option key={status} value={status}>
@@ -93,19 +83,13 @@ export function AddJobApplicationForm() {
               </option>
             ))}
           </select>
-        </label>
-      </div>
+        </Field>
+      </Row>
 
-      {problems.length > 0 && (
-        <ul className="text-sm text-red-600 dark:text-red-400">
-          {problems.map((problem) => (
-            <li key={problem}>{problem}</li>
-          ))}
-        </ul>
-      )}
+      <Problems problems={problems} />
 
       <button
-        className="self-start rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900"
+        className={`self-start ${PRIMARY_BUTTON}`}
         disabled={saving}
         type="submit"
       >
