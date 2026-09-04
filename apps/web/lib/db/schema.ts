@@ -187,6 +187,61 @@ export const requirements = pgTable(
 export type RequirementRow = typeof requirements.$inferSelect;
 
 /**
+ * A Profile: the user's master CV, as the file they uploaded and the text read
+ * out of it. Keyed by the user rather than by an id of its own, which is what
+ * makes "there is exactly one" a fact the database keeps instead of a rule the
+ * application has to remember — a second Profile for a user cannot be written.
+ *
+ * The file itself is not here. It lives in a private Supabase Storage bucket
+ * and this row holds where — a deliberate crossing of the v1 spec's "no file
+ * storage" non-goal, because a Profile whose file is the truth about the
+ * document cannot be built without keeping the document.
+ */
+export const profiles = pgTable("profiles", {
+  /** No foreign key into `auth.users`, for the same reason as above. */
+  userId: uuid("user_id").primaryKey(),
+  /**
+   * Where the file sits in the bucket. A fresh path every upload: a stored
+   * file is never rewritten, so replacing a CV writes a new object and takes
+   * the old one away rather than overwriting one in place.
+   */
+  storagePath: text("storage_path").notNull(),
+  /** The name it was uploaded under, so a download can offer it back. */
+  fileName: text("file_name").notNull(),
+  /**
+   * The IANA media type the file was accepted as. Text rather than an enum,
+   * unlike the closed sets above: these are somebody else's vocabulary, the
+   * endpoint decides which of them it accepts before anything is written, and
+   * an enum would make widening that decision a migration.
+   */
+  mediaType: text("media_type").notNull(),
+  /** The document's text, beside the file, for an Analysis to read. */
+  extractedText: text("extracted_text").notNull(),
+  /**
+   * The skill list the user accepted. Nothing in this cut writes it — the
+   * Draft that proposes it is its own ticket — so the column exists empty, the
+   * way the Coverage readings above do, and the code that fills it needs no
+   * migration of its own.
+   */
+  skills: text("skills").array().notNull().default([]),
+  /**
+   * When the file that is there now was uploaded, and when anything about the
+   * Profile last moved. Two stamps rather than one, because an Analysis can go
+   * stale on either — a new document and an edited skill list both change what
+   * it was measured against.
+   */
+  uploadedAt: timestamp("uploaded_at", { withTimezone: true, mode: "date" })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+});
+
+export type ProfileRow = typeof profiles.$inferSelect;
+
+/**
  * A Personal Access Token: the long-lived credential the user pastes into the
  * extension, standing in for the session cookie an extension origin cannot
  * have. Only the SHA-256 hash of the raw value is stored, so a reader of this

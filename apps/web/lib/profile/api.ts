@@ -1,0 +1,225 @@
+import { errorResponse } from "../api/response";
+import type { CurrentUser } from "../auth/current-user";
+import type { ProfileRow } from "../db/schema";
+import { MODEL_CALL_LIMIT_STATUS, spendModelCall } from "../model-calls/budget";
+import {
+  ACCEPTED_CV_FORMATS,
+  CvMediaType,
+  type Profile,
+  type ProfileOrNone,
+} from "./contract";
+import { readCvWithGemini, type ReadCv } from "./reader";
+import { getProfile, replaceProfileCv } from "./repository";
+import { supabaseCvStore, type CvStore } from "./storage";
+
+/**
+ * The Profile endpoints, as plain request-to-response functions like the rest
+ * of the API — except that they are built by factories, because the two things
+ * a test substitutes here are not the user but the reader and the store.
+ *
+ * Between them they hold the whole of what an upload does: what a CV may be,
+ * what a model call costs, what happens when a file cannot be read, and the
+ * order the file and the row are written in.
+ */
+
+/**
+ * The form field an upload arrives in. Named here rather than in a client, so
+ * that both ends read it from the same place.
+ */
+export const CV_FIELD = "file";
+
+/**
+ * The largest CV this will take. A CV is a few pages; anything past this is a
+ * mistake or an attack, and refusing it costs the user a message rather than a
+ * model call. It also sits under the 4.5MB a serverless request body may be on
+ * the deployment, so the refusal is ours and legible rather than the
+ * platform's.
+ */
+export const MAX_CV_BYTES = 4 * 1024 * 1024;
+
+/** The file extensions each accepted format is recognised by, failing that. */
+const EXTENSION_TYPES: Record<string, CvMediaType> = {
+  pdf: "application/pdf",
+  md: "text/markdown",
+  markdown: "text/markdown",
+  txt: "text/plain",
+};
+
+/**
+ * `POST /api/profile`. Takes one CV as `multipart/form-data`, stores it as it
+ * arrived, reads its text, and makes it the user's Profile — replacing
+ * whatever was there.
+ *
+ * Nothing is written until the file has been read. An unreadable file
+ * therefore leaves the bucket and the existing Profile exactly as they were,
+ * which is what makes "export a cleaner copy and try again" advice a user can
+ * act on rather than a report of damage already done.
+ *
+ * The reader and the store are substitutable so the endpoint can be exercised
+ * with no API key, no bucket and no network; nothing but a test passes either.
+ */
+export function uploadProfileResponse(
+  read: ReadCv = readCvWithGemini,
+  store: CvStore = supabaseCvStore,
+) {
+  return async (request: Request, user: CurrentUser): Promise<Response> => {
+    const form = await formData(request);
+    if (form === null) return errorResponse("Expected a file upload.", 400);
+
+    const file = form.get(CV_FIELD);
+    if (!(file instanceof File)) {
+      return errorResponse(`Expected a CV in the "${CV_FIELD}" field.`, 400);
+    }
+
+    const mediaType = cvMediaTypeOf(file);
+    if (mediaType === null) {
+      return errorResponse(`A CV has to be ${ACCEPTED_CV_FORMATS}.`, 415, [
+        `${file.name || "That file"} is not one of them.`,
+      ]);
+    }
+
+    if (file.size > MAX_CV_BYTES) {
+      return errorResponse(
+        `A CV has to be under ${MAX_CV_BYTES / (1024 * 1024)}MB.`,
+        413,
+      );
+    }
+
+    // Spent from the one daily budget every model call comes out of, and spent
+    // before the reading rather than after, so a reading that reached a
+    // provider counts whether or not it came back with anything. It is one
+    // call per upload: what a PDF costs the model is what the allowance is
+    // for, and a text file is not cheap enough to be worth a second rule.
+    if ((await spendModelCall(user.id)) === "over-limit") {
+      return errorResponse(
+        "You have used today's allowance of model calls. Try again tomorrow.",
+        MODEL_CALL_LIMIT_STATUS,
+      );
+    }
+
+    const bytes = new Uint8Array(await file.arrayBuffer());
+
+    let extractedText: string;
+    try {
+      extractedText = await read({ bytes, mediaType });
+    } catch {
+      // Every way of failing to reach or understand the provider — an outage,
+      // an exhausted quota, a malformed reply — is the same answer here, and a
+      // different one from a file that simply had no text in it: this one is
+      // not the user's fault and their file is fine.
+      return errorResponse(
+        "The service that reads CVs could not be reached. Try again shortly.",
+        502,
+      );
+    }
+
+    if (extractedText === "") {
+      return errorResponse(
+        "No text could be read from that file. If it is a scan or an image, export a cleaner copy and upload it again.",
+        422,
+      );
+    }
+
+    const storagePath = await store.put(user.id, { bytes, mediaType });
+    const { profile, replaced } = await replaceProfileCv(user.id, {
+      storagePath,
+      fileName: fileNameOf(file, mediaType),
+      mediaType,
+      extractedText,
+    });
+
+    // The file it replaced goes only once the Profile has stopped pointing at
+    // it. The other order would put a failure between the two writes, and the
+    // Profile would be left naming a document that is no longer there.
+    if (replaced !== null) await store.remove(user.id, replaced);
+
+    // 200 rather than 201: the Profile is one thing at one address, always
+    // reachable there, so an upload is a replacement whether or not there was
+    // a CV before it.
+    return Response.json(await toProfile(profile, store), { status: 200 });
+  };
+}
+
+/**
+ * `GET /api/profile`. The Profile, with a short-lived signed URL for the file,
+ * or `null` for a user who has not uploaded one — an ordinary state rather
+ * than a 404, so that a client is not made to read a first run as a failure.
+ *
+ * The URL is minted per read and expires, which is what lets the bucket stay
+ * private.
+ */
+export function readProfileResponse(store: CvStore = supabaseCvStore) {
+  return async (_request: Request, user: CurrentUser): Promise<Response> => {
+    const row = await getProfile(user.id);
+
+    const profile: ProfileOrNone =
+      row === null ? null : await toProfile(row, store);
+
+    return Response.json(profile);
+  };
+}
+
+/**
+ * What this file is, if it is a CV at all. The media type the browser declared
+ * is believed when it is one of the three, and the file's own extension
+ * answers when it is not: a `.md` file reaches a request as `text/markdown`,
+ * as `text/plain`, or as nothing at all depending on the browser and the
+ * operating system, and a user who exported a CV should not have to know which
+ * of those they got.
+ *
+ * An extension is the fallback rather than the rule because it is the weaker
+ * claim of the two — anything can be renamed. Neither is trusted further than
+ * this: the reader is handed the bytes, and a file that is not what it says it
+ * is comes back with no text.
+ */
+export function cvMediaTypeOf(file: File): CvMediaType | null {
+  const declared = CvMediaType.safeParse(file.type.split(";")[0]?.trim());
+  if (declared.success) return declared.data;
+
+  const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
+  return EXTENSION_TYPES[extension] ?? null;
+}
+
+/** The name to keep, or one of our own for a file that arrived without one. */
+function fileNameOf(file: File, mediaType: CvMediaType): string {
+  return file.name.trim() === "" ? `cv${extensionOf(mediaType)}` : file.name;
+}
+
+function extensionOf(mediaType: CvMediaType): string {
+  const named = Object.entries(EXTENSION_TYPES).find(
+    ([, type]) => type === mediaType,
+  );
+
+  return named === undefined ? "" : `.${named[0]}`;
+}
+
+/**
+ * A row as the contract describes it: no storage path, because where the file
+ * sits in a private bucket is of no use to a client, and a signed URL in its
+ * place.
+ */
+async function toProfile(row: ProfileRow, store: CvStore): Promise<Profile> {
+  return {
+    fileName: row.fileName,
+    // The column is text, because media types are somebody else's vocabulary;
+    // the parse is what keeps the response's promise about which three it is.
+    mediaType: CvMediaType.parse(row.mediaType),
+    extractedText: row.extractedText,
+    fileUrl: await store.signedUrl(row.userId, row.storagePath),
+    uploadedAt: row.uploadedAt.toISOString(),
+  };
+}
+
+/**
+ * The request's form body, or `null` when it carries none. A body that will
+ * not parse as a multipart upload is the client's mistake, and is worth saying
+ * so before anything else gets a look at it — the same question `jsonBody`
+ * asks of the endpoints that take JSON.
+ */
+async function formData(request: Request): Promise<FormData | null> {
+  try {
+    return await request.formData();
+  } catch {
+    return null;
+  }
+}

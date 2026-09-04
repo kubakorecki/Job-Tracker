@@ -46,8 +46,8 @@ cp apps/web/.env.test.example apps/web/.env.test
 ```
 
 `apps/web/.env.example` names where each value lives in the dashboard. For
-production the same five variables are set in the deployment's environment
-rather than in a file, pointing at `job-tracker-prod`.
+production the same variables are set in the deployment's environment rather
+than in a file, pointing at `job-tracker-prod`.
 
 `.env.test` holds only the end-to-end user's email and password, and is read
 only by the Playwright smoke test. It is a second file so that the account a
@@ -73,7 +73,28 @@ project too, with that project's URL in the environment. Changing the schema
 means editing `apps/web/lib/db/schema.ts` and running
 `pnpm --filter web db:generate` to write the next migration.
 
-## 5. Sign in
+## 5. Create the CV bucket
+
+The Profile keeps the CV the user uploaded, which is the one thing in this app
+that is not a row. In **Storage → New bucket**, in each project:
+
+| Field         | Value                                               |
+| ------------- | --------------------------------------------------- |
+| Name          | `cvs`                                               |
+| Public bucket | **off** — a CV is not something to serve to the web |
+
+Nothing else needs setting, and no Storage policy needs writing. The app
+reaches the bucket with `SUPABASE_SERVICE_ROLE_KEY`, which bypasses Row Level
+Security the way `DATABASE_URL` does, because this schema has no policies
+anywhere (ADR-0001). `apps/web/lib/profile/storage.ts` is the only module that
+holds that key: it files every object under the owner's user id and refuses a
+path that is not theirs, which is the whole of what keeps one user's CV away
+from another — the same bargain every repository module makes.
+
+Files are read back through short-lived signed URLs, so the bucket can stay
+private and a link that leaks is worthless within minutes.
+
+## 6. Sign in
 
 ```sh
 pnpm dev

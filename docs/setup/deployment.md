@@ -20,19 +20,20 @@ project's production branch — `main` — deploys.
 ## Environment variables
 
 Set in **Project Settings → Environment Variables**, for Production. They are
-the same six names as `apps/web/.env.example`, pointing at `job-tracker-prod`
+the same seven names as `apps/web/.env.example`, pointing at `job-tracker-prod`
 rather than `job-tracker-dev`:
 
-| Variable                        | Value in production                                       |
-| ------------------------------- | --------------------------------------------------------- |
-| `NEXT_PUBLIC_SUPABASE_URL`      | the prod project's URL                                     |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | the prod project's anon key                                |
-| `DATABASE_URL`                  | prod **transaction pooler**, port 6543                     |
-| `DIRECT_URL`                    | prod **session pooler**, port 5432                          |
-| `EXTENSION_ORIGIN`              | `chrome-extension://okeljopaafaojopfkhjioaceeohjplhb`       |
-| `GEMINI_API_KEY`                | the AI Studio developer key extraction calls                |
+| Variable                        | Value in production                                   |
+| ------------------------------- | ----------------------------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`      | the prod project's URL                                |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | the prod project's anon key                           |
+| `DATABASE_URL`                  | prod **transaction pooler**, port 6543                |
+| `DIRECT_URL`                    | prod **session pooler**, port 5432                    |
+| `EXTENSION_ORIGIN`              | `chrome-extension://okeljopaafaojopfkhjioaceeohjplhb` |
+| `GEMINI_API_KEY`                | the AI Studio developer key extraction calls          |
+| `SUPABASE_SERVICE_ROLE_KEY`     | the prod project's service_role key                   |
 
-Four things about that list are load-bearing:
+Five things about that list are load-bearing:
 
 - **The runtime connects through the pooler and never prepares a statement.**
   `DATABASE_URL` is the transaction pooler because a serverless function is a
@@ -44,7 +45,7 @@ Four things about that list are load-bearing:
   postgres.js forwards to the server as an unknown startup option.
 - **`DIRECT_URL` is never read by the deployment.** Migrations run from a
   developer's machine, below, so nothing in a serverless function ever opens
-  that connection. It is set all the same: leaving one of the six names blank
+  that connection. It is set all the same: leaving one of the seven names blank
   in production invites the next person to wonder which environment is missing
   what.
 - **`GEMINI_API_KEY` is the one name with no Supabase equivalent.** Dev and
@@ -52,6 +53,13 @@ Four things about that list are load-bearing:
   is read lazily by the extraction endpoint alone, so a deployment missing it
   serves the dashboard perfectly and fails only when the panel asks for a
   Draft — which is the failure the panel already knows how to survive.
+- **`SUPABASE_SERVICE_ROLE_KEY` is the one secret that grants everything.**
+  The Profile's CV store reads it, and nothing else does: Supabase Storage puts
+  every object behind Row Level Security and this schema has no policies
+  (ADR-0001), so it is what makes the private `cvs` bucket reachable. It must
+  never be given the `NEXT_PUBLIC_` prefix, which would inline it into the
+  browser bundle. The bucket itself is created by hand, once per project
+  (docs/setup/supabase.md).
 - **A change needs a redeploy.** `NEXT_PUBLIC_*` is inlined into the browser
   bundle at build time, and a deployment's server environment is fixed when it
   is built, so editing a variable in the dashboard changes nothing until the

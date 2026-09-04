@@ -61,6 +61,26 @@ export function geminiApiKey(): string {
   return requireEnv("GEMINI_API_KEY", process.env.GEMINI_API_KEY, "AI Studio");
 }
 
+/**
+ * The Supabase service role key, which the CV store reaches Storage with.
+ *
+ * Storage is the one part of Supabase this app cannot address as the database
+ * owner: every object lives behind Row Level Security on `storage.objects`,
+ * and there are no policies, because the schema has none anywhere (ADR-0001).
+ * The service key is what makes the bucket reachable at all, and the same
+ * bargain applies to it as to `DATABASE_URL` — it grants everything, so tenant
+ * isolation is enforced in application code, in the one module that holds it.
+ *
+ * It is never `NEXT_PUBLIC_`, is read lazily like the rest, and is read
+ * nowhere but `lib/profile/storage.ts`.
+ */
+export function supabaseServiceRoleKey(): string {
+  return requireEnv(
+    "SUPABASE_SERVICE_ROLE_KEY",
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+  );
+}
+
 function requireEnv(
   name: string,
   value: string | undefined,
