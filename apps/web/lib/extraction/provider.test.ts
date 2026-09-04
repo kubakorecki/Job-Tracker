@@ -10,10 +10,18 @@ import { readDraft } from "./provider";
  * The flat schema has no nulls — Gemini rejects the schema shapes that would
  * express one — so "the page does not say" arrives as an empty string, a zero
  * or an empty array, and the whole of this file is about that translation.
+ * Requirements arrive as three arrays of bare strings, one per Necessity,
+ * because a tagged list is the nested shape the schema cannot ask for; folding
+ * them back into one is the other half of the same translation.
  */
 
-/** Every field filled in, as a page that says everything would come back. */
-const COMPLETE = {
+/**
+ * The fields the translation does nothing to but copy, as a page that states
+ * every one of them would come back. Shared by the reply and the Draft below,
+ * so that the one field the translation actually works on is the only thing
+ * written twice.
+ */
+const COPIED = {
   company: "Acme",
   jobTitle: "Senior Engineer",
   location: "London",
@@ -22,20 +30,27 @@ const COMPLETE = {
   salaryMax: 110000,
   currency: "GBP",
   description: "Building things at Acme.",
-  requirements: ["TypeScript", "Postgres"],
+};
+
+/** Every field filled in, including a skill of each Necessity. */
+const COMPLETE = {
+  ...COPIED,
+  requiredSkills: ["TypeScript", "Postgres"],
+  preferredSkills: ["Terraform"],
+  unstatedSkills: ["Agile"],
 };
 
 /**
- * `COMPLETE` as a Draft. The one field the translation does more than copy:
- * the flat schema lists what a Posting asks for as bare strings, so every
- * Requirement it yields is `unstated` — the reply says a Posting named
- * something, never how badly it wanted it.
+ * `COMPLETE` as a Draft. The three arrays become one list, each Requirement
+ * carrying the Necessity of the array it came out of, hard ones first.
  */
 const COMPLETE_DRAFT = {
-  ...COMPLETE,
+  ...COPIED,
   requirements: [
-    { skill: "TypeScript", necessity: "unstated" },
-    { skill: "Postgres", necessity: "unstated" },
+    { skill: "TypeScript", necessity: "required" },
+    { skill: "Postgres", necessity: "required" },
+    { skill: "Terraform", necessity: "preferred" },
+    { skill: "Agile", necessity: "unstated" },
   ],
 };
 
@@ -49,7 +64,9 @@ const EMPTY = {
   salaryMax: 0,
   currency: "",
   description: "",
-  requirements: [],
+  requiredSkills: [],
+  preferredSkills: [],
+  unstatedSkills: [],
 };
 
 function read(reply: unknown) {
@@ -61,24 +78,41 @@ describe("readDraft", () => {
     expect(read(COMPLETE)).toEqual(COMPLETE_DRAFT);
   });
 
-  it("makes a Requirement of each thing the page asked for", () => {
-    expect(read({ ...EMPTY, requirements: ["Terraform"] })).toEqual({
+  it("marks each Requirement with the Necessity of the list it came in", () => {
+    expect(read(COMPLETE).requirements).toEqual(COMPLETE_DRAFT.requirements);
+  });
+
+  it("makes a Requirement of a skill the page named without saying how badly it wanted it", () => {
+    expect(read({ ...EMPTY, unstatedSkills: ["Terraform"] })).toEqual({
       requirements: [{ skill: "Terraform", necessity: "unstated" }],
     });
   });
 
   it("keeps no Requirement the model worded as blank or whitespace", () => {
     expect(
-      read({ ...EMPTY, requirements: ["  Kubernetes  ", "", "   "] }),
+      read({ ...EMPTY, requiredSkills: ["  Kubernetes  ", "", "   "] }),
     ).toEqual({
-      requirements: [{ skill: "Kubernetes", necessity: "unstated" }],
+      requirements: [{ skill: "Kubernetes", necessity: "required" }],
     });
   });
 
   it("carries no Requirements at all when every one came back blank", () => {
     // Absent, not empty — the same answer every other field gives for a page
-    // that did not say.
-    expect(read({ ...EMPTY, requirements: ["", "  "] })).toEqual({});
+    // that did not say. A Job Application made from it has no Requirements,
+    // which is a Posting that asked for nothing rather than a failure.
+    expect(read({ ...EMPTY, preferredSkills: ["", "  "] })).toEqual({});
+  });
+
+  it("carries no Requirements at all when the page asked for nothing", () => {
+    expect(read({ ...EMPTY, company: "Acme" })).toEqual({ company: "Acme" });
+  });
+
+  it("falls back on one Necessity the model worded wrongly rather than losing the others", () => {
+    expect(
+      read({ ...EMPTY, requiredSkills: "TypeScript", preferredSkills: ["Go"] }),
+    ).toEqual({
+      requirements: [{ skill: "Go", necessity: "preferred" }],
+    });
   });
 
   it("carries nothing at all when the page stated nothing", () => {

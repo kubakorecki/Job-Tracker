@@ -2,6 +2,7 @@ import { GoogleGenAI } from "@google/genai";
 import {
   ExtractJobRequest,
   JobExtraction,
+  Necessity,
   RemoteType,
   type Requirement,
 } from "@repo/schema";
@@ -43,15 +44,18 @@ export const EXTRACTION_MODEL = "gemini-2.5-pro";
 export type ExtractJob = (request: ExtractJobRequest) => Promise<JobExtraction>;
 
 /**
- * What the model is asked to fill in. It is deliberately flat — nine
- * primitives and one array of strings, no nested objects and no `anyOf` —
+ * What the model is asked to fill in. It is deliberately flat — eight
+ * primitives and three arrays of strings, no nested objects and no `anyOf` —
  * because Gemini accepts only a subset of JSON Schema and a schema it cannot
  * process is rejected outright rather than partially honoured.
  *
  * Flatness is why a field the page does not state comes back empty rather than
  * null: every property is required, and "the page does not say" is expressed
- * in the value. `readDraft` below is the other half, turning those empties
- * back into a Draft that simply omits the field.
+ * in the value. It is also why a Requirement's Necessity is carried by which
+ * array the skill came in rather than beside it: a list of tagged objects is
+ * exactly the nested shape this schema cannot ask for. `readDraft` below is
+ * the other half, turning those empties back into a Draft that simply omits
+ * the field, and those three arrays back into one tagged list.
  */
 type FlatProperty = {
   type: "string" | "number" | "array";
@@ -63,7 +67,8 @@ type FlatProperty = {
 /**
  * Keyed by the Draft's own fields, so a field added to `JobExtraction` in the
  * shared contract is a type error here rather than a column the model is never
- * asked about.
+ * asked about. Requirements are the one field not asked for under its own
+ * name; `REQUIREMENT_PROPERTIES` below asks for them instead.
  */
 const DRAFT_PROPERTIES = {
   company: {
@@ -107,23 +112,49 @@ const DRAFT_PROPERTIES = {
     description:
       "The posting's own summary of the role, in at most a short paragraph. Empty if the page does not describe one.",
   },
-  requirements: {
+} satisfies Record<Exclude<keyof JobExtraction, "requirements">, FlatProperty>;
+
+/**
+ * The Requirements, as one array of bare skills per Necessity. Keyed by the
+ * Necessity itself, so a value added to that closed set is a type error here
+ * rather than a Necessity the model is never given anywhere to put.
+ *
+ * The names carry the `Skills` suffix because a property called `required`
+ * sitting inside a JSON Schema's `properties` reads as the schema keyword of
+ * the same name, to a reader and plausibly to the model.
+ */
+const REQUIREMENT_PROPERTIES = {
+  requiredSkills: {
     type: "array",
     items: { type: "string" },
     description:
-      "The skills, technologies and qualifications the posting asks for, at most twelve, each worded as the page words it. Empty if the page lists none.",
+      "What the posting states a candidate must have. Empty if it insists on nothing.",
   },
-} satisfies Record<keyof JobExtraction, FlatProperty>;
+  preferredSkills: {
+    type: "array",
+    items: { type: "string" },
+    description:
+      "What the posting calls desirable, a bonus, a plus or nice to have. Empty if it names none.",
+  },
+  unstatedSkills: {
+    type: "array",
+    items: { type: "string" },
+    description:
+      "What the posting names without saying whether it is essential or merely desirable. Empty if it names none.",
+  },
+} satisfies Record<`${Necessity}Skills`, FlatProperty>;
+
+const RESPONSE_PROPERTIES = { ...DRAFT_PROPERTIES, ...REQUIREMENT_PROPERTIES };
 
 const DRAFT_RESPONSE_SCHEMA = {
   type: "object",
-  properties: DRAFT_PROPERTIES,
-  required: Object.keys(DRAFT_PROPERTIES),
+  properties: RESPONSE_PROPERTIES,
+  required: Object.keys(RESPONSE_PROPERTIES),
 };
 
 /**
  * What comes back. Every field falls back rather than failing, because one
- * field the model worded oddly should not cost the user the other eight — and
+ * field the model worded oddly should not cost the user the rest — and
  * a reply that is not an object at all still fails here, which is the case
  * that genuinely means the provider could not be understood.
  */
@@ -136,14 +167,27 @@ const ProviderDraft = z.object({
   salaryMax: z.number().nonnegative().catch(0),
   currency: z.string().catch(""),
   description: z.string().catch(""),
-  requirements: z.array(z.string()).catch([]),
+  requiredSkills: skillList(),
+  preferredSkills: skillList(),
+  unstatedSkills: skillList(),
 });
+
+/**
+ * The shape one Necessity's list comes back in, falling back like every other
+ * field: a list the model worded as something other than an array of strings
+ * costs the Posting that Necessity, not the other two.
+ */
+function skillList() {
+  return z.array(z.string()).catch([]);
+}
 
 const INSTRUCTIONS = `You read the visible text of a web page and record what it says about one job, for a job application tracker.
 
 Record only what the page states. Do not guess, do not infer from what you know of the employer, and do not borrow a value from a different role listed elsewhere on the same page. Where a page advertises several roles, record the one the URL addresses.
 
-Leave a field empty when the page does not state it: an empty string for text, 0 for a salary, an empty array for requirements. A page that is not a job posting is a normal outcome — leave the company and the job title both empty and say nothing else about it. Never invent a company or a title to avoid returning an empty answer.
+Leave a field empty when the page does not state it: an empty string for text, 0 for a salary, an empty array for each of the three skill lists. A page that is not a job posting is a normal outcome — leave the company and the job title both empty and say nothing else about it. Never invent a company or a title to avoid returning an empty answer.
+
+Record what the posting asks of a candidate as separate skills, each worded as the page words it: technologies, practices, qualifications, languages, and quantities of experience such as "5+ years of backend". Put each one in the list that matches how badly the posting says it wants it — requiredSkills for what it states a candidate must have, preferredSkills for what it calls desirable, a bonus, a plus or nice to have, and unstatedSkills for anything it names without saying which. A skill listed without a stated preference is unstated: never move one up into requiredSkills because it sounds important or is mentioned first. At most twelve skills across the three lists together, and all three empty if the posting asks for nothing.
 
 Salaries are annual figures in the currency the page names, written as plain numbers with no separators or symbols. Convert an hourly, daily or monthly rate only when the page itself gives the annual equivalent; otherwise leave the salary empty.`;
 
@@ -191,26 +235,31 @@ export function readDraft(json: string): JobExtraction {
     salaryMax: raw.salaryMax === 0 ? undefined : raw.salaryMax,
     currency: nonEmpty(raw.currency),
     description: nonEmpty(raw.description),
-    requirements: nonEmptyRequirements(raw.requirements),
+    requirements: requirementsOf(raw),
   };
 }
 
 /**
- * The skills the model listed, as Requirements, and undefined when it listed
- * none it could name — the same "the page does not say" that `nonEmpty` gives
- * every text field, decided after the blanks are dropped rather than before,
- * so a list of nothing but empty strings is absent rather than empty.
+ * The model's three lists as one tagged Requirement list, each skill carrying
+ * the Necessity of the list it arrived in, and undefined when it named none it
+ * could word — the same "the page does not say" that `nonEmpty` gives every
+ * text field, decided after the blanks are dropped rather than before, so
+ * lists of nothing but empty strings are absent rather than empty. A Posting
+ * that asks for nothing is a normal reading; the Job Application made from
+ * such a Draft simply has no Requirements.
  *
- * Every Requirement is `unstated`: this schema asks for one flat list and so
- * records only that the Posting named something, never how badly it wanted it
- * — which is exactly what `unstated` means. Reading the Necessity is a change
- * to the schema and the prompt, not to this fold.
+ * Read in `Necessity` order, so the hard Requirements lead the list wherever
+ * it is shown before anything groups it.
  */
-function nonEmptyRequirements(skills: string[]): Requirement[] | undefined {
-  const named = skills
-    .map((skill) => skill.trim())
-    .filter((skill) => skill !== "")
-    .map((skill) => ({ skill, necessity: "unstated" as const }));
+function requirementsOf(
+  raw: z.infer<typeof ProviderDraft>,
+): Requirement[] | undefined {
+  const named = Necessity.options.flatMap((necessity) =>
+    raw[`${necessity}Skills`]
+      .map((skill) => skill.trim())
+      .filter((skill) => skill !== "")
+      .map((skill) => ({ skill, necessity })),
+  );
 
   return named.length === 0 ? undefined : named;
 }

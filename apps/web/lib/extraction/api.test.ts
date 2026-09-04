@@ -48,8 +48,10 @@ const DRAFT: JobExtraction = {
   currency: "GBP",
   description: "Building things at Acme.",
   requirements: [
-    { skill: "TypeScript", necessity: "unstated" as const },
-    { skill: "Postgres", necessity: "unstated" as const },
+    { skill: "TypeScript", necessity: "required" as const },
+    { skill: "Postgres", necessity: "required" as const },
+    { skill: "Terraform", necessity: "preferred" as const },
+    { skill: "Agile", necessity: "unstated" as const },
   ],
 };
 
@@ -103,6 +105,48 @@ describe("POST /api/extract-job", () => {
 
     expect(response.status).toBe(200);
     expect(await unionOf(response)).toEqual({ ok: true, draft: DRAFT });
+  });
+
+  it("carries every Requirement the provider read, each with its Necessity", async () => {
+    const response = await extract(TEST_USER, POSTING);
+
+    expect(await unionOf(response)).toMatchObject({
+      draft: { requirements: DRAFT.requirements },
+    });
+  });
+
+  it("carries a Posting's Requirements through unstated when it never said how badly it wanted them", async () => {
+    const asked = { skill: "Terraform", necessity: "unstated" as const };
+    const response = await extract(
+      TEST_USER,
+      POSTING,
+      answering({
+        company: "Acme",
+        jobTitle: "Engineer",
+        requirements: [asked],
+      }),
+    );
+
+    expect(await unionOf(response)).toEqual({
+      ok: true,
+      draft: { company: "Acme", jobTitle: "Engineer", requirements: [asked] },
+    });
+  });
+
+  it("answers a Posting that asks for nothing with a Draft and no Requirements", async () => {
+    // "Nothing asked" is a Posting like any other; only an empty company and
+    // title mean the page was not one.
+    const response = await extract(
+      TEST_USER,
+      POSTING,
+      answering({ company: "Acme", jobTitle: "Engineer" }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(await unionOf(response)).toEqual({
+      ok: true,
+      draft: { company: "Acme", jobTitle: "Engineer" },
+    });
   });
 
   it("sends the provider the URL and the page text it was given", async () => {
