@@ -47,11 +47,27 @@ pnpm build         # build all apps and packages
 pnpm lint          # lint all apps and packages
 pnpm check-types   # type-check all apps and packages
 pnpm test          # run every workspace's tests
+pnpm test:e2e      # run the Playwright smoke test
 ```
 
 The web app's API tests talk to the dev Supabase project, so they need
 `apps/web/.env.local` filled in and the project unpaused (ADR-0003). They run
 serially, create the rows they need, and delete them afterwards.
+
+`pnpm test:e2e` is one Playwright test — sign in, add a Job Application, change
+its Status, reload, confirm it persisted — and it is not in `pnpm test`, since
+it needs a browser and a running dev server. It exists to prove the dashboard,
+the API and the database are wired together at all; the API tests are what
+cover behaviour. It also needs the dev project awake: a paused project fails
+the sign-in step, and nothing about the failure will say so.
+
+It starts `next dev` itself unless one is already listening on port 3000, and
+signs in as an account of its own — separate from yours, so a run can never
+touch your Job Applications. Put that account's credentials in
+`apps/web/.env.test` (copy `apps/web/.env.test.example`); the session is saved
+once per run and reused, and every Job Application the test makes is deleted
+afterwards, including any a failed run left behind. The first run on a machine
+also needs a browser: `pnpm --filter web exec playwright install chromium`.
 
 ## Extension permissions
 

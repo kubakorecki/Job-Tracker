@@ -38,15 +38,21 @@ the auth schema, so its two users are fixed identifiers in
 `apps/web/lib/test-support/users.ts` rather than sessions — which is also why
 they can never collide with the account you just made.
 
-## 3. Fill in the environment file
+## 3. Fill in the environment files
 
 ```sh
 cp apps/web/.env.example apps/web/.env.local
+cp apps/web/.env.test.example apps/web/.env.test
 ```
 
 `apps/web/.env.example` names where each value lives in the dashboard. For
 production the same five variables are set in the deployment's environment
 rather than in a file, pointing at `job-tracker-prod`.
+
+`.env.test` holds only the end-to-end user's email and password, and is read
+only by the Playwright smoke test. It is a second file so that the account a
+test signs in as can never be the one you develop against — otherwise a run
+would be editing your own Job Applications.
 
 Take both database URLs from the dashboard's **Connect** panel, and take the
 **pooler** ones: `DATABASE_URL` is the transaction pooler on port 6543, and

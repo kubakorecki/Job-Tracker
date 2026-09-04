@@ -1,5 +1,5 @@
 import { defineConfig } from "drizzle-kit";
-import { loadLocalEnv } from "./lib/load-local-env";
+import { loadLocalEnv } from "./lib/load-env";
 import { directDatabaseUrl } from "./lib/env";
 
 loadLocalEnv();

@@ -26,6 +26,11 @@
     "test": {
       "dependsOn": ["^build"]
     },
+    "test:e2e": {
+      "dependsOn": ["^build"],
+      "env": ["E2E_EMAIL", "E2E_PASSWORD"],
+      "cache": false
+    },
     "dev": {
       "cache": false,
       "persistent": true
