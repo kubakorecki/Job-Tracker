@@ -81,6 +81,14 @@ uploaded by hand, and sent when the user records that it was. While none is
 attached, the Profile stands in as what would be sent.
 _Avoid_: application CV, attachment, resume, document
 
+**Model Call**:
+One call to the model, on the user's behalf and against the one API key:
+reading a Posting, reading a CV, or running an Analysis. All three spend from a
+single daily allowance per user, because it is one grant and the reason for
+the limit is indifferent to which call drained it. The table that counts them
+is still `extraction_usage`, from when extraction was the only kind.
+_Avoid_: extraction (for the counter), request, generation, token
+
 **Personal Access Token**:
 A long-lived credential the user generates in the dashboard and pastes into the
 extension, standing in for the session cookie the extension cannot have. Shown

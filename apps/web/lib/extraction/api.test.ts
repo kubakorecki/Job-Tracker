@@ -5,14 +5,14 @@ import {
 } from "@repo/schema";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import type { CurrentUser } from "../auth/current-user";
-import { OTHER_TEST_USER, TEST_USER } from "../test-support/users";
 import {
-  DAILY_EXTRACTION_LIMIT,
-  MAX_PAGE_TEXT_LENGTH,
-  extractJobResponse,
-} from "./api";
+  DAILY_MODEL_CALL_LIMIT,
+  MODEL_CALL_LIMIT_STATUS,
+} from "../model-calls/budget";
+import { forgetModelCalls, setModelCallCount } from "../model-calls/repository";
+import { OTHER_TEST_USER, TEST_USER } from "../test-support/users";
+import { MAX_PAGE_TEXT_LENGTH, extractJobResponse } from "./api";
 import type { ExtractJob } from "./provider";
-import { forgetExtractionUsage, setExtractionCount } from "./repository";
 
 /**
  * The extraction endpoint as its only caller sees it: what the panel gets back
@@ -24,8 +24,10 @@ import { forgetExtractionUsage, setExtractionCount } from "./repository";
  * for Gemini also lets the test read what the endpoint decided to send it,
  * which is how truncation is asserted without inspecting anything private.
  *
- * The daily counter is a real row in the real table, cleared around each test:
- * it is the one part of this endpoint that has to survive a request.
+ * The daily budget is a real row in the real table, cleared around each test:
+ * it is the one part of this endpoint that has to survive a request. What that
+ * budget is and how it is spent lives in `lib/model-calls`, tested there; what
+ * is asserted here is only what this endpoint does with a spent one.
  */
 
 const ENDPOINT = "https://job-tracker.test/api/extract-job";
@@ -55,8 +57,8 @@ beforeEach(clearCounters);
 afterAll(clearCounters);
 
 async function clearCounters(): Promise<void> {
-  await forgetExtractionUsage(TEST_USER.id);
-  await forgetExtractionUsage(OTHER_TEST_USER.id);
+  await forgetModelCalls(TEST_USER.id);
+  await forgetModelCalls(OTHER_TEST_USER.id);
 }
 
 /**
@@ -220,28 +222,37 @@ describe("POST /api/extract-job", () => {
   });
 });
 
-describe("the daily extraction limit", () => {
-  it("spends one extraction per request, and no more", async () => {
-    await setExtractionCount(TEST_USER.id, DAILY_EXTRACTION_LIMIT - 2);
+describe("the daily model call budget", () => {
+  it("spends one model call per request, and no more", async () => {
+    await setModelCallCount(TEST_USER.id, DAILY_MODEL_CALL_LIMIT - 2);
 
     expect((await extract(TEST_USER, POSTING)).status).toBe(200);
     expect((await extract(TEST_USER, POSTING)).status).toBe(200);
-    expect((await extract(TEST_USER, POSTING)).status).toBe(429);
+    expect((await extract(TEST_USER, POSTING)).status).toBe(
+      MODEL_CALL_LIMIT_STATUS,
+    );
   });
 
-  it("spends the extraction a provider failure cost anyway", async () => {
-    await setExtractionCount(TEST_USER.id, DAILY_EXTRACTION_LIMIT - 1);
+  it("spends the model call a provider failure cost anyway", async () => {
+    await setModelCallCount(TEST_USER.id, DAILY_MODEL_CALL_LIMIT - 1);
     await extract(TEST_USER, POSTING, answering(new Error("503")));
 
     // The request reached the provider, so it counted — whatever came back.
-    expect((await extract(TEST_USER, POSTING)).status).toBe(429);
+    expect((await extract(TEST_USER, POSTING)).status).toBe(
+      MODEL_CALL_LIMIT_STATUS,
+    );
   });
 
   it("refuses the request after the limit, telling the panel to wait", async () => {
-    await setExtractionCount(TEST_USER.id, DAILY_EXTRACTION_LIMIT);
+    await setModelCallCount(TEST_USER.id, DAILY_MODEL_CALL_LIMIT);
     const response = await extract(TEST_USER, POSTING);
 
+    // The literal, once, on purpose: every other assertion here compares the
+    // shared constant with itself, which would stay green if the status moved.
+    // The panel is already written against 429, so this is the one that has to
+    // hold whatever `lib/model-calls` calls it.
     expect(response.status).toBe(429);
+    expect(MODEL_CALL_LIMIT_STATUS).toBe(429);
     expect(await unionOf(response)).toEqual({
       ok: false,
       reason: "rate_limited",
@@ -249,25 +260,27 @@ describe("the daily extraction limit", () => {
   });
 
   it("does not call the provider once the limit is reached", async () => {
-    await setExtractionCount(TEST_USER.id, DAILY_EXTRACTION_LIMIT);
+    await setModelCallCount(TEST_USER.id, DAILY_MODEL_CALL_LIMIT);
     const provider = answering(DRAFT);
     await extract(TEST_USER, POSTING, provider);
 
     expect(provider.asked).toEqual([]);
   });
 
-  it("counts each user's extractions separately", async () => {
-    await setExtractionCount(TEST_USER.id, DAILY_EXTRACTION_LIMIT);
+  it("counts each user's model calls separately", async () => {
+    await setModelCallCount(TEST_USER.id, DAILY_MODEL_CALL_LIMIT);
 
-    expect((await extract(TEST_USER, POSTING)).status).toBe(429);
+    expect((await extract(TEST_USER, POSTING)).status).toBe(
+      MODEL_CALL_LIMIT_STATUS,
+    );
     expect((await extract(OTHER_TEST_USER, POSTING)).status).toBe(200);
   });
 
   it("spends nothing on a request it refused as invalid", async () => {
-    await setExtractionCount(TEST_USER.id, DAILY_EXTRACTION_LIMIT - 1);
+    await setModelCallCount(TEST_USER.id, DAILY_MODEL_CALL_LIMIT - 1);
     await extract(TEST_USER, { url: POSTING.url });
 
-    // The one remaining extraction is still there to spend.
+    // The one remaining model call is still there to spend.
     expect((await extract(TEST_USER, POSTING)).status).toBe(200);
   });
 });

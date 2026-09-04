@@ -226,15 +226,19 @@ export const personalAccessTokens = pgTable(
 export type PersonalAccessTokenRow = typeof personalAccessTokens.$inferSelect;
 
 /**
- * How many extractions a user has spent today. One row per user per day, and
- * the day is UTC — a counter that reset at the reader's midnight would reset
- * twice for a user who flew somewhere, or not at all.
+ * How many model calls a user has spent today — job extraction, reading a CV,
+ * and an Analysis all counting into the same row. One row per user per day,
+ * and the day is UTC — a counter that reset at the reader's midnight would
+ * reset twice for a user who flew somewhere, or not at all.
  *
- * The key is the pair, so the request that spends an extraction can insert and
+ * The key is the pair, so the request that spends a call can insert and
  * increment in a single upsert and read the new total back. Nothing prunes old
  * rows: they are three columns each, and a hundred a year is not a table.
+ *
+ * The table is still called `extraction_usage`, from when job extraction was
+ * the only thing that spent from it. The name is not worth a migration.
  */
-export const extractionUsage = pgTable(
+export const modelCallUsage = pgTable(
   "extraction_usage",
   {
     /** No foreign key into `auth.users`, for the same reason as above. */
@@ -245,4 +249,4 @@ export const extractionUsage = pgTable(
   (table) => [primaryKey({ columns: [table.userId, table.day] })],
 );
 
-export type ExtractionUsageRow = typeof extractionUsage.$inferSelect;
+export type ModelCallUsageRow = typeof modelCallUsage.$inferSelect;

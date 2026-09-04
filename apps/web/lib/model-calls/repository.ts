@@ -1,9 +1,9 @@
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "../db/client";
-import { extractionUsage } from "../db/schema";
+import { modelCallUsage } from "../db/schema";
 
 /**
- * The daily extraction counter. Like every other repository module here, each
+ * The daily model call counter. Like every other repository module here, each
  * function takes the owner's id as its first argument and nothing else in the
  * app builds a query (ADR-0001).
  */
@@ -12,12 +12,12 @@ import { extractionUsage } from "../db/schema";
  * The day a counter is keyed on: UTC, so a counter cannot reset twice for a
  * user who changed time zone, or fail to reset at all.
  */
-export function extractionDay(at: Date = new Date()): string {
+export function modelCallDay(at: Date = new Date()): string {
   return at.toISOString().slice(0, 10);
 }
 
 /**
- * Spends one extraction and answers how many this user has now spent today.
+ * Counts one model call and answers how many this user has now made today.
  *
  * Insert and increment are one statement, so two requests arriving together
  * cannot both read a count and both write the same successor. It is also why
@@ -25,21 +25,21 @@ export function extractionDay(at: Date = new Date()): string {
  * first and deciding second — a check-then-act would let a leaked token spend
  * as fast as it could open connections.
  */
-export async function spendExtraction(
+export async function countModelCall(
   userId: string,
-  day: string = extractionDay(),
+  day: string = modelCallDay(),
 ): Promise<number> {
   const [row] = await db()
-    .insert(extractionUsage)
+    .insert(modelCallUsage)
     .values({ userId, day, count: 1 })
     .onConflictDoUpdate({
-      target: [extractionUsage.userId, extractionUsage.day],
-      set: { count: sql`${extractionUsage.count} + 1` },
+      target: [modelCallUsage.userId, modelCallUsage.day],
+      set: { count: sql`${modelCallUsage.count} + 1` },
     })
-    .returning({ count: extractionUsage.count });
+    .returning({ count: modelCallUsage.count });
 
   if (row === undefined) {
-    throw new Error("The upsert returned no extraction counter.");
+    throw new Error("The upsert returned no model call counter.");
   }
 
   return row.count;
@@ -51,16 +51,16 @@ export async function spendExtraction(
  * hundred round trips to walk there, which is the only way the limit itself
  * stays the number the product ships.
  */
-export async function setExtractionCount(
+export async function setModelCallCount(
   userId: string,
   count: number,
-  day: string = extractionDay(),
+  day: string = modelCallDay(),
 ): Promise<void> {
   await db()
-    .insert(extractionUsage)
+    .insert(modelCallUsage)
     .values({ userId, day, count })
     .onConflictDoUpdate({
-      target: [extractionUsage.userId, extractionUsage.day],
+      target: [modelCallUsage.userId, modelCallUsage.day],
       set: { count },
     });
 }
@@ -70,13 +70,11 @@ export async function setExtractionCount(
  * counter is meant to stand until the day turns — so this too is here for the
  * test that has to take its own rows away again.
  */
-export async function forgetExtractionUsage(
+export async function forgetModelCalls(
   userId: string,
-  day: string = extractionDay(),
+  day: string = modelCallDay(),
 ): Promise<void> {
   await db()
-    .delete(extractionUsage)
-    .where(
-      and(eq(extractionUsage.userId, userId), eq(extractionUsage.day, day)),
-    );
+    .delete(modelCallUsage)
+    .where(and(eq(modelCallUsage.userId, userId), eq(modelCallUsage.day, day)));
 }
