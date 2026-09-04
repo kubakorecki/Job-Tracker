@@ -23,9 +23,12 @@ function isTrackingParam(name: string): boolean {
  * stripped, and the remaining parameters are sorted. The path is left alone —
  * it is case-sensitive on plenty of job boards.
  *
- * Both apps call this before they look a Posting up or write one, so its output
- * must be byte-identical on either side; that is why it lives in the shared
- * contract rather than in either app.
+ * The API is the only caller: it normalizes what it stores, and normalizes a
+ * URL lookup before matching on it, so the two can never be told apart by two
+ * different rules. ADR-0002 has the extension normalizing before its lookup as
+ * well — it does not, and does not need to: it sends the address of the tab as
+ * it found it, which is what removes the disagreement the ADR was guarding
+ * against rather than merely making it unlikely.
  *
  * @throws {TypeError} if `jobUrl` is not a parseable absolute URL.
  */

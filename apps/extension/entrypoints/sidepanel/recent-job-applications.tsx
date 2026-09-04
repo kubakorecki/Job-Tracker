@@ -1,6 +1,10 @@
 import { StatusBadge } from "@repo/ui/status-badge";
+import { JobApplicationName } from "./job-application-name";
 import { Problems } from "./problems";
-import type { Recent } from "./use-recent-job-applications";
+import type { JobApplications } from "./use-job-applications";
+
+/** How many of them the panel has room for. */
+const RECENT_LIMIT = 5;
 
 /**
  * The bottom half of the shell: what the user last saved, so that the panel
@@ -8,8 +12,12 @@ import type { Recent } from "./use-recent-job-applications";
  * token is not reported here — the primary action area above says it once, and
  * offers the way out.
  */
-export function RecentJobApplications({ recent }: { recent: Recent }) {
-  const shown = contents(recent);
+export function RecentJobApplications({
+  jobApplications,
+}: {
+  jobApplications: JobApplications;
+}) {
+  const shown = contents(jobApplications);
 
   // Nothing to say and no heading over it: a lone "Recent" with a blank space
   // under it reads as a list that failed to arrive.
@@ -23,8 +31,8 @@ export function RecentJobApplications({ recent }: { recent: Recent }) {
   );
 }
 
-function contents(recent: Recent) {
-  switch (recent.kind) {
+function contents(outcome: JobApplications) {
+  switch (outcome.kind) {
     case "idle":
     case "token-rejected":
       return null;
@@ -33,22 +41,21 @@ function contents(recent: Recent) {
       return <p className="muted">Loading…</p>;
 
     case "failed":
-      return <Problems problems={recent.problems} />;
+      return <Problems problems={outcome.problems} />;
 
     case "ready":
-      return recent.jobApplications.length === 0 ? (
+      return outcome.jobApplications.length === 0 ? (
         <p className="muted">Nothing saved yet.</p>
       ) : (
         <ul className="job-applications">
-          {recent.jobApplications.map((jobApplication) => (
-            <li className="job-application" key={jobApplication.id}>
-              <div className="job-application-name">
-                <p className="company">{jobApplication.company}</p>
-                <p className="job-title">{jobApplication.jobTitle}</p>
-              </div>
-              <StatusBadge status={jobApplication.status} />
-            </li>
-          ))}
+          {outcome.jobApplications
+            .slice(0, RECENT_LIMIT)
+            .map((jobApplication) => (
+              <li className="job-application" key={jobApplication.id}>
+                <JobApplicationName jobApplication={jobApplication} />
+                <StatusBadge status={jobApplication.status} />
+              </li>
+            ))}
         </ul>
       );
   }

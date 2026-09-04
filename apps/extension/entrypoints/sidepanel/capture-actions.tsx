@@ -20,14 +20,26 @@ import type { Capture } from "./use-capture";
  */
 export function SaveThisJob({
   capture,
+  looking,
   onSave,
   onAddManually,
 }: {
   capture: Capture;
+  /**
+   * Whether the panel is still finding out if this Posting is already saved.
+   * Reading the page before that answer arrives would risk spending an
+   * extraction on a Posting the user already has (ADR-0002), so the button
+   * waits — it is one request, and it is already in flight.
+   */
+  looking: boolean;
   onSave: () => void;
   onAddManually: () => void;
 }) {
-  const working = capture.kind === "working";
+  // Only the primary button waits. Manual entry is the secondary action in
+  // every state the panel could save from, and neither wait has anything to do
+  // with it: a referral typed in by hand does not care what page is in front of
+  // the user, or whether it turns out to be already saved.
+  const working = capture.kind === "working" || looking;
 
   return (
     <section>
@@ -42,12 +54,22 @@ export function SaveThisJob({
           onClick={onSave}
           type="button"
         >
-          {working ? "Reading the page…" : "Save this job"}
+          {label(capture, looking)}
         </button>
-        <AddManually disabled={working} onClick={onAddManually} />
+        <AddManually onClick={onAddManually} />
       </div>
     </section>
   );
+}
+
+/**
+ * What the primary action says it is doing. The two waits are different enough
+ * to name apart: one is the panel finding out whether it should be offering
+ * this at all, the other is the page being read.
+ */
+function label(capture: Capture, looking: boolean): string {
+  if (looking) return "Checking…";
+  return capture.kind === "working" ? "Reading the page…" : "Save this job";
 }
 
 /**
@@ -55,20 +77,9 @@ export function SaveThisJob({
  * nothing in it, which is how a Job Application with no Posting behind it —
  * a referral, a recruiter's email — gets recorded.
  */
-export function AddManually({
-  onClick,
-  disabled = false,
-}: {
-  onClick: () => void;
-  disabled?: boolean;
-}) {
+export function AddManually({ onClick }: { onClick: () => void }) {
   return (
-    <button
-      className="link"
-      disabled={disabled}
-      onClick={onClick}
-      type="button"
-    >
+    <button className="link" onClick={onClick} type="button">
       Add manually
     </button>
   );

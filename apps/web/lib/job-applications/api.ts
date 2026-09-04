@@ -15,6 +15,7 @@ import {
   getJobApplication,
   listJobApplications,
   updateJobApplication,
+  type JobApplicationQuery,
 } from "./repository";
 
 /**
@@ -24,28 +25,54 @@ import {
  * response, the status code — and delegate only the queries.
  */
 
-/** `GET /api/job-applications`, optionally `?status=applied`. */
+/** A Posting's address, as the contract states it, with the null taken off. */
+const POSTING_URL = JobApplication.shape.jobUrl.unwrap();
+
+/**
+ * `GET /api/job-applications`, optionally narrowed by `?status=applied` and by
+ * `?url=`, the address of a Posting.
+ *
+ * The URL lookup is how the extension recognises a Posting the user has
+ * already saved, and it is a filter on the list rather than an endpoint of its
+ * own: the answer is a Job Application in exactly the shape every other read
+ * gives it, and "not saved" is an empty list rather than a 404 the caller
+ * would have to read as an answer instead of a refusal. Whatever
+ * parameterisation the URL arrives in, it is normalized before it is matched
+ * (ADR-0002) — the repository does that, beside the write that normalized what
+ * it stored.
+ */
 export async function listJobApplicationsResponse(
   request: Request,
   user: CurrentUser,
 ): Promise<Response> {
-  const requested = new URL(request.url).searchParams.get("status");
+  const { searchParams } = new URL(request.url);
 
-  if (requested === null) {
-    return Response.json(await listJobApplications(user.id));
+  const query: JobApplicationQuery = {};
+
+  const requestedStatus = searchParams.get("status");
+  if (requestedStatus !== null) {
+    const status = JobStatus.safeParse(requestedStatus);
+    if (!status.success) {
+      return errorResponse(
+        `Unknown status "${requestedStatus}". Expected one of: ${JobStatus.options.join(", ")}.`,
+        400,
+      );
+    }
+    query.status = status.data;
   }
 
-  const status = JobStatus.safeParse(requested);
-  if (!status.success) {
-    return errorResponse(
-      `Unknown status "${requested}". Expected one of: ${JobStatus.options.join(", ")}.`,
-      400,
-    );
+  const requestedUrl = searchParams.get("url");
+  if (requestedUrl !== null) {
+    // The contract's own rule for what a Posting's address may be, so the
+    // lookup accepts exactly what a save would have accepted — and nothing
+    // unparseable reaches the normalizer, which throws on one.
+    if (!POSTING_URL.safeParse(requestedUrl).success) {
+      return errorResponse(`"${requestedUrl}" is not a URL.`, 400);
+    }
+    query.jobUrl = requestedUrl;
   }
 
-  return Response.json(
-    await listJobApplications(user.id, { status: status.data }),
-  );
+  return Response.json(await listJobApplications(user.id, query));
 }
 
 /** `POST /api/job-applications`, wanting a company and a job title at minimum. */

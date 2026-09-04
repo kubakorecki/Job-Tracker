@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 export { normalizeJobUrl } from "./normalize-job-url.js";
+export { nearDuplicatesOf, type TitledRole } from "./near-duplicates.js";
 
 /** The stages a job application moves through. */
 export const JobStatus = z.enum([

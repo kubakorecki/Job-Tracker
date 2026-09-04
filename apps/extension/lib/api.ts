@@ -5,6 +5,7 @@ import {
   type ExtractionFailureReason,
   type JobApplication,
   type JobExtraction,
+  type UpdateJobApplication,
 } from "@repo/schema";
 import type { Settings } from "./settings";
 
@@ -19,9 +20,6 @@ import type { Settings } from "./settings";
  * shell renders, not an exception, and a refused token is something it acts
  * on, so both come back as answers.
  */
-
-/** How many Job Applications the panel shows. */
-const RECENT_LIMIT = 5;
 
 /**
  * The two ways a call can end short of the endpoint answering the question it
@@ -39,14 +37,53 @@ const RECENT_LIMIT = 5;
 export type CallFailure =
   { kind: "token-rejected" } | { kind: "failed"; problems: string[] };
 
-/** What the API answered when asked for the most recent Job Applications. */
-export type RecentOutcome =
+/** What the API answered when asked for Job Applications. */
+export type ListOutcome =
   { kind: "ready"; jobApplications: JobApplication[] } | CallFailure;
 
-export async function fetchRecentJobApplications(
+/**
+ * The user's Job Applications, newest first. The panel shows a handful of
+ * them, but it asks for all of them and takes what it needs: the near-
+ * duplicate hint (ADR-0002) has to look at every Job Application at a company
+ * and not merely the last five, and this is a personal tracker of hundreds of
+ * rows — a page size only the panel would ever ask for would be a thing to
+ * teach the API for no gain.
+ */
+export async function fetchJobApplications(
   settings: Settings,
-): Promise<RecentOutcome> {
-  const asked = await ask(settings, "/api/job-applications");
+): Promise<ListOutcome> {
+  return listing(settings, "/api/job-applications");
+}
+
+/**
+ * The Job Application the user already saved for this Posting, if there is
+ * one. This is the lookup ADR-0002 asks the extension to make before it
+ * extracts, and the API is what normalizes the URL — the panel sends the
+ * address of the tab exactly as it found it, tracking parameters and all.
+ *
+ * A Posting that is not saved is an empty list, not a refusal, so nothing here
+ * has to read a status code as an answer.
+ */
+export type LookUpOutcome =
+  { kind: "looked-up"; jobApplication: JobApplication | null } | CallFailure;
+
+export async function lookUpPosting(
+  settings: Settings,
+  url: string,
+): Promise<LookUpOutcome> {
+  const outcome = await listing(
+    settings,
+    `/api/job-applications?url=${encodeURIComponent(url)}`,
+  );
+
+  return outcome.kind === "ready"
+    ? { kind: "looked-up", jobApplication: outcome.jobApplications[0] ?? null }
+    : outcome;
+}
+
+/** One request that should come back as a list of Job Applications. */
+async function listing(settings: Settings, path: string): Promise<ListOutcome> {
+  const asked = await ask(settings, path);
   if ("failure" in asked) return asked.failure;
 
   const { response } = asked;
@@ -54,7 +91,7 @@ export async function fetchRecentJobApplications(
     return { kind: "failed", problems: await refusal(response) };
   }
 
-  const wrongShape: RecentOutcome = {
+  const wrongShape: ListOutcome = {
     kind: "failed",
     problems: [
       `${settings.apiBaseUrl} did not answer with a list of Job Applications. Check that the API base URL points at the dashboard.`,
@@ -73,13 +110,7 @@ export async function fetchRecentJobApplications(
   // of rendering rows out of it.
   if (!Array.isArray(body)) return wrongShape;
 
-  // The endpoint answers newest-first and this is a personal tracker of
-  // hundreds of rows, so the five are taken here rather than teaching the API
-  // a page size that only the panel would ever ask for.
-  return {
-    kind: "ready",
-    jobApplications: (body as JobApplication[]).slice(0, RECENT_LIMIT),
-  };
+  return { kind: "ready", jobApplications: body as JobApplication[] };
 }
 
 /**
@@ -109,7 +140,7 @@ export async function extractJob(
   settings: Settings,
   request: ExtractJobRequest,
 ): Promise<ExtractOutcome> {
-  const asked = await ask(settings, "/api/extract-job", request);
+  const asked = await ask(settings, "/api/extract-job", { body: request });
   if ("failure" in asked) return asked.failure;
 
   const { response } = asked;
@@ -155,7 +186,39 @@ export async function saveJobApplication(
   settings: Settings,
   input: CreateJobApplication,
 ): Promise<SaveOutcome> {
-  const asked = await ask(settings, "/api/job-applications", input);
+  const asked = await ask(settings, "/api/job-applications", { body: input });
+  if ("failure" in asked) return asked.failure;
+
+  const { response } = asked;
+  if (!response.ok) {
+    return { kind: "failed", problems: await refusal(response) };
+  }
+
+  return {
+    kind: "saved",
+    jobApplication: (await response.json()) as JobApplication,
+  };
+}
+
+/**
+ * Changes a Job Application the user already has — which, from the panel, is
+ * only ever its Status. Everything else about an already-saved Posting is
+ * edited in the dashboard: the panel's job on one is to say what the user has
+ * and let them move it along, not to be a second editor of the same record.
+ *
+ * It answers with the same outcome a save does, because the panel does the
+ * same two things with it: show the Job Application as it now stands, or say
+ * what stopped it.
+ */
+export async function patchJobApplication(
+  settings: Settings,
+  id: string,
+  patch: UpdateJobApplication,
+): Promise<SaveOutcome> {
+  const asked = await ask(settings, `/api/job-applications/${id}`, {
+    method: "PATCH",
+    body: patch,
+  });
   if ("failure" in asked) return asked.failure;
 
   const { response } = asked;
@@ -179,13 +242,13 @@ export async function saveJobApplication(
  * the endpoint's business: 429 is a refusal to the caller asking for a list
  * and a documented answer to the caller asking for an extraction.
  *
- * A body makes it a POST. There is no other verb here, and a method argument
- * that only ever took one value would be a parameter standing in for a fact.
+ * A body makes it a write, and `POST` is what a write is unless the caller
+ * says otherwise — the one that does is the Status change, which is a PATCH.
  */
 async function ask(
   settings: Settings,
   path: string,
-  body?: unknown,
+  write?: { method?: "POST" | "PATCH"; body: unknown },
 ): Promise<{ response: Response } | { failure: CallFailure }> {
   let response: Response;
 
@@ -193,11 +256,14 @@ async function ask(
     response = await fetch(`${settings.apiBaseUrl}${path}`, {
       headers: {
         authorization: `Bearer ${settings.token}`,
-        ...(body === undefined ? {} : { "content-type": "application/json" }),
+        ...(write === undefined ? {} : { "content-type": "application/json" }),
       },
-      ...(body === undefined
+      ...(write === undefined
         ? {}
-        : { method: "POST", body: JSON.stringify(body) }),
+        : {
+            method: write.method ?? "POST",
+            body: JSON.stringify(write.body),
+          }),
     });
   } catch {
     return {
@@ -230,6 +296,15 @@ export function dashboardPage(apiBaseUrl: string): string {
 
 export function tokensPage(apiBaseUrl: string): string {
   return `${apiBaseUrl}/settings/tokens`;
+}
+
+/**
+ * Where an already-saved Job Application is edited. The panel shows what the
+ * user has and moves its Status; everything else about it lives on this page,
+ * which is the whole of the reason there is no second editor in the panel.
+ */
+export function jobApplicationPage(apiBaseUrl: string, id: string): string {
+  return `${apiBaseUrl}/dashboard/job-applications/${id}`;
 }
 
 /**

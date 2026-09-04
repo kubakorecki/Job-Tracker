@@ -54,9 +54,17 @@ export async function createJobApplication(
   return toJobApplication(row);
 }
 
+/**
+ * What a caller may narrow the list to. `jobUrl` is a Posting's address in
+ * whatever form the caller reached it — normalized here, next to the write
+ * that normalized what it stored, so the lookup and the row can never be
+ * matched by two different rules (ADR-0002).
+ */
+export type JobApplicationQuery = { status?: JobStatus; jobUrl?: string };
+
 export async function listJobApplications(
   userId: string,
-  filter: { status?: JobStatus } = {},
+  query: JobApplicationQuery = {},
 ): Promise<JobApplication[]> {
   const rows = await db()
     .select()
@@ -64,9 +72,12 @@ export async function listJobApplications(
     .where(
       and(
         eq(jobApplications.userId, userId),
-        filter.status === undefined
+        query.status === undefined
           ? undefined
-          : eq(jobApplications.status, filter.status),
+          : eq(jobApplications.status, query.status),
+        query.jobUrl === undefined
+          ? undefined
+          : eq(jobApplications.normalizedJobUrl, normalizeJobUrl(query.jobUrl)),
       ),
     )
     .orderBy(desc(jobApplications.createdAt));

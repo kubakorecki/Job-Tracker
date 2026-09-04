@@ -253,6 +253,26 @@ describe("POST /api/job-applications", () => {
     expect(duplicate.status).toBe(409);
   });
 
+  it("keeps the same role advertised on two sites as two Job Applications", async () => {
+    const onTheJobBoard = await save(TEST_USER, {
+      company: "Modal",
+      jobTitle: "Systems Engineer",
+      jobUrl: "https://jobs.example.com/modal/systems-engineer",
+    });
+    const onTheCareersPage = await save(TEST_USER, {
+      company: "Modal",
+      jobTitle: "Systems Engineer",
+      jobUrl: "https://modal.com/careers/systems-engineer",
+    });
+
+    expect(onTheCareersPage.id).not.toBe(onTheJobBoard.id);
+
+    const listed: JobApplication[] = await (await list(TEST_USER)).json();
+    expect(listed.map(({ id }) => id)).toEqual(
+      expect.arrayContaining([onTheJobBoard.id, onTheCareersPage.id]),
+    );
+  });
+
   it("lets a second user save a Posting the first user has already saved", async () => {
     const jobUrl = "https://stripe.com/jobs/staff-engineer";
     await save(TEST_USER, {
@@ -333,6 +353,135 @@ describe("GET /api/job-applications", () => {
     await expect(response.json()).resolves.toMatchObject({
       error: expect.stringContaining("ghosted"),
     });
+  });
+
+  /**
+   * A Posting saved alongside the one being looked up, so that a lookup which
+   * quietly ignored its URL would answer with two Job Applications and fail
+   * rather than pass by having nothing else to return.
+   */
+  async function saveAnotherPosting(): Promise<JobApplication> {
+    return save(TEST_USER, {
+      company: "Some Other Company",
+      jobTitle: "Some Other Role",
+      jobUrl: `https://example.com/jobs/${crypto.randomUUID()}`,
+    });
+  }
+
+  async function lookUp(
+    user: CurrentUser,
+    jobUrl: string,
+  ): Promise<JobApplication[]> {
+    const response = await list(user, `?url=${encodeURIComponent(jobUrl)}`);
+    expect(response.status).toBe(200);
+    return response.json();
+  }
+
+  it("finds the Job Application saved for a Posting", async () => {
+    const jobUrl = "https://linear.app/careers/backend-engineer";
+    const created = await save(TEST_USER, {
+      company: "Linear",
+      jobTitle: "Backend Engineer",
+      jobUrl,
+    });
+    await saveAnotherPosting();
+
+    await expect(lookUp(TEST_USER, jobUrl)).resolves.toMatchObject([
+      { id: created.id, company: "Linear", jobTitle: "Backend Engineer" },
+    ]);
+  });
+
+  it("recognises a Posting saved with tracking parameters when it is reached by a clean URL", async () => {
+    const created = await save(TEST_USER, {
+      company: "Replit",
+      jobTitle: "Infrastructure Engineer",
+      jobUrl:
+        "https://replit.com/careers/infrastructure-engineer?utm_source=linkedin&trackingId=abc",
+    });
+    await saveAnotherPosting();
+
+    const found = await lookUp(
+      TEST_USER,
+      "https://replit.com/careers/infrastructure-engineer",
+    );
+
+    expect(found.map(({ id }) => id)).toEqual([created.id]);
+  });
+
+  it("recognises a Posting saved by a clean URL when it is reached with tracking parameters", async () => {
+    const created = await save(TEST_USER, {
+      company: "Neon",
+      jobTitle: "Storage Engineer",
+      jobUrl: "https://neon.tech/careers/storage-engineer",
+    });
+    await saveAnotherPosting();
+
+    const found = await lookUp(
+      TEST_USER,
+      "https://NEON.tech/careers/storage-engineer?ref=hn&utm_medium=email#apply",
+    );
+
+    expect(found.map(({ id }) => id)).toEqual([created.id]);
+  });
+
+  it("answers with nothing for a Posting that is not saved", async () => {
+    await saveAnotherPosting();
+
+    await expect(
+      lookUp(TEST_USER, "https://example.com/jobs/never-saved"),
+    ).resolves.toEqual([]);
+  });
+
+  it("never finds a Posting another user saved", async () => {
+    const jobUrl = "https://vercel.com/careers/developer-advocate";
+    await save(OTHER_TEST_USER, {
+      company: "Vercel",
+      jobTitle: "Developer Advocate",
+      jobUrl,
+    });
+
+    await expect(lookUp(TEST_USER, jobUrl)).resolves.toEqual([]);
+  });
+
+  it("never finds a Job Application recorded with no Posting at all", async () => {
+    await save(TEST_USER, {
+      company: "Ashby",
+      jobTitle: "Founding Engineer",
+      jobUrl: null,
+    });
+
+    await expect(
+      lookUp(TEST_USER, "https://ashbyhq.com/careers/founding-engineer"),
+    ).resolves.toEqual([]);
+  });
+
+  it("refuses a URL lookup that is not a URL", async () => {
+    const response = await list(TEST_USER, "?url=example.com/jobs");
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: expect.stringContaining("example.com/jobs"),
+    });
+  });
+
+  it("narrows a URL lookup by Status too", async () => {
+    const jobUrl = "https://retool.com/careers/solutions-engineer";
+    await save(TEST_USER, {
+      company: "Retool",
+      jobTitle: "Solutions Engineer",
+      jobUrl,
+    });
+
+    await saveAnotherPosting();
+
+    const url = encodeURIComponent(jobUrl);
+
+    await expect(
+      (await list(TEST_USER, `?url=${url}&status=bookmarked`)).json(),
+    ).resolves.toHaveLength(1);
+    await expect(
+      (await list(TEST_USER, `?url=${url}&status=offer`)).json(),
+    ).resolves.toEqual([]);
   });
 });
 

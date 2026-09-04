@@ -33,6 +33,19 @@ export type ActivePosting =
 const UNREADABLE =
   "This tab could not be read. Open the panel from the toolbar icon on the page you want to save, or fill the details in below.";
 
+/**
+ * Where the user is, and nothing else. The panel asks this on open, to find
+ * out whether the Posting in front of them is one they have already saved
+ * (ADR-0002) — so it must cost nothing: no injection, no page read, and no
+ * share of the extraction grant. `tab.url` is known wherever the extension has
+ * access to the tab, and `null` says it does not, which the panel answers by
+ * offering to read the page in the ordinary way.
+ */
+export async function readActiveUrl(): Promise<string | null> {
+  const tab = await activeTab();
+  return tab?.url ?? null;
+}
+
 export async function readActivePosting(): Promise<ActivePosting> {
   const tab = await activeTab();
 

@@ -1,4 +1,10 @@
-import { JobStatus, RemoteType, type CreateJobApplication } from "@repo/schema";
+import {
+  JobStatus,
+  nearDuplicatesOf,
+  RemoteType,
+  type CreateJobApplication,
+  type JobApplication,
+} from "@repo/schema";
 import { REMOTE_TYPE_LABELS } from "@repo/ui/remote-type";
 import { JOB_STATUS_LABELS } from "@repo/ui/status-badge";
 import { useState, type FormEvent, type ReactNode } from "react";
@@ -17,12 +23,15 @@ import { Problems } from "./problems";
 export function ReviewForm({
   initial,
   explanation,
+  existing,
   onSave,
   onCancel,
 }: {
   initial: DraftFields;
   /** Why the boxes are empty, when they are. Absent after a good extraction. */
   explanation: string | null;
+  /** What the user has saved already, for the near-duplicate hint. */
+  existing: JobApplication[];
   /** Saves, and answers with whatever stopped it. Empty means it saved. */
   onSave: (input: CreateJobApplication) => Promise<string[]>;
   onCancel: () => void;
@@ -30,6 +39,14 @@ export function ReviewForm({
   const [fields, setFields] = useState(initial);
   const [problems, setProblems] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+
+  // The same role advertised in two places is two Postings and stays two Job
+  // Applications; merging them automatically would be a false merge at every
+  // company that posts twenty near-identical roles, and a wrong merge silently
+  // destroys a record (ADR-0002). So this is said and nothing else: it is
+  // recomputed as the user types, it stops nothing, and Save is the same
+  // button it was.
+  const hint = nearDuplicateHint(nearDuplicatesOf(fields, existing));
 
   const set = (field: keyof DraftFields) => (value: string) =>
     setFields((current) => ({ ...current, [field]: value }));
@@ -65,6 +82,12 @@ export function ReviewForm({
       {explanation !== null && (
         <p className="explanation" role="status">
           {explanation}
+        </p>
+      )}
+
+      {hint !== null && (
+        <p className="explanation" role="status">
+          {hint}
         </p>
       )}
 
@@ -165,6 +188,24 @@ export function ReviewForm({
       </form>
     </section>
   );
+}
+
+/**
+ * The hint itself, or nothing to say. It names the one Job Application where
+ * there is one, because a title the user can read is what tells them whether
+ * this really is the same role — and only counts them where there are several,
+ * since a list of five would be a screen of its own in a panel this wide.
+ */
+function nearDuplicateHint(alreadyHave: JobApplication[]): string | null {
+  const [first] = alreadyHave;
+  if (first === undefined) return null;
+
+  const what =
+    alreadyHave.length === 1
+      ? `a Job Application at ${first.company} with a similar title — ${first.jobTitle}`
+      : `${alreadyHave.length} Job Applications at ${first.company} with similar titles`;
+
+  return `You already have ${what}. Save anyway if this is a different role.`;
 }
 
 /** One labelled box. The label is the element, so the whole line is a target. */

@@ -4,9 +4,11 @@ import { DEFAULT_API_BASE_URL } from "../../lib/settings";
 import { AddManually, SaveThisJob } from "./capture-actions";
 import { RecentJobApplications } from "./recent-job-applications";
 import { ReviewForm } from "./review-form";
+import { SavedPosting } from "./saved-posting";
 import { SetupForm } from "./setup-form";
 import { useCapture } from "./use-capture";
-import { useRecentJobApplications } from "./use-recent-job-applications";
+import { listed, useJobApplications } from "./use-job-applications";
+import { useSavedPosting } from "./use-saved-posting";
 import { useSettings } from "./use-settings";
 import "./App.css";
 
@@ -27,7 +29,16 @@ import "./App.css";
 function App() {
   const { settings, loading, save } = useSettings();
   const [editing, setEditing] = useState(false);
-  const { recent, refresh } = useRecentJobApplications(settings);
+
+  // Both the list and the lookup go stale for the same reason — the panel
+  // writes through the endpoints it reads — so one count reloads both. A Job
+  // Application saved for the Posting in front of the user turns the panel's
+  // primary action into the already-saved view, and nothing else would tell it.
+  const [reloads, setReloads] = useState(0);
+  const refresh = () => setReloads((times) => times + 1);
+
+  const jobApplications = useJobApplications(settings, reloads);
+  const { lookup, setStatus } = useSavedPosting(settings, reloads);
   const {
     capture,
     extract,
@@ -41,10 +52,13 @@ function App() {
   // form at an already-configured user would be lying for that moment.
   const setupOpen = !loading && (settings === null || editing);
 
-  // Either thing the panel does can be the one that discovers the token is no
-  // longer good. Both say so in the same place, because there is one remedy.
+  // Any of the three things the panel does can be the one that discovers the
+  // token is no longer good. All of them say so in the same place, because
+  // there is one remedy.
   const tokenRejected =
-    recent.kind === "token-rejected" || capture.kind === "token-rejected";
+    jobApplications.kind === "token-rejected" ||
+    capture.kind === "token-rejected" ||
+    lookup.kind === "token-rejected";
 
   // The review form takes the body, not the header: the way back to the
   // dashboard is never the thing a panel takes away.
@@ -77,6 +91,7 @@ function App() {
 
       {reviewing ? (
         <ReviewForm
+          existing={listed(jobApplications)}
           explanation={capture.explanation}
           initial={capture.fields}
           onCancel={cancel}
@@ -115,13 +130,33 @@ function App() {
             </section>
           )}
 
-          {!setupOpen && !tokenRejected && settings !== null && (
-            <SaveThisJob
-              capture={capture}
-              onAddManually={addManually}
-              onSave={extract}
-            />
-          )}
+          {/*
+            The one place the panel decides for the user. A Posting they have
+            already saved is answered with the Job Application they saved, and
+            "Save this job" is not offered — reading the page again could only
+            produce a Draft the API would refuse as a duplicate (ADR-0002).
+            Every other answer, including a lookup that could not be made,
+            leaves the ordinary path in place: a Posting the panel cannot rule
+            out being new is one the user may still want to save.
+          */}
+          {!setupOpen &&
+            !tokenRejected &&
+            settings !== null &&
+            (lookup.kind === "saved" ? (
+              <SavedPosting
+                apiBaseUrl={settings.apiBaseUrl}
+                jobApplication={lookup.jobApplication}
+                onAddManually={addManually}
+                onSetStatus={setStatus}
+              />
+            ) : (
+              <SaveThisJob
+                capture={capture}
+                looking={lookup.kind === "looking"}
+                onAddManually={addManually}
+                onSave={extract}
+              />
+            ))}
 
           {/*
             Manual entry is the secondary action in every state the panel could
@@ -137,7 +172,9 @@ function App() {
             </section>
           )}
 
-          {settings !== null && <RecentJobApplications recent={recent} />}
+          {settings !== null && (
+            <RecentJobApplications jobApplications={jobApplications} />
+          )}
         </>
       )}
     </main>
