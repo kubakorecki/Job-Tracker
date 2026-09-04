@@ -3,10 +3,12 @@
 import {
   EXCITEMENT_SCALE,
   JobStatus,
+  Necessity,
   RemoteType,
   UpdateJobApplication,
   type JobApplication,
 } from "@repo/schema";
+import { NECESSITY_LABELS } from "@repo/ui/necessity";
 import { REMOTE_TYPE_LABELS } from "@repo/ui/remote-type";
 import { JOB_STATUS_LABELS, StatusBadge } from "@repo/ui/status-badge";
 import { useQueryClient } from "@tanstack/react-query";
@@ -24,6 +26,13 @@ import {
   editsFrom,
   type JobApplicationEdits,
 } from "../../../../lib/job-applications/edits";
+import {
+  groupedByNecessity,
+  newRequirementEdit,
+  requirementChanges,
+  requirementEditsFrom,
+  type RequirementEdit,
+} from "../../../../lib/job-applications/requirement-edits";
 import { describeIssues } from "../../../../lib/zod-issues";
 import { FIELD, Field, PRIMARY_BUTTON, Problems, Row } from "../../../form";
 import { JOB_APPLICATIONS_KEY } from "../../use-job-applications";
@@ -51,6 +60,12 @@ export function JobApplicationDetail({
   const [edits, setEdits] = useState<JobApplicationEdits>(() =>
     editsFrom(jobApplication),
   );
+  // The Requirements are held apart from the text fields because they are a
+  // list rather than a box: added to, removed from, and regrouped as a
+  // Necessity changes. They save with everything else, on the one button.
+  const [requirements, setRequirements] = useState<RequirementEdit[]>(() =>
+    requirementEditsFrom(jobApplication.requirements),
+  );
   const [problems, setProblems] = useState<string[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -72,7 +87,10 @@ export function JobApplicationDetail({
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const changes = UpdateJobApplication.safeParse(changesFrom(edits, saved));
+    const changes = UpdateJobApplication.safeParse({
+      ...changesFrom(edits, saved),
+      ...requirementChanges(requirements, saved),
+    });
     if (!changes.success) {
       setNotice(null);
       setProblems(describeIssues(changes.error));
@@ -95,6 +113,7 @@ export function JobApplicationDetail({
       // Back from the fields the server settled — a trimmed company, an
       // applied date stamped by a move to Applied.
       setEdits(editsFrom(updated));
+      setRequirements(requirementEditsFrom(updated.requirements));
       setNotice("Saved.");
       // The board reads the one cached list, and this Job Application is in
       // it; the layout's cache is still alive behind this page.
@@ -274,6 +293,14 @@ export function JobApplicationDetail({
           />
         </Field>
 
+        <Requirements
+          onChange={(next) => {
+            setNotice(null);
+            setRequirements(next);
+          }}
+          requirements={requirements}
+        />
+
         <Field label="Notes">
           <textarea
             className={FIELD}
@@ -362,6 +389,180 @@ function DeleteJobApplication({
         </button>
       )}
     </section>
+  );
+}
+
+/**
+ * What this job asks of a candidate, under how badly it asks for it. Every
+ * Requirement here can be corrected or taken away and a new one typed in,
+ * whether the extraction read them off a Posting or there is no Posting at
+ * all and the user is recording what a recruiter's email said.
+ *
+ * The list is flat underneath and grouped only to be read: a Requirement keeps
+ * the place it was captured in, so changing how badly it is wanted moves it
+ * between headings without disturbing the order of anything else.
+ *
+ * Nothing saves until the page does. Corrections to what a job asks for belong
+ * with corrections to its title and its salary, on the one button.
+ */
+function Requirements({
+  requirements,
+  onChange,
+}: {
+  requirements: RequirementEdit[];
+  onChange: (requirements: RequirementEdit[]) => void;
+}) {
+  const [skill, setSkill] = useState("");
+  const [necessity, setNecessity] = useState<Necessity>("required");
+
+  const groups = groupedByNecessity(requirements);
+  const typed = skill.trim();
+
+  function add() {
+    if (typed === "") return;
+    onChange([
+      ...requirements,
+      newRequirementEdit({ skill: typed, necessity }),
+    ]);
+    setSkill("");
+  }
+
+  function correct(
+    key: string,
+    correction: Partial<Omit<RequirementEdit, "key">>,
+  ) {
+    onChange(
+      requirements.map((requirement) =>
+        requirement.key === key
+          ? { ...requirement, ...correction }
+          : requirement,
+      ),
+    );
+  }
+
+  function remove(key: string) {
+    onChange(requirements.filter((requirement) => requirement.key !== key));
+  }
+
+  return (
+    <fieldset className="flex flex-col gap-3">
+      <legend className="mb-1 text-sm opacity-60">Requirements</legend>
+
+      {groups.length === 0 ? (
+        <p className="text-sm opacity-60">
+          Nothing is recorded as asked for yet.
+        </p>
+      ) : (
+        groups.map(({ necessity: asked, requirements: group }) => (
+          <div className="flex flex-col gap-2" key={asked}>
+            <h3 className="text-xs font-medium uppercase opacity-50">
+              {NECESSITY_LABELS[asked]}
+            </h3>
+            <ul className="flex flex-col gap-2">
+              {group.map((requirement) => (
+                <li
+                  className="flex flex-wrap items-center gap-2"
+                  key={requirement.key}
+                >
+                  <input
+                    aria-label="Skill"
+                    className={`${FIELD} min-w-0 flex-1`}
+                    onChange={(event) =>
+                      correct(requirement.key, { skill: event.target.value })
+                    }
+                    value={requirement.skill}
+                  />
+                  {/* The select fills what it is given, so its width is the
+                      row's business rather than its own. */}
+                  <div className="w-40 shrink-0">
+                    <NecessitySelect
+                      label={`Necessity of ${requirement.skill}`}
+                      onChange={(wanted) =>
+                        correct(requirement.key, { necessity: wanted })
+                      }
+                      value={requirement.necessity}
+                    />
+                  </div>
+                  <button
+                    aria-label={`Remove ${requirement.skill}`}
+                    className="text-sm underline underline-offset-2 opacity-60"
+                    onClick={() => remove(requirement.key)}
+                    type="button"
+                  >
+                    Remove
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))
+      )}
+
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+        <Field label="Add a Requirement">
+          <input
+            className={FIELD}
+            onChange={(event) => setSkill(event.target.value)}
+            // Enter in a box inside a form saves the form, which here would
+            // save the page and leave the typed skill behind in the box.
+            onKeyDown={(event) => {
+              if (event.key !== "Enter") return;
+              event.preventDefault();
+              add();
+            }}
+            placeholder="What this job asks for"
+            value={skill}
+          />
+        </Field>
+        <Field label="Necessity">
+          <NecessitySelect onChange={setNecessity} value={necessity} />
+        </Field>
+        <button
+          className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium disabled:opacity-50 dark:border-neutral-700"
+          disabled={typed === ""}
+          onClick={add}
+          type="button"
+        >
+          Add
+        </button>
+      </div>
+    </fieldset>
+  );
+}
+
+/**
+ * The three Necessities, offered as the contract lists them. The value is
+ * asserted rather than parsed for the same reason the Status select's is: the
+ * options are built from the contract's own set, and the assembled patch is
+ * parsed against the contract before it is sent.
+ *
+ * The label is a prop rather than a wrapping `Field` because a group's rows
+ * have their heading above the whole list, and a visible label on each select
+ * would repeat "Necessity" down the page. It names the Requirement it belongs
+ * to, so that hearing the page read out tells one row's select from the next.
+ */
+function NecessitySelect({
+  value,
+  onChange,
+  label,
+}: {
+  value: Necessity;
+  onChange: (necessity: Necessity) => void;
+  label?: string;
+}) {
+  return (
+    <select
+      aria-label={label}
+      className={FIELD}
+      onChange={(event) => onChange(event.target.value as Necessity)}
+      value={value}
+    >
+      {Necessity.options.map((option) => (
+        <option key={option} value={option}>
+          {NECESSITY_LABELS[option]}
+        </option>
+      ))}
+    </select>
   );
 }
 

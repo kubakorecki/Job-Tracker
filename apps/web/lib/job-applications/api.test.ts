@@ -168,6 +168,49 @@ describe("POST /api/job-applications", () => {
     expect(reloaded.requirements).toEqual(asked);
   });
 
+  it("carries Requirements on a Job Application that never came from a Posting", async () => {
+    // Nothing read them off a page: the user typed what a recruiter's email
+    // asked for. A Requirement hangs off the Job Application, not off the
+    // Posting, so having no Posting takes nothing away.
+    const byHand = [
+      { skill: "Elixir", necessity: "required" },
+      { skill: "Phoenix LiveView", necessity: "preferred" },
+    ] as const;
+
+    const created = await save(TEST_USER, {
+      company: "Dashbit",
+      jobTitle: "Backend Engineer",
+      jobUrl: null,
+      source: "recruiter email",
+      requirements: byHand,
+    });
+
+    expect(created.jobUrl).toBeNull();
+
+    const reloaded: JobApplication = await (
+      await read(TEST_USER, created.id)
+    ).json();
+    expect(reloaded.requirements).toEqual(byHand);
+  });
+
+  it("refuses a Requirement whose Necessity is not one of the three", async () => {
+    const response = await post(TEST_USER, {
+      company: "Segment",
+      jobTitle: "Data Engineer",
+      requirements: [{ skill: "dbt", necessity: "nice-to-have" }],
+    });
+
+    expect(response.status).toBe(400);
+    const { issues }: { issues: string[] } = await response.json();
+    const named = issues.find((issue) => issue.includes("necessity"));
+    // The refusal has to say what would have been accepted, or a client is
+    // left guessing at a closed set it cannot see.
+    expect(named).toBeDefined();
+    for (const necessity of ["required", "preferred", "unstated"]) {
+      expect(named).toContain(necessity);
+    }
+  });
+
   it("records several Job Applications with no Posting, for referrals and recruiter emails", async () => {
     const referral = await save(TEST_USER, {
       company: "Linear",
@@ -353,6 +396,31 @@ describe("GET /api/job-applications", () => {
     expect(forThem.map(({ id }) => id)).toContain(theirs.id);
     expect(forThem.map(({ id }) => id)).not.toContain(mine.id);
     expect(forMe.every(({ userId }) => userId === TEST_USER.id)).toBe(true);
+  });
+
+  it("never returns another user's Requirements", async () => {
+    // The Requirements are a table of their own, read by a query of their own,
+    // so the isolation the Job Application enjoys is not something they
+    // inherit — it has to hold for the second query too (ADR-0001).
+    const mine = await save(TEST_USER, {
+      company: "Cal.com",
+      jobTitle: "Full Stack Engineer",
+      requirements: [{ skill: "Next.js", necessity: "required" }],
+    });
+    await save(OTHER_TEST_USER, {
+      company: "Clerk",
+      jobTitle: "Full Stack Engineer",
+      requirements: [{ skill: "Their Secret Skill", necessity: "required" }],
+    });
+
+    const forMe: JobApplication[] = await (await list(TEST_USER)).json();
+
+    expect(forMe.find(({ id }) => id === mine.id)?.requirements).toEqual([
+      { skill: "Next.js", necessity: "required" },
+    ]);
+    expect(
+      forMe.flatMap(({ requirements }) => requirements.map((r) => r.skill)),
+    ).not.toContain("Their Secret Skill");
   });
 
   it("filters by Status", async () => {
@@ -620,6 +688,137 @@ describe("PATCH /api/job-applications/:id", () => {
         { skill: "prometheus", necessity: "unstated" },
       ],
       notes: "Recruiter call on Friday",
+    });
+  });
+
+  /**
+   * The four corrections a user makes to what a Posting was read as asking
+   * for. A patch states the whole list rather than naming one Requirement,
+   * because a Requirement has no identity a client could address — the skill
+   * is what identifies it, and the skill is what a correction changes.
+   */
+  describe("correcting the Requirements", () => {
+    const AS_EXTRACTED = [
+      { skill: "Typescript", necessity: "required" },
+      { skill: "GraphQL", necessity: "preferred" },
+    ] as const;
+
+    /** A Job Application with the Requirements above, ready to be corrected. */
+    async function extracted(company: string): Promise<JobApplication> {
+      return save(TEST_USER, {
+        company,
+        jobTitle: "Product Engineer",
+        requirements: AS_EXTRACTED,
+      });
+    }
+
+    /** What the Job Application's Requirements are once the server is asked again. */
+    async function reloadedRequirements(id: string) {
+      const reloaded: JobApplication = await (await read(TEST_USER, id)).json();
+      return reloaded.requirements;
+    }
+
+    it("adds a Requirement the Posting asked for and the extraction missed", async () => {
+      const created = await extracted("Hex");
+
+      const response = await patch(TEST_USER, created.id, {
+        requirements: [
+          ...AS_EXTRACTED,
+          { skill: "Postgres", necessity: "required" },
+        ],
+      });
+
+      expect(response.status).toBe(200);
+      await expect(reloadedRequirements(created.id)).resolves.toEqual([
+        { skill: "Typescript", necessity: "required" },
+        { skill: "GraphQL", necessity: "preferred" },
+        { skill: "Postgres", necessity: "required" },
+      ]);
+    });
+
+    it("removes a Requirement the Posting never asked for", async () => {
+      const created = await extracted("Census");
+
+      await patch(TEST_USER, created.id, {
+        requirements: [{ skill: "Typescript", necessity: "required" }],
+      });
+
+      await expect(reloadedRequirements(created.id)).resolves.toEqual([
+        { skill: "Typescript", necessity: "required" },
+      ]);
+    });
+
+    it("corrects a Requirement's wording", async () => {
+      const created = await extracted("Airbyte");
+
+      await patch(TEST_USER, created.id, {
+        requirements: [
+          { skill: "TypeScript", necessity: "required" },
+          { skill: "GraphQL", necessity: "preferred" },
+        ],
+      });
+
+      await expect(reloadedRequirements(created.id)).resolves.toEqual([
+        { skill: "TypeScript", necessity: "required" },
+        { skill: "GraphQL", necessity: "preferred" },
+      ]);
+    });
+
+    it("changes how badly the Posting wanted a Requirement", async () => {
+      const created = await extracted("Temporal");
+
+      await patch(TEST_USER, created.id, {
+        requirements: [
+          { skill: "Typescript", necessity: "required" },
+          { skill: "GraphQL", necessity: "unstated" },
+        ],
+      });
+
+      await expect(reloadedRequirements(created.id)).resolves.toEqual([
+        { skill: "Typescript", necessity: "required" },
+        { skill: "GraphQL", necessity: "unstated" },
+      ]);
+    });
+
+    it("refuses a Necessity it does not recognise, and leaves the Requirements as they were", async () => {
+      const created = await extracted("Cribl");
+
+      const response = await patch(TEST_USER, created.id, {
+        requirements: [{ skill: "Typescript", necessity: "essential" }],
+      });
+
+      expect(response.status).toBe(400);
+      const { issues }: { issues: string[] } = await response.json();
+      const named = issues.find((issue) => issue.includes("necessity"));
+      expect(named).toBeDefined();
+      for (const necessity of ["required", "preferred", "unstated"]) {
+        expect(named).toContain(necessity);
+      }
+
+      await expect(reloadedRequirements(created.id)).resolves.toEqual(
+        AS_EXTRACTED,
+      );
+    });
+
+    it("never reaches another user's Requirements", async () => {
+      const theirs = await save(OTHER_TEST_USER, {
+        company: "Honeycomb",
+        jobTitle: "Observability Engineer",
+        requirements: [{ skill: "OpenTelemetry", necessity: "required" }],
+      });
+
+      const response = await patch(TEST_USER, theirs.id, {
+        requirements: [{ skill: "Ruby", necessity: "preferred" }],
+      });
+
+      expect(response.status).toBe(404);
+
+      const stillTheirs: JobApplication = await (
+        await read(OTHER_TEST_USER, theirs.id)
+      ).json();
+      expect(stillTheirs.requirements).toEqual([
+        { skill: "OpenTelemetry", necessity: "required" },
+      ]);
     });
   });
 

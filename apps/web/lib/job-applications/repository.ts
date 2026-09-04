@@ -160,27 +160,37 @@ export async function updateJobApplication(
   // along with it, and the Requirements, which are a table of their own.
   const { appliedAt, jobUrl, requirements: asks, ...fields } = patch;
 
+  const columns = {
+    ...fields,
+    ...(appliedAt === undefined
+      ? {}
+      : { appliedAt: appliedAt === null ? null : new Date(appliedAt) }),
+    // The stored identity has to move with the URL it is derived from, or the
+    // unique index would go on guarding the Posting this Job Application used
+    // to point at (ADR-0002).
+    ...(jobUrl === undefined
+      ? {}
+      : {
+          jobUrl,
+          normalizedJobUrl: jobUrl === null ? null : normalizeJobUrl(jobUrl),
+        }),
+    ...appliedAtOnStatusChange(patch),
+  };
+
   const updated = await db()
     .transaction(async (tx) => {
       const rows = await tx
         .update(jobApplications)
-        .set({
-          ...fields,
-          ...(appliedAt === undefined
-            ? {}
-            : { appliedAt: appliedAt === null ? null : new Date(appliedAt) }),
-          // The stored identity has to move with the URL it is derived from, or
-          // the unique index would go on guarding the Posting this Job
-          // Application used to point at (ADR-0002).
-          ...(jobUrl === undefined
-            ? {}
-            : {
-                jobUrl,
-                normalizedJobUrl:
-                  jobUrl === null ? null : normalizeJobUrl(jobUrl),
-              }),
-          ...appliedAtOnStatusChange(patch),
-        })
+        .set(
+          // A patch that named only the Requirements leaves this statement no
+          // column of its own to write, and an update with no columns is one
+          // Postgres has no syntax for. The stamp is the honest thing to put
+          // there: the Job Application did change, and the row still has to
+          // come back so the caller can tell a correction from a 404.
+          Object.keys(columns).length === 0
+            ? { updatedAt: new Date() }
+            : columns,
+        )
         .where(
           and(eq(jobApplications.userId, userId), eq(jobApplications.id, id)),
         )
