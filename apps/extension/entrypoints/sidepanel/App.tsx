@@ -47,18 +47,20 @@ function App() {
     save: saveReview,
   } = useCapture(settings, refresh);
 
-  // Asked for when there is nothing stored, and whenever the user goes back to
-  // it. Never while storage is still answering: a panel that flashed the setup
-  // form at an already-configured user would be lying for that moment.
-  const setupOpen = !loading && (settings === null || editing);
-
   // Any of the three things the panel does can be the one that discovers the
-  // token is no longer good. All of them say so in the same place, because
-  // there is one remedy.
+  // token is no longer good. All of them are answered in the same place,
+  // because there is one remedy.
   const tokenRejected =
     jobApplications.kind === "token-rejected" ||
     capture.kind === "token-rejected" ||
     lookup.kind === "token-rejected";
+
+  // Asked for when there is nothing stored, when the user goes back to it, and
+  // when the stored token stops working: a refused token has one remedy and
+  // this form is it, so the panel opens it rather than offering a button that
+  // would. Never while storage is still answering: a panel that flashed the
+  // setup form at an already-configured user would be lying for that moment.
+  const setupOpen = !loading && (settings === null || editing || tokenRejected);
 
   // The review form takes the body, not the header: the way back to the
   // dashboard is never the thing a panel takes away.
@@ -101,33 +103,27 @@ function App() {
         <>
           {setupOpen && (
             <SetupForm
-              onCancel={settings === null ? undefined : () => setEditing(false)}
+              // Nothing to go back to: on a first run there is no panel behind
+              // this form, and after a refusal the panel behind it could do
+              // nothing but discover the same refusal again. Manual entry is
+              // the way past it, and stands below.
+              onCancel={
+                settings === null || tokenRejected
+                  ? undefined
+                  : () => setEditing(false)
+              }
               onSave={async (next) => {
                 await save(next);
                 setEditing(false);
+                // Everything that was refused is asked again with what was
+                // just typed. `cancel` is what clears a capture that ended in
+                // a refusal; the list and the lookup are re-read by the count.
+                cancel();
+                refresh();
               }}
+              refused={tokenRejected}
               settings={settings}
             />
-          )}
-
-          {!setupOpen && tokenRejected && (
-            <section>
-              <p className="problem" role="alert">
-                Your Personal Access Token was refused. It may have been
-                revoked, or it may belong to a different Job Tracker than the
-                one this panel points at.
-              </p>
-              <div className="actions">
-                <button
-                  className="button"
-                  onClick={() => setEditing(true)}
-                  type="button"
-                >
-                  Update settings
-                </button>
-                <AddManually onClick={addManually} />
-              </div>
-            </section>
           )}
 
           {/*
@@ -140,7 +136,6 @@ function App() {
             out being new is one the user may still want to save.
           */}
           {!setupOpen &&
-            !tokenRejected &&
             settings !== null &&
             (lookup.kind === "saved" ? (
               <SavedPosting
@@ -164,7 +159,9 @@ function App() {
             it — the settings form — it stands on its own. The one state
             without it is a first run: there is no Job Tracker configured yet,
             and a form that could not be saved would be a worse answer than the
-            setup form already in front of the user.
+            setup form already in front of the user. A refused token is not
+            that state — the Job Tracker is known, and the save may well be
+            what puts the token right.
           */}
           {setupOpen && settings !== null && (
             <section className="actions">
@@ -173,7 +170,10 @@ function App() {
           )}
 
           {settings !== null && (
-            <RecentJobApplications jobApplications={jobApplications} />
+            <RecentJobApplications
+              jobApplications={jobApplications}
+              onRetry={refresh}
+            />
           )}
         </>
       )}

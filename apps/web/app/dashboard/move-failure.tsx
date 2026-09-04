@@ -1,6 +1,7 @@
 "use client";
 
 import { JOB_STATUS_LABELS } from "@repo/ui/status-badge";
+import { TEXT_BUTTON } from "../form";
 import type { FailedMove } from "./use-job-applications";
 
 /**
@@ -34,7 +35,7 @@ export function MoveFailure({
         {JOB_STATUS_LABELS[failed.move.status]}. {failed.reason}
       </span>
       <button
-        className="font-medium underline underline-offset-2"
+        className={TEXT_BUTTON}
         onClick={onRetry}
         type="button"
       >

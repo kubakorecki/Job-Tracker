@@ -1,11 +1,12 @@
 import type { JobApplication } from "@repo/schema";
 import { describe, expect, it } from "vitest";
-import { matching, NO_FILTER } from "./filtering";
+import { emptiness, matching, NO_FILTER } from "./filtering";
 
 /**
  * What the dashboard shows once the user has narrowed it, with no board, no
  * table and no cache in sight: the list that goes in, and the list that comes
- * back out.
+ * back out — and, when nothing comes back out, which of the two blank screens
+ * the user is owed.
  */
 
 const A_JOB_APPLICATION: JobApplication = {
@@ -110,5 +111,51 @@ describe("matching", () => {
       "Stripe",
       "Shopify",
     ]);
+  });
+});
+
+describe("emptiness", () => {
+  it("has nothing to say while there is something to show", () => {
+    expect(emptiness(ALL, ALL, NO_FILTER)).toBeNull();
+    expect(emptiness(ALL, [STRIPE], { ...NO_FILTER, search: "stripe" })).toBe(
+      null,
+    );
+  });
+
+  it("says the user has none at all when they have none at all", () => {
+    expect(emptiness([], [], NO_FILTER)).toEqual({ kind: "nothing-yet" });
+  });
+
+  it("still says none at all when a filter is up but there is nothing to filter", () => {
+    expect(emptiness([], [], { search: "plumber", status: "applied" })).toEqual(
+      { kind: "nothing-yet" },
+    );
+  });
+
+  it("tells a search that found nothing apart from having nothing", () => {
+    expect(emptiness(ALL, [], { ...NO_FILTER, search: "plumber" })).toEqual({
+      kind: "nothing-matches",
+      narrowedBy: "search",
+    });
+  });
+
+  it("names the Status when the Status is what emptied the view", () => {
+    expect(emptiness(ALL, [], { ...NO_FILTER, status: "offer" })).toEqual({
+      kind: "nothing-matches",
+      narrowedBy: "status",
+    });
+  });
+
+  it("names both when both are narrowing", () => {
+    expect(
+      emptiness(ALL, [], { search: "basecamp", status: "applied" }),
+    ).toEqual({ kind: "nothing-matches", narrowedBy: "both" });
+  });
+
+  it("does not count a search of nothing but whitespace as a search", () => {
+    expect(emptiness(ALL, [], { search: "   ", status: "offer" })).toEqual({
+      kind: "nothing-matches",
+      narrowedBy: "status",
+    });
   });
 });

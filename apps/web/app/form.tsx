@@ -14,6 +14,13 @@ export const FIELD =
 export const PRIMARY_BUTTON =
   "rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900";
 
+/**
+ * A button that reads as a link, for the one thing a message can offer: retry
+ * it, clear it, undo it. It inherits its colour, so the same button is legible
+ * inside a red failure and on the page.
+ */
+export const TEXT_BUTTON = "font-medium underline underline-offset-2";
+
 /** A labelled control. The label wraps the control, so the whole of it is a target. */
 export function Field({
   label,

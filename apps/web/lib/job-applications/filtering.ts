@@ -47,3 +47,44 @@ function carries(jobApplication: JobApplication, wanted: string): boolean {
     jobApplication.jobTitle.toLowerCase().includes(wanted)
   );
 }
+
+/**
+ * What a dashboard with nothing on it has to say for itself, or `null` when it
+ * has something to show and needs to say nothing.
+ *
+ * The two are not the same news and must not read the same. A user with no Job
+ * Applications is being invited to record their first one; a user whose search
+ * found nothing has fifty of them and has mistyped a company name, and telling
+ * them they have none would be a small lie at the worst moment. Which of the
+ * two it is depends on the list before it was narrowed, which is why both go in.
+ */
+export type Emptiness =
+  { kind: "nothing-yet" } | { kind: "nothing-matches"; narrowedBy: NarrowedBy };
+
+/**
+ * Which part of the filter is standing between the user and their Job
+ * Applications — and so which control the empty state offers to undo. A search
+ * of nothing but whitespace does not count, for the same reason `matching`
+ * admits everything on one: clearing it would change nothing.
+ */
+export type NarrowedBy = "search" | "status" | "both";
+
+export function emptiness(
+  jobApplications: JobApplication[],
+  shown: JobApplication[],
+  { search, status }: JobApplicationFilter,
+): Emptiness | null {
+  if (shown.length > 0) return null;
+  if (jobApplications.length === 0) return { kind: "nothing-yet" };
+
+  const searching = search.trim() !== "";
+
+  return {
+    kind: "nothing-matches",
+    // A view narrowed to nothing was narrowed by something: with neither part
+    // of the filter up, `matching` returns the whole list, and the empty case
+    // above has already answered.
+    narrowedBy:
+      searching && status !== null ? "both" : searching ? "search" : "status",
+  };
+}

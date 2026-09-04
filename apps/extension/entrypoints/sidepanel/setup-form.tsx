@@ -9,16 +9,24 @@ import { Problems } from "./problems";
 
 /**
  * The panel's first run: a token to act with, and an address to act against.
- * It is the same form the user comes back to when a token is refused, so it
- * fills in from what is already stored and can be cancelled — except on a
- * first run, where there is nothing to go back to.
+ * It is also where a refused token lands, which is the whole of why that is a
+ * state worth having: there is exactly one remedy for a token the API will not
+ * take, and it is this form. So it fills in from what is already stored, and
+ * can be cancelled — except on a first run and after a refusal, where there is
+ * nothing behind it worth going back to.
  */
 export function SetupForm({
   settings,
+  refused = false,
   onSave,
   onCancel,
 }: {
   settings: Settings | null;
+  /**
+   * Whether the panel opened this because the API would not take the stored
+   * token, rather than because the user asked for it.
+   */
+  refused?: boolean;
   onSave: (settings: Settings) => Promise<void>;
   onCancel?: () => void;
 }) {
@@ -61,6 +69,19 @@ export function SetupForm({
   return (
     <section>
       <h2>Connect to your tracker</h2>
+
+      {/*
+        Above the form rather than in place of it: the sentence says what
+        happened, and everything under it is what to do about it.
+      */}
+      {refused && (
+        <p className="problem" role="alert">
+          Your Personal Access Token was refused. It may have been revoked, or
+          it may belong to a different Job Tracker than the one this panel
+          points at.
+        </p>
+      )}
+
       <p className="hint">
         Generate a Personal Access Token on the dashboard&rsquo;s{" "}
         {parsed === null ? (
