@@ -20,7 +20,7 @@ const SAVED: JobApplication = {
   salaryMax: 160000,
   currency: "USD",
   description: "Works on Basecamp and HEY.",
-  keywords: ["ruby", "rails"],
+  requirements: [{ skill: "ruby", necessity: "required" }],
   status: "applied",
   source: "referral",
   appliedAt: "2026-02-14T10:30:00.000Z",
@@ -42,7 +42,6 @@ describe("editsFrom", () => {
       salaryMax: "160000",
       currency: "USD",
       description: "Works on Basecamp and HEY.",
-      keywords: "ruby, rails",
       status: "applied",
       source: "referral",
       appliedAt: "2026-02-14",
@@ -61,7 +60,7 @@ describe("editsFrom", () => {
       salaryMax: null,
       currency: null,
       description: null,
-      keywords: [],
+      requirements: [],
       source: null,
       appliedAt: null,
       excitement: null,
@@ -76,7 +75,6 @@ describe("editsFrom", () => {
       salaryMax: "",
       currency: "",
       description: "",
-      keywords: "",
       source: "",
       appliedAt: "",
       excitement: "",
@@ -130,18 +128,12 @@ describe("changesFrom", () => {
     expect(changesFrom(editsFrom(SAVED), SAVED).appliedAt).toBeUndefined();
   });
 
-  it("splits keywords on commas, keeping neither blanks nor stray spaces", () => {
-    const edits = { ...editsFrom(SAVED), keywords: " ruby ,, rails, hotwire " };
-
-    expect(changesFrom(edits, SAVED)).toEqual({
-      keywords: ["ruby", "rails", "hotwire"],
-    });
-  });
-
-  it("empties the keywords when the box is emptied", () => {
-    expect(changesFrom({ ...editsFrom(SAVED), keywords: "" }, SAVED)).toEqual({
-      keywords: [],
-    });
+  it("never speaks for the Requirements, which no box on the form holds", () => {
+    // They carry a Necessity each, so they have their own control and their
+    // own patch; a form's worth of text has nothing to say about them.
+    expect(changesFrom(editsFrom(SAVED), SAVED)).not.toHaveProperty(
+      "requirements",
+    );
   });
 
   it("trims what the user typed", () => {

@@ -45,7 +45,10 @@ const DRAFT: JobExtraction = {
   salaryMax: 110_000,
   currency: "GBP",
   description: "Building things at Acme.",
-  keywords: ["TypeScript", "Postgres"],
+  requirements: [
+    { skill: "TypeScript", necessity: "unstated" as const },
+    { skill: "Postgres", necessity: "unstated" as const },
+  ],
 };
 
 beforeEach(clearCounters);
@@ -131,7 +134,7 @@ describe("POST /api/extract-job", () => {
     const response = await extract(
       TEST_USER,
       POSTING,
-      answering({ description: "An article about hiring.", keywords: [] }),
+      answering({ description: "An article about hiring.", requirements: [] }),
     );
 
     expect(response.status).toBe(200);

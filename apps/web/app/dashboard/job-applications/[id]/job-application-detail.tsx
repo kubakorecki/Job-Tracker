@@ -265,15 +265,6 @@ export function JobApplicationDetail({
           value={edits.excitement}
         />
 
-        <Field label="Keywords, separated by commas">
-          <input
-            className={FIELD}
-            onChange={edit("keywords")}
-            placeholder="typescript, postgres"
-            value={edits.keywords}
-          />
-        </Field>
-
         <Field label="Description">
           <textarea
             className={FIELD}

@@ -17,8 +17,17 @@ import { appliedAtFromDateInput, appliedDateInput } from "./applied-date";
  * of day every time the form was saved untouched.
  */
 
-/** Every editable field of a Job Application, as the form holds it: text. */
-export type JobApplicationEdits = Record<keyof UpdateJobApplication, string>;
+/**
+ * The editable fields of a Job Application the form holds as text — every one
+ * but the Requirements, which are a list of skills each carrying a Necessity
+ * and have their own control on the page. A box of comma-separated words
+ * cannot say how badly a Posting wants something, which is the whole reason
+ * Requirements replaced the flat list that used to sit here.
+ */
+type TextField = Exclude<keyof UpdateJobApplication, "requirements">;
+
+/** Every text-editable field of a Job Application, as the form holds it. */
+export type JobApplicationEdits = Record<TextField, string>;
 
 /**
  * Each field's way back from text to the shape the contract states it in. The
@@ -32,9 +41,7 @@ export type JobApplicationEdits = Record<keyof UpdateJobApplication, string>;
  * naming the field.
  */
 type ToStored = {
-  [K in keyof UpdateJobApplication]-?: (
-    text: string,
-  ) => UpdateJobApplication[K];
+  [K in TextField]-?: (text: string) => UpdateJobApplication[K];
 };
 
 const trimmed = (text: string) => text.trim();
@@ -52,11 +59,6 @@ const TO_STORED: ToStored = {
   salaryMax: numberOrNull,
   currency: orNull,
   description: orNull,
-  keywords: (text) =>
-    text
-      .split(",")
-      .map((keyword) => keyword.trim())
-      .filter((keyword) => keyword !== ""),
   status: (text) => text as JobStatus,
   source: orNull,
   appliedAt: (text) => appliedAtFromDateInput(text.trim()),
@@ -81,7 +83,6 @@ export function editsFrom(jobApplication: JobApplication): JobApplicationEdits {
     salaryMax: number(jobApplication.salaryMax),
     currency: jobApplication.currency ?? "",
     description: jobApplication.description ?? "",
-    keywords: jobApplication.keywords.join(", "),
     status: jobApplication.status,
     source: jobApplication.source ?? "",
     appliedAt: appliedDateInput(jobApplication.appliedAt),

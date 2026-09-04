@@ -1,15 +1,89 @@
 import { describe, expect, it } from "vitest";
 import {
+  Basis,
+  Coverage,
   CreateJobApplication,
   JobExtraction,
   ExtractJobResponse,
   JobApplication,
+  Necessity,
+  Requirement,
   UpdateJobApplication,
 } from "./index.js";
 
 const MINIMAL = { company: "Acme", jobTitle: "Engineer" };
 
+describe("Necessity", () => {
+  it("is required, preferred or unstated, and nothing else", () => {
+    expect(Necessity.options).toEqual(["required", "preferred", "unstated"]);
+    expect(Necessity.safeParse("nice-to-have").success).toBe(false);
+  });
+});
+
+describe("Coverage", () => {
+  it("is have, partial or missing, and nothing else", () => {
+    expect(Coverage.options).toEqual(["have", "partial", "missing"]);
+    expect(Coverage.safeParse("yes").success).toBe(false);
+  });
+});
+
+describe("Basis", () => {
+  it("is the Profile or the Tailored CV, and nothing else", () => {
+    expect(Basis.options).toEqual(["profile", "tailored-cv"]);
+    expect(Basis.safeParse("cv").success).toBe(false);
+  });
+});
+
+describe("Requirement", () => {
+  it("is a skill and a Necessity", () => {
+    expect(
+      Requirement.parse({ skill: "Terraform", necessity: "required" }),
+    ).toEqual({ skill: "Terraform", necessity: "required" });
+  });
+
+  it("refuses a Requirement with no skill in it", () => {
+    expect(
+      Requirement.safeParse({ skill: "", necessity: "required" }).success,
+    ).toBe(false);
+  });
+
+  it("refuses a Necessity it does not know", () => {
+    expect(
+      Requirement.safeParse({ skill: "Terraform", necessity: "maybe" }).success,
+    ).toBe(false);
+  });
+
+  it("will not stand in for a bare keyword string", () => {
+    expect(Requirement.safeParse("Terraform").success).toBe(false);
+  });
+});
+
 describe("CreateJobApplication", () => {
+  it("takes Requirements, each carrying its own Necessity", () => {
+    const created = CreateJobApplication.parse({
+      ...MINIMAL,
+      requirements: [
+        { skill: "TypeScript", necessity: "required" },
+        { skill: "Terraform", necessity: "preferred" },
+        { skill: "German", necessity: "unstated" },
+      ],
+    });
+    expect(created.requirements).toEqual([
+      { skill: "TypeScript", necessity: "required" },
+      { skill: "Terraform", necessity: "preferred" },
+      { skill: "German", necessity: "unstated" },
+    ]);
+  });
+
+  it("drops a stray keywords key rather than honouring it", () => {
+    const created = CreateJobApplication.parse({
+      ...MINIMAL,
+      keywords: ["typescript"],
+    });
+    expect(created).not.toHaveProperty("keywords");
+    expect(created.requirements).toEqual([]);
+  });
+
   it("needs only a company and a job title", () => {
     expect(CreateJobApplication.safeParse(MINIMAL).success).toBe(true);
   });
@@ -30,7 +104,7 @@ describe("CreateJobApplication", () => {
       salaryMax: null,
       currency: null,
       description: null,
-      keywords: [],
+      requirements: [],
       status: "bookmarked",
       source: null,
       appliedAt: null,
@@ -126,7 +200,7 @@ describe("JobApplication", () => {
     salaryMax: null,
     currency: null,
     description: null,
-    keywords: [],
+    requirements: [],
     status: "bookmarked",
     source: null,
     appliedAt: null,

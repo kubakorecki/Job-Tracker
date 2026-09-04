@@ -21,7 +21,7 @@ const A_JOB_APPLICATION: JobApplication = {
   salaryMax: null,
   currency: null,
   description: null,
-  keywords: [],
+  requirements: [],
   status: "bookmarked",
   source: null,
   appliedAt: null,

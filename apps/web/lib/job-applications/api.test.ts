@@ -140,10 +140,32 @@ describe("POST /api/job-applications", () => {
       jobTitle: "Software Engineer",
       jobUrl: null,
       status: "bookmarked",
-      keywords: [],
+      requirements: [],
       appliedAt: null,
     });
     expect(created.id).toEqual(expect.any(String));
+  });
+
+  it("keeps the Requirements in the order the Posting asked in", async () => {
+    // They are rows of their own now rather than an array in a column, so the
+    // order a Posting listed its asks in is something the read has to restore
+    // rather than something the storage keeps for free.
+    const asked = [
+      { skill: "Kubernetes", necessity: "required" },
+      { skill: "Terraform", necessity: "preferred" },
+      { skill: "German", necessity: "unstated" },
+    ] as const;
+
+    const created = await save(TEST_USER, {
+      company: "Fly.io",
+      jobTitle: "Infrastructure Engineer",
+      requirements: asked,
+    });
+
+    const reloaded: JobApplication = await (
+      await read(TEST_USER, created.id)
+    ).json();
+    expect(reloaded.requirements).toEqual(asked);
   });
 
   it("records several Job Applications with no Posting, for referrals and recruiter emails", async () => {
@@ -171,7 +193,10 @@ describe("POST /api/job-applications", () => {
       status: "applied",
       location: "Remote",
       remoteType: "remote",
-      keywords: ["postgres", "typescript"],
+      requirements: [
+        { skill: "postgres", necessity: "required" },
+        { skill: "typescript", necessity: "preferred" },
+      ],
     });
 
     expect(created).toMatchObject({
@@ -179,7 +204,10 @@ describe("POST /api/job-applications", () => {
       status: "applied",
       location: "Remote",
       remoteType: "remote",
-      keywords: ["postgres", "typescript"],
+      requirements: [
+        { skill: "postgres", necessity: "required" },
+        { skill: "typescript", necessity: "preferred" },
+      ],
     });
   });
 
@@ -573,7 +601,10 @@ describe("PATCH /api/job-applications/:id", () => {
       company: "Grafana",
       jobTitle: "Observability Engineer",
       location: "Stockholm",
-      keywords: ["go", "prometheus"],
+      requirements: [
+        { skill: "go", necessity: "required" },
+        { skill: "prometheus", necessity: "unstated" },
+      ],
     });
 
     const updated: JobApplication = await (
@@ -584,7 +615,10 @@ describe("PATCH /api/job-applications/:id", () => {
       company: "Grafana",
       jobTitle: "Observability Engineer",
       location: "Stockholm",
-      keywords: ["go", "prometheus"],
+      requirements: [
+        { skill: "go", necessity: "required" },
+        { skill: "prometheus", necessity: "unstated" },
+      ],
       notes: "Recruiter call on Friday",
     });
   });
@@ -700,7 +734,10 @@ describe("PATCH /api/job-applications/:id", () => {
       salaryMax: 160000,
       currency: "USD",
       description: "Works on Basecamp and HEY.",
-      keywords: ["ruby", "rails"],
+      requirements: [
+        { skill: "ruby", necessity: "required" },
+        { skill: "rails", necessity: "preferred" },
+      ],
       status: "interviewing",
       source: "referral",
       appliedAt: "2026-04-02T00:00:00.000Z",
@@ -733,7 +770,7 @@ describe("PATCH /api/job-applications/:id", () => {
         location: null,
         notes: null,
         excitement: null,
-        keywords: [],
+        requirements: [],
       })
     ).json();
 
@@ -741,7 +778,7 @@ describe("PATCH /api/job-applications/:id", () => {
       location: null,
       notes: null,
       excitement: null,
-      keywords: [],
+      requirements: [],
     });
   });
 
@@ -824,7 +861,10 @@ describe("GET /api/job-applications/:id", () => {
       salaryMax: 60000,
       currency: "INR",
       description: "Owns the collection runner.",
-      keywords: ["node", "api"],
+      requirements: [
+        { skill: "node", necessity: "required" },
+        { skill: "api", necessity: "unstated" },
+      ],
       status: "applied",
       source: "LinkedIn",
       excitement: 3,
@@ -877,6 +917,28 @@ describe("DELETE /api/job-applications/:id", () => {
       await list(TEST_USER)
     ).json();
     expect(jobApplications.map(({ id }) => id)).not.toContain(created.id);
+  });
+
+  it("takes the Job Application's Requirements with it", async () => {
+    // Observed through what a Posting saved again at the same URL comes back
+    // with: were the old rows still there, they would attach themselves to the
+    // new Job Application or collide with its own.
+    const posting = "https://sentry.io/careers/relay-engineer";
+    const created = await save(TEST_USER, {
+      company: "Sentry",
+      jobTitle: "Relay Engineer",
+      jobUrl: posting,
+      requirements: [{ skill: "Rust", necessity: "required" }],
+    });
+    await remove(TEST_USER, created.id);
+
+    const again = await save(TEST_USER, {
+      company: "Sentry",
+      jobTitle: "Relay Engineer",
+      jobUrl: posting,
+    });
+
+    expect(again.requirements).toEqual([]);
   });
 
   it("refuses to delete the same Job Application twice", async () => {

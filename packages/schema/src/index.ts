@@ -18,6 +18,41 @@ export const RemoteType = z.enum(["remote", "hybrid", "onsite"]);
 export type RemoteType = z.infer<typeof RemoteType>;
 
 /**
+ * How badly a Posting wants a Requirement. `unstated` is what a Posting that
+ * names a skill without saying which it is gets, so that nothing is ever
+ * guessed upward into something the Posting insisted on.
+ */
+export const Necessity = z.enum(["required", "preferred", "unstated"]);
+export type Necessity = z.infer<typeof Necessity>;
+
+/**
+ * How well a CV answers one Requirement. Reached three ways in ascending
+ * precedence — normalised comparison, Analysis, the user's own override — and
+ * always measured against a `Basis` (ADR-0004).
+ */
+export const Coverage = z.enum(["have", "partial", "missing"]);
+export type Coverage = z.infer<typeof Coverage>;
+
+/**
+ * Which CV a Coverage was measured against. Both readings coexist for one
+ * Requirement, because they answer different questions (ADR-0004).
+ */
+export const Basis = z.enum(["profile", "tailored-cv"]);
+export type Basis = z.infer<typeof Basis>;
+
+/**
+ * One thing a Posting asks of a candidate — a technology, a practice, a
+ * qualification, a language, a quantity of experience — and how badly it asks
+ * for it. The Coverage readings are not here: a Requirement is what the
+ * Posting said, and Coverage is what a CV answers back.
+ */
+export const Requirement = z.object({
+  skill: z.string().min(1),
+  necessity: Necessity,
+});
+export type Requirement = z.infer<typeof Requirement>;
+
+/**
  * The steps a user records how much they want a role on. The `excitement`
  * field below is the rule; this is the list, exported so that the control
  * offering the steps reads them from the contract rather than restating them.
@@ -41,7 +76,7 @@ const jobApplicationFields = {
   salaryMax: z.number().nonnegative().nullable(),
   currency: z.string().nullable(),
   description: z.string().nullable(),
-  keywords: z.array(z.string()),
+  requirements: z.array(Requirement),
   status: JobStatus,
   source: z.string().nullable(),
   appliedAt: z.iso.datetime().nullable(),
@@ -106,7 +141,7 @@ export const JobExtraction = JobApplication.pick({
   salaryMax: true,
   currency: true,
   description: true,
-  keywords: true,
+  requirements: true,
 }).partial();
 export type JobExtraction = z.infer<typeof JobExtraction>;
 
@@ -158,7 +193,7 @@ const CREATE_DEFAULTS = {
   salaryMax: null,
   currency: null,
   description: null,
-  keywords: [],
+  requirements: [],
   status: "bookmarked",
   source: null,
   appliedAt: null,

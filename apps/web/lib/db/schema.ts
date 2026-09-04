@@ -1,4 +1,10 @@
-import { JobStatus, RemoteType } from "@repo/schema";
+import {
+  Basis,
+  Coverage,
+  JobStatus,
+  Necessity,
+  RemoteType,
+} from "@repo/schema";
 import { sql } from "drizzle-orm";
 import {
   date,
@@ -15,12 +21,12 @@ import {
 } from "drizzle-orm/pg-core";
 
 /**
- * The database's own copy of the two closed sets in the shared contract,
- * derived from it rather than retyped, so a Status added to `@repo/schema`
- * turns into a migration instead of silently drifting.
+ * The database's own copy of the closed sets in the shared contract, derived
+ * from them rather than retyped, so a Status or a Necessity added to
+ * `@repo/schema` turns into a migration instead of silently drifting.
  *
  * The cast is only about shape: Zod hands back an array, `pgEnum` wants a
- * non-empty tuple, and both enums are non-empty by construction.
+ * non-empty tuple, and every one of these is non-empty by construction.
  */
 export const jobStatus = pgEnum(
   "job_status",
@@ -30,6 +36,15 @@ export const remoteType = pgEnum(
   "remote_type",
   RemoteType.options as [RemoteType, ...RemoteType[]],
 );
+export const necessity = pgEnum(
+  "necessity",
+  Necessity.options as [Necessity, ...Necessity[]],
+);
+export const coverage = pgEnum(
+  "coverage",
+  Coverage.options as [Coverage, ...Coverage[]],
+);
+export const basis = pgEnum("basis", Basis.options as [Basis, ...Basis[]]);
 
 /**
  * A Job Application: the record of one job the user is pursuing. Mirrors
@@ -68,7 +83,6 @@ export const jobApplications = pgTable(
     }),
     currency: text("currency"),
     description: text("description"),
-    keywords: text("keywords").array().notNull().default([]),
     status: jobStatus("status").notNull().default("bookmarked"),
     source: text("source"),
     appliedAt: timestamp("applied_at", { withTimezone: true, mode: "date" }),
@@ -97,6 +111,80 @@ export const jobApplications = pgTable(
 );
 
 export type JobApplicationRow = typeof jobApplications.$inferSelect;
+
+/**
+ * A Requirement: one thing a Posting asks of a candidate, at the Necessity it
+ * asks for it. One row per Requirement of one Job Application — which is what
+ * a Job Application's asks are now, in place of the flat array of strings it
+ * used to carry.
+ *
+ * Carries `user_id` like every other table, so that every query for a
+ * Requirement can name its owner rather than inheriting one from the Job
+ * Application it hangs off — tenant isolation is enforced in application code,
+ * and a query that cannot name the owner cannot enforce it (ADR-0001). The
+ * foreign key is the second half of that: it cascades, so deleting a Job
+ * Application takes its Requirements with it.
+ */
+export const requirements = pgTable(
+  "requirements",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** No foreign key into `auth.users`, for the same reason as above. */
+    userId: uuid("user_id").notNull(),
+    jobApplicationId: uuid("job_application_id")
+      .notNull()
+      .references(() => jobApplications.id, { onDelete: "cascade" }),
+    /**
+     * Where this Requirement sits in the order it was captured in — the
+     * Posting's own order, for an extracted one. Stored rather than derived,
+     * because `created_at` cannot tell two rows written by one statement
+     * apart, and a list has an order the user can see.
+     */
+    position: integer("position").notNull(),
+    skill: text("skill").notNull(),
+    necessity: necessity("necessity").notNull(),
+    /**
+     * Which CV the three readings below were measured against. Only `profile`
+     * is ever written today; the Tailored CV effort adds a second row per
+     * Requirement rather than migrating this one (ADR-0004), at which point
+     * the natural key becomes the Job Application, the Basis and the position.
+     */
+    basis: basis("basis").notNull().default("profile"),
+    /**
+     * The three readings of one Coverage, side by side and each nullable —
+     * null is "this source has not spoken", which is what makes resolving them
+     * a pure function of the row rather than a write-time decision (ADR-0004).
+     * Nothing in this cut writes them; the columns exist so that the code
+     * which does needs no migration of its own.
+     */
+    normalisedCoverage: coverage("normalised_coverage"),
+    analysedCoverage: coverage("analysed_coverage"),
+    /** The Analysis's one line on why it read the Requirement that way. */
+    analysedReason: text("analysed_reason"),
+    overriddenCoverage: coverage("overridden_coverage"),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    /**
+     * Every read is one user's Requirements, for one Job Application or for
+     * every Job Application on the board, in the order they were captured in.
+     */
+    index("requirements_user_id_job_application_id_basis_position_idx").on(
+      table.userId,
+      table.jobApplicationId,
+      table.basis,
+      table.position,
+    ),
+  ],
+);
+
+export type RequirementRow = typeof requirements.$inferSelect;
 
 /**
  * A Personal Access Token: the long-lived credential the user pastes into the

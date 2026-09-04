@@ -1,13 +1,19 @@
 import {
   normalizeJobUrl,
+  type Basis,
   type CreateJobApplication,
   type JobApplication,
   type JobStatus,
+  type Requirement,
   type UpdateJobApplication,
 } from "@repo/schema";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../db/client";
-import { jobApplications, type JobApplicationRow } from "../db/schema";
+import {
+  jobApplications,
+  requirements,
+  type JobApplicationRow,
+} from "../db/schema";
 
 /**
  * Every read and write of a Job Application. Nothing else in the app builds a
@@ -15,6 +21,20 @@ import { jobApplications, type JobApplicationRow } from "../db/schema";
  * rather than reading it from a session — that signature is what makes tenant
  * isolation reviewable, and it is all that enforces it (ADR-0001).
  */
+
+/**
+ * The only Basis anything reads or writes here. Coverage against a Tailored CV
+ * is a later effort, and it adds its own rows rather than moving these
+ * (ADR-0004) — so a Job Application's Requirements are exactly the rows
+ * measured against the Profile, and naming that here keeps the read from
+ * doubling once the second Basis exists.
+ */
+const PROFILE: Basis = "profile";
+
+/** The handle a `db().transaction` callback is given, read off the client. */
+type Transaction = Parameters<
+  Parameters<ReturnType<typeof db>["transaction"]>[0]
+>[0];
 
 /** Thrown when a Job Application already exists for this user's Posting. */
 export class DuplicatePostingError extends Error {
@@ -28,17 +48,34 @@ export async function createJobApplication(
   userId: string,
   input: CreateJobApplication,
 ): Promise<JobApplication> {
-  const rows = await db()
-    .insert(jobApplications)
-    .values({
-      ...input,
-      userId,
-      // Stored rather than computed on read, so the unique index can use it.
-      normalizedJobUrl:
-        input.jobUrl === null ? null : normalizeJobUrl(input.jobUrl),
-      appliedAt: appliedAtOnCreate(input),
+  // The Requirements are their own table, so the Job Application and its asks
+  // are two writes; one transaction is what stops a failure between them
+  // leaving a Job Application that has silently lost what the Posting asked
+  // for.
+  const { requirements: asks, ...fields } = input;
+
+  const created = await db()
+    .transaction(async (tx) => {
+      const rows = await tx
+        .insert(jobApplications)
+        .values({
+          ...fields,
+          userId,
+          // Stored rather than computed on read, so the unique index can use it.
+          normalizedJobUrl:
+            input.jobUrl === null ? null : normalizeJobUrl(input.jobUrl),
+          appliedAt: appliedAtOnCreate(input),
+        })
+        .returning();
+
+      const [row] = rows;
+      if (row === undefined) {
+        throw new Error("The insert returned no Job Application.");
+      }
+
+      await replaceRequirements(tx, userId, row.id, asks);
+      return row;
     })
-    .returning()
     .catch((error: unknown) => {
       if (input.jobUrl !== null && isUniqueViolation(error)) {
         throw new DuplicatePostingError(input.jobUrl);
@@ -46,12 +83,7 @@ export async function createJobApplication(
       throw error;
     });
 
-  const [row] = rows;
-  if (row === undefined) {
-    throw new Error("The insert returned no Job Application.");
-  }
-
-  return toJobApplication(row);
+  return toJobApplication(created, asks);
 }
 
 /**
@@ -82,7 +114,11 @@ export async function listJobApplications(
     )
     .orderBy(desc(jobApplications.createdAt));
 
-  return rows.map(toJobApplication);
+  const asks = await requirementsOf(
+    userId,
+    rows.map((row) => row.id),
+  );
+  return rows.map((row) => toJobApplication(row, asks.get(row.id) ?? []));
 }
 
 /**
@@ -101,7 +137,9 @@ export async function getJobApplication(
     .limit(1);
 
   const [row] = rows;
-  return row === undefined ? null : toJobApplication(row);
+  if (row === undefined) return null;
+
+  return toJobApplication(row, await requirementsFor(userId, row.id));
 }
 
 /**
@@ -117,31 +155,46 @@ export async function updateJobApplication(
   id: string,
   patch: UpdateJobApplication,
 ): Promise<JobApplication | null> {
-  // The two fields the row does not store the way the contract states them:
-  // a timestamp rather than an ISO string, and a URL that drags its normalized
-  // form along with it.
-  const { appliedAt, jobUrl, ...fields } = patch;
+  // The three fields the row does not store the way the contract states them:
+  // a timestamp rather than an ISO string, a URL that drags its normalized form
+  // along with it, and the Requirements, which are a table of their own.
+  const { appliedAt, jobUrl, requirements: asks, ...fields } = patch;
 
   const updated = await db()
-    .update(jobApplications)
-    .set({
-      ...fields,
-      ...(appliedAt === undefined
-        ? {}
-        : { appliedAt: appliedAt === null ? null : new Date(appliedAt) }),
-      // The stored identity has to move with the URL it is derived from, or
-      // the unique index would go on guarding the Posting this Job Application
-      // used to point at (ADR-0002).
-      ...(jobUrl === undefined
-        ? {}
-        : {
-            jobUrl,
-            normalizedJobUrl: jobUrl === null ? null : normalizeJobUrl(jobUrl),
-          }),
-      ...appliedAtOnStatusChange(patch),
+    .transaction(async (tx) => {
+      const rows = await tx
+        .update(jobApplications)
+        .set({
+          ...fields,
+          ...(appliedAt === undefined
+            ? {}
+            : { appliedAt: appliedAt === null ? null : new Date(appliedAt) }),
+          // The stored identity has to move with the URL it is derived from, or
+          // the unique index would go on guarding the Posting this Job
+          // Application used to point at (ADR-0002).
+          ...(jobUrl === undefined
+            ? {}
+            : {
+                jobUrl,
+                normalizedJobUrl:
+                  jobUrl === null ? null : normalizeJobUrl(jobUrl),
+              }),
+          ...appliedAtOnStatusChange(patch),
+        })
+        .where(
+          and(eq(jobApplications.userId, userId), eq(jobApplications.id, id)),
+        )
+        .returning();
+
+      const [row] = rows;
+      if (row === undefined) return null;
+
+      // A patch that never named the Requirements leaves them alone; one that
+      // named them states the whole list, so what it does not carry is gone.
+      if (asks !== undefined)
+        await replaceRequirements(tx, userId, row.id, asks);
+      return row;
     })
-    .where(and(eq(jobApplications.userId, userId), eq(jobApplications.id, id)))
-    .returning()
     .catch((error: unknown) => {
       if (patch.jobUrl != null && isUniqueViolation(error)) {
         throw new DuplicatePostingError(patch.jobUrl);
@@ -149,8 +202,14 @@ export async function updateJobApplication(
       throw error;
     });
 
-  const [row] = updated;
-  return row === undefined ? null : toJobApplication(row);
+  if (updated === null) return null;
+
+  // A patch that stated the Requirements has already said what they are; only
+  // one that left them alone has to go and look.
+  return toJobApplication(
+    updated,
+    asks ?? (await requirementsFor(userId, updated.id)),
+  );
 }
 
 /**
@@ -196,10 +255,107 @@ function appliedAtOnStatusChange(patch: UpdateJobApplication) {
 }
 
 /**
+ * One user's Requirements for the Job Applications named, keyed by the Job
+ * Application they belong to, in the order they were captured in. One query
+ * for however many rows are being read, because the list view asks for every
+ * Job Application at once and a query per row would be a hundred round trips
+ * over a pooled connection.
+ *
+ * Scoped by owner as well as by Job Application, like every other query here:
+ * the caller has already read rows that were scoped by user, but a query that
+ * names the owner itself is what makes that reviewable (ADR-0001).
+ */
+async function requirementsOf(
+  userId: string,
+  jobApplicationIds: string[],
+): Promise<Map<string, Requirement[]>> {
+  const byJobApplication = new Map<string, Requirement[]>();
+  if (jobApplicationIds.length === 0) return byJobApplication;
+
+  const rows = await db()
+    .select({
+      jobApplicationId: requirements.jobApplicationId,
+      skill: requirements.skill,
+      necessity: requirements.necessity,
+    })
+    .from(requirements)
+    .where(
+      and(
+        eq(requirements.userId, userId),
+        inArray(requirements.jobApplicationId, jobApplicationIds),
+        eq(requirements.basis, PROFILE),
+      ),
+    )
+    .orderBy(asc(requirements.jobApplicationId), asc(requirements.position));
+
+  for (const { jobApplicationId, ...requirement } of rows) {
+    const list = byJobApplication.get(jobApplicationId) ?? [];
+    list.push(requirement);
+    byJobApplication.set(jobApplicationId, list);
+  }
+
+  return byJobApplication;
+}
+
+/** One Job Application's Requirements, in the order they were captured in. */
+async function requirementsFor(
+  userId: string,
+  jobApplicationId: string,
+): Promise<Requirement[]> {
+  const byJobApplication = await requirementsOf(userId, [jobApplicationId]);
+  return byJobApplication.get(jobApplicationId) ?? [];
+}
+
+/**
+ * Makes one Job Application's Requirements exactly the list it was given.
+ * Written as a delete and an insert rather than a diff: the list is short, its
+ * order is part of what it says, and a Requirement has no identity of its own
+ * that a client could name — the skill is what identifies it, and the skill is
+ * the thing a correction changes.
+ *
+ * The Coverage readings go with the row that held them, which is right for a
+ * skill whose wording changed and is why nothing here tries to carry them
+ * across; recomputing the normalised one is the job of the code that writes it.
+ */
+async function replaceRequirements(
+  tx: Transaction,
+  userId: string,
+  jobApplicationId: string,
+  asks: Requirement[],
+): Promise<void> {
+  await tx
+    .delete(requirements)
+    .where(
+      and(
+        eq(requirements.userId, userId),
+        eq(requirements.jobApplicationId, jobApplicationId),
+        eq(requirements.basis, PROFILE),
+      ),
+    );
+
+  if (asks.length === 0) return;
+
+  await tx.insert(requirements).values(
+    asks.map((requirement, position) => ({
+      userId,
+      jobApplicationId,
+      position,
+      skill: requirement.skill,
+      necessity: requirement.necessity,
+      basis: PROFILE,
+    })),
+  );
+}
+
+/**
  * A row as the shared contract describes it: timestamps as ISO strings, and no
  * `normalizedJobUrl`, which is the database's business rather than a client's.
+ * The Requirements arrive alongside, from their own table.
  */
-function toJobApplication(row: JobApplicationRow): JobApplication {
+function toJobApplication(
+  row: JobApplicationRow,
+  asks: Requirement[],
+): JobApplication {
   return {
     id: row.id,
     userId: row.userId,
@@ -212,7 +368,7 @@ function toJobApplication(row: JobApplicationRow): JobApplication {
     salaryMax: row.salaryMax,
     currency: row.currency,
     description: row.description,
-    keywords: row.keywords,
+    requirements: asks,
     status: row.status,
     source: row.source,
     appliedAt: row.appliedAt?.toISOString() ?? null,

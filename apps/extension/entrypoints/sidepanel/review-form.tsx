@@ -8,7 +8,11 @@ import {
 import { REMOTE_TYPE_LABELS } from "@repo/ui/remote-type";
 import { JOB_STATUS_LABELS } from "@repo/ui/status-badge";
 import { useState, type FormEvent, type ReactNode } from "react";
-import { createFrom, type DraftFields } from "../../lib/draft";
+import {
+  createFrom,
+  type DraftFields,
+  type DraftTextFields,
+} from "../../lib/draft";
 import { Problems } from "./problems";
 
 /**
@@ -48,7 +52,7 @@ export function ReviewForm({
   // button it was.
   const hint = nearDuplicateHint(nearDuplicatesOf(fields, existing));
 
-  const set = (field: keyof DraftFields) => (value: string) =>
+  const set = (field: keyof DraftTextFields) => (value: string) =>
     setFields((current) => ({ ...current, [field]: value }));
 
   const submit = async (event: FormEvent) => {
@@ -162,10 +166,6 @@ export function ReviewForm({
             />
           </Field>
         </div>
-
-        <Field label="Keywords, comma separated">
-          <input onChange={changes(set("keywords"))} value={fields.keywords} />
-        </Field>
 
         <Field label="Description">
           <textarea

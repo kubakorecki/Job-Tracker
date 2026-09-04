@@ -2,6 +2,7 @@ import {
   CreateJobApplication,
   type JobExtraction,
   type JobStatus,
+  type Requirement,
 } from "@repo/schema";
 
 /**
@@ -16,8 +17,8 @@ import {
  * extension has no write path of its own to keep in step.
  */
 
-/** Every field the review form holds, as it holds it: text. */
-export type DraftFields = {
+/** The fields the review form holds in a box, as it holds them: text. */
+export type DraftTextFields = {
   company: string;
   jobTitle: string;
   jobUrl: string;
@@ -27,9 +28,16 @@ export type DraftFields = {
   salaryMax: string;
   currency: string;
   description: string;
-  keywords: string;
   status: string;
 };
+
+/**
+ * Everything the review form carries. All text but the Requirements, which
+ * each carry a Necessity and so cannot be a box of comma-separated words. They
+ * ride through the panel as they were extracted; correcting them belongs on
+ * the dashboard, beside the Coverage that makes a correction worth making.
+ */
+export type DraftFields = DraftTextFields & { requirements: Requirement[] };
 
 /** What a Job Application the user has not touched yet starts as. */
 const STARTING_STATUS: JobStatus = "bookmarked";
@@ -63,7 +71,7 @@ export function fieldsFrom(
     salaryMax: number(draft.salaryMax),
     currency: draft.currency ?? "",
     description: draft.description ?? "",
-    keywords: draft.keywords?.join(", ") ?? "",
+    requirements: draft.requirements ?? [],
     status: STARTING_STATUS,
   };
 }
@@ -95,11 +103,6 @@ export function createFrom(
   const number = (value: string) =>
     value.trim() === "" ? undefined : Number(value);
 
-  const keywords = fields.keywords
-    .split(",")
-    .map((keyword) => keyword.trim())
-    .filter((keyword) => keyword !== "");
-
   // Every optional field is sent as `undefined` rather than omitted: the
   // contract gives each one a create-time default, and a default is what an
   // absent field takes whether it was left out or handed over empty.
@@ -113,7 +116,8 @@ export function createFrom(
     salaryMax: number(fields.salaryMax),
     currency: optional(fields.currency),
     description: optional(fields.description),
-    keywords: keywords.length === 0 ? undefined : keywords,
+    requirements:
+      fields.requirements.length === 0 ? undefined : fields.requirements,
     status: fields.status,
   });
 

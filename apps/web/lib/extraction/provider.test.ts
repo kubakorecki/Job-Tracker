@@ -22,7 +22,21 @@ const COMPLETE = {
   salaryMax: 110000,
   currency: "GBP",
   description: "Building things at Acme.",
-  keywords: ["TypeScript", "Postgres"],
+  requirements: ["TypeScript", "Postgres"],
+};
+
+/**
+ * `COMPLETE` as a Draft. The one field the translation does more than copy:
+ * the flat schema lists what a Posting asks for as bare strings, so every
+ * Requirement it yields is `unstated` — the reply says a Posting named
+ * something, never how badly it wanted it.
+ */
+const COMPLETE_DRAFT = {
+  ...COMPLETE,
+  requirements: [
+    { skill: "TypeScript", necessity: "unstated" },
+    { skill: "Postgres", necessity: "unstated" },
+  ],
 };
 
 /** Every field at its "the page does not say" value. */
@@ -35,7 +49,7 @@ const EMPTY = {
   salaryMax: 0,
   currency: "",
   description: "",
-  keywords: [],
+  requirements: [],
 };
 
 function read(reply: unknown) {
@@ -44,7 +58,27 @@ function read(reply: unknown) {
 
 describe("readDraft", () => {
   it("keeps every field a page stated", () => {
-    expect(read(COMPLETE)).toEqual(COMPLETE);
+    expect(read(COMPLETE)).toEqual(COMPLETE_DRAFT);
+  });
+
+  it("makes a Requirement of each thing the page asked for", () => {
+    expect(read({ ...EMPTY, requirements: ["Terraform"] })).toEqual({
+      requirements: [{ skill: "Terraform", necessity: "unstated" }],
+    });
+  });
+
+  it("keeps no Requirement the model worded as blank or whitespace", () => {
+    expect(
+      read({ ...EMPTY, requirements: ["  Kubernetes  ", "", "   "] }),
+    ).toEqual({
+      requirements: [{ skill: "Kubernetes", necessity: "unstated" }],
+    });
+  });
+
+  it("carries no Requirements at all when every one came back blank", () => {
+    // Absent, not empty — the same answer every other field gives for a page
+    // that did not say.
+    expect(read({ ...EMPTY, requirements: ["", "  "] })).toEqual({});
   });
 
   it("carries nothing at all when the page stated nothing", () => {
@@ -76,7 +110,7 @@ describe("readDraft", () => {
     expect(
       read({ ...COMPLETE, remoteType: "occasionally", salaryMax: "lots" }),
     ).toEqual({
-      ...COMPLETE,
+      ...COMPLETE_DRAFT,
       remoteType: undefined,
       salaryMax: undefined,
     });
@@ -87,7 +121,7 @@ describe("readDraft", () => {
     delete missingLocation.location;
 
     expect(read(missingLocation)).toEqual({
-      ...COMPLETE,
+      ...COMPLETE_DRAFT,
       location: undefined,
     });
   });

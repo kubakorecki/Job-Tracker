@@ -1,5 +1,10 @@
 import { GoogleGenAI } from "@google/genai";
-import { ExtractJobRequest, JobExtraction, RemoteType } from "@repo/schema";
+import {
+  ExtractJobRequest,
+  JobExtraction,
+  RemoteType,
+  type Requirement,
+} from "@repo/schema";
 import { z } from "zod";
 import { geminiApiKey } from "../env";
 
@@ -35,9 +40,7 @@ export const EXTRACTION_MODEL = "gemini-2.5-pro";
  * Distinguishing an outage from a malformed reply would gain the caller
  * nothing: both mean fall back to manual entry.
  */
-export type ExtractJob = (
-  request: ExtractJobRequest,
-) => Promise<JobExtraction>;
+export type ExtractJob = (request: ExtractJobRequest) => Promise<JobExtraction>;
 
 /**
  * What the model is asked to fill in. It is deliberately flat — nine
@@ -104,7 +107,7 @@ const DRAFT_PROPERTIES = {
     description:
       "The posting's own summary of the role, in at most a short paragraph. Empty if the page does not describe one.",
   },
-  keywords: {
+  requirements: {
     type: "array",
     items: { type: "string" },
     description:
@@ -133,14 +136,14 @@ const ProviderDraft = z.object({
   salaryMax: z.number().nonnegative().catch(0),
   currency: z.string().catch(""),
   description: z.string().catch(""),
-  keywords: z.array(z.string()).catch([]),
+  requirements: z.array(z.string()).catch([]),
 });
 
 const INSTRUCTIONS = `You read the visible text of a web page and record what it says about one job, for a job application tracker.
 
 Record only what the page states. Do not guess, do not infer from what you know of the employer, and do not borrow a value from a different role listed elsewhere on the same page. Where a page advertises several roles, record the one the URL addresses.
 
-Leave a field empty when the page does not state it: an empty string for text, 0 for a salary, an empty array for keywords. A page that is not a job posting is a normal outcome — leave the company and the job title both empty and say nothing else about it. Never invent a company or a title to avoid returning an empty answer.
+Leave a field empty when the page does not state it: an empty string for text, 0 for a salary, an empty array for requirements. A page that is not a job posting is a normal outcome — leave the company and the job title both empty and say nothing else about it. Never invent a company or a title to avoid returning an empty answer.
 
 Salaries are annual figures in the currency the page names, written as plain numbers with no separators or symbols. Convert an hourly, daily or monthly rate only when the page itself gives the annual equivalent; otherwise leave the salary empty.`;
 
@@ -188,8 +191,28 @@ export function readDraft(json: string): JobExtraction {
     salaryMax: raw.salaryMax === 0 ? undefined : raw.salaryMax,
     currency: nonEmpty(raw.currency),
     description: nonEmpty(raw.description),
-    keywords: raw.keywords.length === 0 ? undefined : raw.keywords,
+    requirements: nonEmptyRequirements(raw.requirements),
   };
+}
+
+/**
+ * The skills the model listed, as Requirements, and undefined when it listed
+ * none it could name — the same "the page does not say" that `nonEmpty` gives
+ * every text field, decided after the blanks are dropped rather than before,
+ * so a list of nothing but empty strings is absent rather than empty.
+ *
+ * Every Requirement is `unstated`: this schema asks for one flat list and so
+ * records only that the Posting named something, never how badly it wanted it
+ * — which is exactly what `unstated` means. Reading the Necessity is a change
+ * to the schema and the prompt, not to this fold.
+ */
+function nonEmptyRequirements(skills: string[]): Requirement[] | undefined {
+  const named = skills
+    .map((skill) => skill.trim())
+    .filter((skill) => skill !== "")
+    .map((skill) => ({ skill, necessity: "unstated" as const }));
+
+  return named.length === 0 ? undefined : named;
 }
 
 /** One text field, trimmed, and undefined when it was only ever whitespace. */
