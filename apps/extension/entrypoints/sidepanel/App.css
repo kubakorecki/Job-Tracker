@@ -53,7 +53,8 @@ body {
   gap: 12px;
 }
 
-.panel h2 {
+.panel h2,
+.requirements h3 {
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.06em;
@@ -77,7 +78,11 @@ body {
   margin-bottom: 12px;
 }
 
-.field span {
+/* What a control is, over the control. The read-only Requirements are labelled
+   the same way, because they sit in the same column and are read in the same
+   pass — they simply have no box under them. */
+.field span,
+.requirements-label {
   display: block;
   margin-bottom: 4px;
   opacity: 0.7;
@@ -98,6 +103,41 @@ body {
 
 .field textarea {
   resize: vertical;
+}
+
+/*
+ * What the Posting asks for, shown and not edited. It sits among the boxes and
+ * deliberately does not look like one: no border, no field background, so that
+ * a user scanning the form for what they can still correct passes over it.
+ */
+.requirements {
+  margin-bottom: 12px;
+}
+
+/* Sits closer to the skills under it than a section heading does, and keeps
+   its distance from the group above. */
+.requirements h3 {
+  margin: 8px 0 4px;
+}
+
+/* Skills wrap along the line: a panel this narrow has room for two or three. */
+.requirements ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.requirements li {
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.requirements .hint {
+  margin: 8px 0 0;
 }
 
 /* Boxes that read as one line of a form: a salary range, a pair of choices. */

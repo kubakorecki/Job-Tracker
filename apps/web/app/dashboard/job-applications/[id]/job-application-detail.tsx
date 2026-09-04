@@ -2,6 +2,7 @@
 
 import {
   EXCITEMENT_SCALE,
+  groupedByNecessity,
   JobStatus,
   Necessity,
   RemoteType,
@@ -27,7 +28,6 @@ import {
   type JobApplicationEdits,
 } from "../../../../lib/job-applications/edits";
 import {
-  groupedByNecessity,
   newRequirementEdit,
   requirementChanges,
   requirementEditsFrom,

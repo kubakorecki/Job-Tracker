@@ -13,6 +13,7 @@ import {
   type DraftFields,
   type DraftTextFields,
 } from "../../lib/draft";
+import { DraftRequirements } from "./draft-requirements";
 import { Problems } from "./problems";
 
 /**
@@ -174,6 +175,8 @@ export function ReviewForm({
             value={fields.description}
           />
         </Field>
+
+        <DraftRequirements requirements={fields.requirements} />
 
         <Problems problems={problems} />
 

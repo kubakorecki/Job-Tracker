@@ -6,6 +6,7 @@ import {
   JobExtraction,
   ExtractJobResponse,
   JobApplication,
+  groupedByNecessity,
   Necessity,
   Requirement,
   UpdateJobApplication,
@@ -55,6 +56,56 @@ describe("Requirement", () => {
 
   it("will not stand in for a bare keyword string", () => {
     expect(Requirement.safeParse("Terraform").success).toBe(false);
+  });
+});
+
+describe("groupedByNecessity", () => {
+  const asks = (...necessities: Necessity[]) =>
+    necessities.map((necessity, index) => ({
+      skill: `skill ${index}`,
+      necessity,
+    }));
+
+  it("groups nothing at all into no groups", () => {
+    expect(groupedByNecessity([])).toEqual([]);
+  });
+
+  it("orders the groups the way the closed set does", () => {
+    const [unstated, required, preferred] = asks(
+      "unstated",
+      "required",
+      "preferred",
+    );
+
+    expect(
+      groupedByNecessity([unstated!, required!, preferred!]).map(
+        (group) => group.necessity,
+      ),
+    ).toEqual(Necessity.options);
+  });
+
+  it("gives a Necessity nothing is asked at no group of its own", () => {
+    expect(groupedByNecessity(asks("preferred", "preferred"))).toEqual([
+      { necessity: "preferred", requirements: asks("preferred", "preferred") },
+    ]);
+  });
+
+  it("keeps the order things were asked in within a group", () => {
+    const [first, , third] = asks("required", "preferred", "required");
+
+    expect(
+      groupedByNecessity(asks("required", "preferred", "required"))[0],
+    ).toEqual({ necessity: "required", requirements: [first, third] });
+  });
+
+  it("hands back whatever the caller put in, so a row keeps its own fields", () => {
+    const row = {
+      key: "a",
+      skill: "Terraform",
+      necessity: "required",
+    } as const;
+
+    expect(groupedByNecessity([row])[0]?.requirements[0]?.key).toBe("a");
   });
 });
 

@@ -2,7 +2,6 @@ import type { JobApplication } from "@repo/schema";
 import { describe, expect, it } from "vitest";
 import {
   asRequirements,
-  groupedByNecessity,
   requirementChanges,
   requirementEditsFrom,
 } from "./requirement-edits";
@@ -159,53 +158,5 @@ describe("requirementChanges", () => {
 
   it("names nothing when a Job Application with no Requirements still has none", () => {
     expect(requirementChanges([], { ...SAVED, requirements: [] })).toEqual({});
-  });
-});
-
-describe("groupedByNecessity", () => {
-  const rows = requirementEditsFrom([
-    { skill: "Rails", necessity: "preferred" },
-    { skill: "Ruby", necessity: "required" },
-    { skill: "German", necessity: "unstated" },
-    { skill: "Postgres", necessity: "required" },
-  ]);
-
-  it("puts the Requirements under the three Necessities, most insisted upon first", () => {
-    expect(
-      groupedByNecessity(rows).map(({ necessity, requirements }) => [
-        necessity,
-        requirements.map(({ skill }) => skill),
-      ]),
-    ).toEqual([
-      ["required", ["Ruby", "Postgres"]],
-      ["preferred", ["Rails"]],
-      ["unstated", ["German"]],
-    ]);
-  });
-
-  it("keeps the order the Requirements were captured in within a group", () => {
-    const [required] = groupedByNecessity(rows);
-
-    expect(required?.requirements.map(({ skill }) => skill)).toEqual([
-      "Ruby",
-      "Postgres",
-    ]);
-  });
-
-  it("leaves out a Necessity nothing is asked at", () => {
-    // An empty group says a Posting asked for nothing at that Necessity, which
-    // is a thing to show only where something else is asked; three empty ones
-    // say nothing at all.
-    const onlyRequired = requirementEditsFrom([
-      { skill: "Ruby", necessity: "required" },
-    ]);
-
-    expect(
-      groupedByNecessity(onlyRequired).map(({ necessity }) => necessity),
-    ).toEqual(["required"]);
-  });
-
-  it("has no group at all for a Job Application nothing is asked of", () => {
-    expect(groupedByNecessity([])).toEqual([]);
   });
 });

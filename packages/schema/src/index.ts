@@ -52,6 +52,37 @@ export const Requirement = z.object({
 });
 export type Requirement = z.infer<typeof Requirement>;
 
+/** One Necessity's worth of whatever the caller is holding Requirements as. */
+export type NecessityGroup<Asked> = {
+  necessity: Necessity;
+  requirements: Asked[];
+};
+
+/**
+ * Requirements under the Necessity each is asked at, in the closed set's own
+ * order — which runs from the Posting's insistence down to its silence, and is
+ * the order a reader wants them in. A Necessity nothing is asked at gets no
+ * group: an empty heading would be a claim about the Posting, and where
+ * nothing at all is asked it would be three of them saying nothing.
+ *
+ * The list stays flat underneath and is grouped only to be read, so a
+ * Requirement keeps the place it was captured in. Both surfaces that show
+ * Requirements group them this way — the dashboard's section, over rows that
+ * carry an editing key, and the side panel's read-only list, over the
+ * contract's own Requirements — so it is written over anything that carries a
+ * Necessity rather than twice.
+ */
+export function groupedByNecessity<Asked extends { necessity: Necessity }>(
+  asked: readonly Asked[],
+): NecessityGroup<Asked>[] {
+  return Necessity.options
+    .map((necessity) => ({
+      necessity,
+      requirements: asked.filter((one) => one.necessity === necessity),
+    }))
+    .filter(({ requirements }) => requirements.length > 0);
+}
+
 /**
  * The steps a user records how much they want a role on. The `excitement`
  * field below is the rule; this is the list, exported so that the control

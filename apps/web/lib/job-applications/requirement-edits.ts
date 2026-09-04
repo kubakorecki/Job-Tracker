@@ -1,6 +1,6 @@
-import { Necessity } from "@repo/schema";
 import type {
   JobApplication,
+  Necessity,
   Requirement,
   UpdateJobApplication,
 } from "@repo/schema";
@@ -79,28 +79,4 @@ function sameRequirements(one: Requirement[], other: Requirement[]): boolean {
         requirement.necessity === other[index]?.necessity,
     )
   );
-}
-
-/** One Necessity's worth of Requirements, as the section shows them. */
-export type NecessityGroup = {
-  necessity: Necessity;
-  requirements: RequirementEdit[];
-};
-
-/**
- * The rows under the Necessity each is asked at, in the contract's own order —
- * which runs from the Posting's insistence down to its silence, and is the
- * order a reader wants them in.
- *
- * A Necessity nothing is asked at gets no group: an empty heading would be a
- * claim about the Posting, and where nothing at all is asked it would be three
- * of them saying nothing.
- */
-export function groupedByNecessity(edits: RequirementEdit[]): NecessityGroup[] {
-  return Necessity.options
-    .map((necessity) => ({
-      necessity,
-      requirements: edits.filter((edit) => edit.necessity === necessity),
-    }))
-    .filter(({ requirements }) => requirements.length > 0);
 }
