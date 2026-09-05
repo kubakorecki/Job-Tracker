@@ -83,6 +83,34 @@ export async function replaceProfileCv(
 }
 
 /**
+ * Makes this user's skill list what they say it is, and answers with the
+ * Profile as it now stands — `null` when they have no Profile to set one on.
+ * Accepting a Draft and editing the list a week later are the same write:
+ * either way the user has said what the list should be.
+ *
+ * Nothing about the document is touched. The file, its name and its text are
+ * the Profile's other half, with a different owner (the document is replaced,
+ * never edited), and an edit to a skill list is not a claim about either.
+ *
+ * `updatedAt` moves, though `uploadedAt` does not: the stamp `$onUpdate` keeps
+ * is what an Analysis reads to know that what it was measured against has
+ * changed, and an edited skill list has changed it as surely as a new
+ * document would.
+ */
+export async function setProfileSkills(
+  userId: string,
+  skills: string[],
+): Promise<ProfileRow | null> {
+  const [row] = await db()
+    .update(profiles)
+    .set({ skills })
+    .where(eq(profiles.userId, userId))
+    .returning();
+
+  return row ?? null;
+}
+
+/**
  * Forgets a user's Profile. Nothing in the product deletes one — a CV is
  * replaced, never removed — so this is here for the test that has to take its
  * own row away again.

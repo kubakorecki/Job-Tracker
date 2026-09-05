@@ -38,6 +38,15 @@ model as a Draft and thereafter owned and freely edited by the user. Text
 extracted from the file sits beside it, so that an Analysis has prose to read.
 _Avoid_: resume, master document, user record
 
+**Skill**:
+One thing a person can do, worded as they word it — a technology, a practice, a
+qualification, a language. The Profile holds a list of them, proposed by the
+model as a Draft and thereafter the user's own to edit. There is no vocabulary
+and no taxonomy behind the word: a Requirement names what a Posting asked for
+in its own words, a Skill names what the user has in theirs, and Coverage is
+what comes of comparing the two.
+_Avoid_: competency, tag, keyword, ability
+
 **Requirement**:
 One thing a Posting asks of a candidate — a technology, a practice, a
 qualification, a language, a quantity of experience. Carries a Necessity.

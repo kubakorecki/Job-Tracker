@@ -1,21 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { decodedText, readingAsksTheModel } from "./reader";
+import { decodedText, textComesFromTheModel } from "./reader";
 
 /**
  * The half of the reader that needs no provider. Reaching Gemini is not tested
  * here — the endpoint substitutes the whole function for that — but which
- * files reach it at all, and what a text file's own text is, are decisions
- * this module makes on its own.
+ * files it is asked to transcribe, and what a text file's own text is, are
+ * decisions this module makes on its own.
  */
 
-describe("which files the model is asked about", () => {
-  it("asks about a PDF, which is what avoids a parsing library", () => {
-    expect(readingAsksTheModel("application/pdf")).toBe(true);
+describe("where a document's text comes from", () => {
+  it("comes from the model for a PDF, which is what avoids a parsing library", () => {
+    expect(textComesFromTheModel("application/pdf")).toBe(true);
   });
 
-  it("asks about no text file, because a text file already is its text", () => {
-    expect(readingAsksTheModel("text/markdown")).toBe(false);
-    expect(readingAsksTheModel("text/plain")).toBe(false);
+  it("comes from the file itself for a text file, which already is its text", () => {
+    // The model is still asked about both — the skills it proposes are not
+    // something a text file has already answered.
+    expect(textComesFromTheModel("text/markdown")).toBe(false);
+    expect(textComesFromTheModel("text/plain")).toBe(false);
   });
 });
 

@@ -9,10 +9,17 @@ import { OTHER_TEST_USER, TEST_USER } from "../test-support/users";
 import {
   MAX_CV_BYTES,
   readProfileResponse,
+  setProfileSkillsResponse,
   uploadProfileResponse,
 } from "./api";
-import { Profile, ProfileOrNone } from "./contract";
-import type { ReadCv } from "./reader";
+import {
+  Profile,
+  ProfileOrNone,
+  ProfileSkills,
+  SKILL_LIST_LIMIT,
+  UploadedCv,
+} from "./contract";
+import type { CvReading, ReadCv } from "./reader";
 import { forgetProfile, getProfile } from "./repository";
 import type { CvStore, CvUpload } from "./storage";
 
@@ -35,6 +42,7 @@ import type { CvStore, CvUpload } from "./storage";
  */
 
 const ENDPOINT = "https://job-tracker.test/api/profile";
+const SKILLS_ENDPOINT = `${ENDPOINT}/skills`;
 
 /** A CV as a PDF: bytes that are not text, so a copy of them can be recognised. */
 const PDF_BYTES = new Uint8Array([
@@ -42,6 +50,9 @@ const PDF_BYTES = new Uint8Array([
 ]);
 
 const CV_TEXT = "Jane Doe\nSenior Engineer\nTypeScript, Postgres, Terraform";
+
+/** What the model proposes from that CV, until a test says otherwise. */
+const CV_SKILLS = ["TypeScript", "Postgres", "Terraform"];
 
 beforeEach(clear);
 afterAll(clear);
@@ -56,20 +67,25 @@ async function clear(): Promise<void> {
 /**
  * A stand-in for the model that answers as the test says, and keeps what it
  * was asked. An `Error` means the provider could not be reached or understood;
- * an empty string means the file held no text, which is the reader's other
- * real answer.
+ * an empty text means the file held no text, which is the reader's other real
+ * answer.
  */
 type FakeReader = { read: ReadCv; asked: CvUpload[] };
 
-function reading(reply: string | Error): FakeReader {
+function reading(
+  reply: string | Error,
+  skills: string[] = CV_SKILLS,
+): FakeReader {
   const asked: CvUpload[] = [];
+  const answer: CvReading | Error =
+    reply instanceof Error ? reply : { text: reply, skills };
 
   return {
     asked,
     read: async (file) => {
       asked.push(file);
-      if (reply instanceof Error) throw reply;
-      return reply;
+      if (answer instanceof Error) throw answer;
+      return answer;
     },
   };
 }
@@ -144,6 +160,37 @@ async function profileOf(response: Response): Promise<Profile> {
   return Profile.parse(await response.json());
 }
 
+async function uploadedOf(response: Response): Promise<UploadedCv> {
+  return UploadedCv.parse(await response.json());
+}
+
+async function skillsOf(response: Response): Promise<string[]> {
+  return ProfileSkills.parse(await response.json()).skills;
+}
+
+/**
+ * The user saying what their skill list should be — accepting a Draft they may
+ * have corrected first, or editing the list they accepted weeks ago. One
+ * request for both, because a list is a list however it was arrived at.
+ */
+async function setSkills(user: CurrentUser, body: unknown): Promise<Response> {
+  return setProfileSkillsResponse(
+    new Request(SKILLS_ENDPOINT, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+    user,
+  );
+}
+
+/** The Profile as it now stands, skills and all. */
+async function profileNow(
+  user: CurrentUser,
+  store: FakeStore,
+): Promise<Profile> {
+  return profileOf(await read(user, store));
+}
+
 async function profileOrNoneOf(response: Response): Promise<ProfileOrNone> {
   return ProfileOrNone.parse(await response.json());
 }
@@ -156,7 +203,7 @@ describe("POST /api/profile", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(await profileOf(response)).toMatchObject({
+    expect((await uploadedOf(response)).profile).toMatchObject({
       fileName: "jane-doe-cv.pdf",
       mediaType: "application/pdf",
       extractedText: CV_TEXT,
@@ -185,9 +232,7 @@ describe("POST /api/profile", () => {
     const store = bucket();
     await upload(TEST_USER, cvFile("cv.pdf", "application/pdf"), { store });
 
-    expect((await profileOf(await read(TEST_USER, store))).extractedText).toBe(
-      CV_TEXT,
-    );
+    expect((await profileNow(TEST_USER, store)).extractedText).toBe(CV_TEXT);
   });
 
   it("accepts a Markdown CV", async () => {
@@ -197,7 +242,9 @@ describe("POST /api/profile", () => {
     );
 
     expect(response.status).toBe(200);
-    expect((await profileOf(response)).mediaType).toBe("text/markdown");
+    expect((await uploadedOf(response)).profile.mediaType).toBe(
+      "text/markdown",
+    );
   });
 
   it("accepts a plain text CV", async () => {
@@ -207,7 +254,7 @@ describe("POST /api/profile", () => {
     );
 
     expect(response.status).toBe(200);
-    expect((await profileOf(response)).mediaType).toBe("text/plain");
+    expect((await uploadedOf(response)).profile.mediaType).toBe("text/plain");
   });
 
   it("accepts a Markdown CV a browser declared as nothing at all", async () => {
@@ -216,7 +263,9 @@ describe("POST /api/profile", () => {
     const response = await upload(TEST_USER, cvFile("cv.md", "", "# Jane Doe"));
 
     expect(response.status).toBe(200);
-    expect((await profileOf(response)).mediaType).toBe("text/markdown");
+    expect((await uploadedOf(response)).profile.mediaType).toBe(
+      "text/markdown",
+    );
   });
 
   it("answers with a short-lived signed URL for viewing and downloading the file", async () => {
@@ -229,7 +278,7 @@ describe("POST /api/profile", () => {
       },
     );
 
-    const { fileUrl } = await profileOf(response);
+    const { fileUrl } = (await uploadedOf(response)).profile;
     expect(fileUrl).toBe(
       `https://storage.test/${store.written[0]}?token=signed`,
     );
@@ -277,9 +326,7 @@ describe("a file the Profile will not take", () => {
     await upload(TEST_USER, cvFile("cv.pdf", "application/pdf"), { store });
     await upload(TEST_USER, cvFile("cv.docx", "application/msword"), { store });
 
-    expect((await profileOf(await read(TEST_USER, store))).fileName).toBe(
-      "cv.pdf",
-    );
+    expect((await profileNow(TEST_USER, store)).fileName).toBe("cv.pdf");
   });
 
   it("refuses a CV larger than it will take", async () => {
@@ -327,14 +374,14 @@ describe("a file that cannot be read", () => {
   it("leaves an existing Profile and its file exactly as they were", async () => {
     const store = bucket();
     await upload(TEST_USER, cvFile("good.pdf", "application/pdf"), { store });
-    const before = await profileOf(await read(TEST_USER, store));
+    const before = await profileNow(TEST_USER, store);
 
     await upload(TEST_USER, cvFile("scan.pdf", "application/pdf"), {
       reader: reading(""),
       store,
     });
 
-    expect(await profileOf(await read(TEST_USER, store))).toEqual(before);
+    expect(await profileNow(TEST_USER, store)).toEqual(before);
     expect(store.removed).toEqual([]);
   });
 
@@ -359,9 +406,7 @@ describe("a file that cannot be read", () => {
       store,
     });
 
-    expect((await profileOf(await read(TEST_USER, store))).fileName).toBe(
-      "good.pdf",
-    );
+    expect((await profileNow(TEST_USER, store)).fileName).toBe("good.pdf");
     expect(store.stored.size).toBe(1);
   });
 });
@@ -377,7 +422,7 @@ describe("replacing the CV", () => {
       { reader: reading("Jane Doe, later"), store },
     );
 
-    expect(await profileOf(response)).toMatchObject({
+    expect((await uploadedOf(response)).profile).toMatchObject({
       fileName: "new.pdf",
       extractedText: "Jane Doe, later",
     });
@@ -405,10 +450,10 @@ describe("replacing the CV", () => {
   it("moves the upload stamp on to the CV that is there now", async () => {
     const store = bucket();
     await upload(TEST_USER, cvFile("old.pdf", "application/pdf"), { store });
-    const first = await profileOf(await read(TEST_USER, store));
+    const first = await profileNow(TEST_USER, store);
 
     await upload(TEST_USER, cvFile("new.pdf", "application/pdf"), { store });
-    const second = await profileOf(await read(TEST_USER, store));
+    const second = await profileNow(TEST_USER, store);
 
     expect(Date.parse(second.uploadedAt)).toBeGreaterThan(
       Date.parse(first.uploadedAt),
@@ -438,9 +483,7 @@ describe("replacing the CV", () => {
     await upload(TEST_USER, cvFile("two.pdf", "application/pdf"), { store });
     await upload(TEST_USER, cvFile("three.pdf", "application/pdf"), { store });
 
-    expect((await profileOf(await read(TEST_USER, store))).fileName).toBe(
-      "three.pdf",
-    );
+    expect((await profileNow(TEST_USER, store)).fileName).toBe("three.pdf");
     expect(store.stored.size).toBe(1);
   });
 });
@@ -490,10 +533,8 @@ describe("a user only ever reaches their own Profile", () => {
       store,
     });
 
-    expect((await profileOf(await read(TEST_USER, store))).fileName).toBe(
-      "mine.pdf",
-    );
-    expect((await profileOf(await read(OTHER_TEST_USER, store))).fileName).toBe(
+    expect((await profileNow(TEST_USER, store)).fileName).toBe("mine.pdf");
+    expect((await profileNow(OTHER_TEST_USER, store)).fileName).toBe(
       "theirs.pdf",
     );
     expect(store.stored.size).toBe(2);
@@ -510,7 +551,7 @@ describe("a user only ever reaches their own Profile", () => {
     });
 
     expect(store.removed).toEqual([store.written[1]]);
-    expect((await profileOf(await read(OTHER_TEST_USER, store))).fileName).toBe(
+    expect((await profileNow(OTHER_TEST_USER, store)).fileName).toBe(
       "theirs.pdf",
     );
   });
@@ -577,5 +618,321 @@ describe("the daily model call budget", () => {
       (await upload(OTHER_TEST_USER, cvFile("cv.pdf", "application/pdf")))
         .status,
     ).toBe(200);
+  });
+});
+
+describe("the skill list a reading proposes", () => {
+  it("answers an upload with the skills the model proposed", async () => {
+    const response = await upload(
+      TEST_USER,
+      cvFile("cv.pdf", "application/pdf"),
+    );
+
+    expect((await uploadedOf(response)).proposedSkills).toEqual(CV_SKILLS);
+  });
+
+  it("proposes skills from a text CV as well as a PDF", async () => {
+    const response = await upload(
+      TEST_USER,
+      cvFile("cv.md", "text/markdown", "# Jane Doe"),
+      { reader: reading("# Jane Doe", ["Kubernetes"]) },
+    );
+
+    expect((await uploadedOf(response)).proposedSkills).toEqual(["Kubernetes"]);
+  });
+
+  it("does not make them the Profile's, because nobody has accepted them", async () => {
+    const store = bucket();
+    await upload(TEST_USER, cvFile("cv.pdf", "application/pdf"), { store });
+
+    expect((await profileNow(TEST_USER, store)).skills).toEqual([]);
+  });
+
+  it("tidies the proposal before showing it, so a review is not of duplicates", async () => {
+    const response = await upload(
+      TEST_USER,
+      cvFile("cv.pdf", "application/pdf"),
+      { reader: reading(CV_TEXT, ["TypeScript", " typescript ", "", "Go"]) },
+    );
+
+    expect((await uploadedOf(response)).proposedSkills).toEqual([
+      "TypeScript",
+      "Go",
+    ]);
+  });
+
+  it("drops a proposed skill the accept request would have been refused for", async () => {
+    const response = await upload(
+      TEST_USER,
+      cvFile("cv.pdf", "application/pdf"),
+      { reader: reading(CV_TEXT, ["Go", "x".repeat(121)]) },
+    );
+
+    // What is shown for review is what accepting it would keep, so the user
+    // cannot be handed a list that bounces when they say yes to it.
+    const { proposedSkills } = await uploadedOf(response);
+    expect(proposedSkills).toEqual(["Go"]);
+    expect(
+      await skillsOf(await setSkills(TEST_USER, { skills: proposedSkills })),
+    ).toEqual(["Go"]);
+  });
+
+  it("proposes nothing when the model named nothing, which is a reading like any other", async () => {
+    const response = await upload(
+      TEST_USER,
+      cvFile("cv.pdf", "application/pdf"),
+      { reader: reading(CV_TEXT, []) },
+    );
+
+    expect(response.status).toBe(200);
+    expect((await uploadedOf(response)).proposedSkills).toEqual([]);
+  });
+});
+
+describe("accepting a proposed skill list", () => {
+  it("makes what the user confirmed the Profile's skill list", async () => {
+    const store = bucket();
+    await upload(TEST_USER, cvFile("cv.pdf", "application/pdf"), { store });
+
+    const response = await setSkills(TEST_USER, { skills: CV_SKILLS });
+
+    expect(response.status).toBe(200);
+    expect(await skillsOf(response)).toEqual(CV_SKILLS);
+    expect((await profileNow(TEST_USER, store)).skills).toEqual(CV_SKILLS);
+  });
+
+  it("takes the list the user confirmed, not the one that was proposed", async () => {
+    const store = bucket();
+    await upload(TEST_USER, cvFile("cv.pdf", "application/pdf"), { store });
+
+    // The user struck one out, corrected another and added one of their own.
+    await setSkills(TEST_USER, {
+      skills: ["TypeScript", "PostgreSQL", "German"],
+    });
+
+    expect((await profileNow(TEST_USER, store)).skills).toEqual([
+      "TypeScript",
+      "PostgreSQL",
+      "German",
+    ]);
+  });
+
+  it("tidies what the user sent, the same way it tidied the proposal", async () => {
+    await upload(TEST_USER, cvFile("cv.pdf", "application/pdf"));
+
+    const response = await setSkills(TEST_USER, {
+      skills: ["  Terraform ", "terraform", "Go"],
+    });
+
+    expect(await skillsOf(response)).toEqual(["Terraform", "Go"]);
+  });
+
+  it("leaves the stored document and its text exactly as they were", async () => {
+    const store = bucket();
+    await upload(TEST_USER, cvFile("cv.pdf", "application/pdf"), { store });
+    const before = await profileNow(TEST_USER, store);
+
+    await setSkills(TEST_USER, { skills: ["Go"] });
+    const after = await profileNow(TEST_USER, store);
+
+    expect(after).toEqual({ ...before, skills: ["Go"] });
+    expect(store.written).toHaveLength(1);
+    expect(store.removed).toEqual([]);
+  });
+
+  it("moves the stamp an Analysis reads, because what it measures against has changed", async () => {
+    // As on an upload, this is the one assertion that reaches past the
+    // response: nothing reads `updatedAt` yet, and a stamp that did not move
+    // for an edited skill list would leave a later Analysis calling itself
+    // current about a Profile that has changed underneath it.
+    await upload(TEST_USER, cvFile("cv.pdf", "application/pdf"));
+    const before = await getProfile(TEST_USER.id);
+
+    await setSkills(TEST_USER, { skills: ["Go"] });
+    const after = await getProfile(TEST_USER.id);
+
+    expect(after?.updatedAt.getTime()).toBeGreaterThan(
+      before?.updatedAt.getTime() ?? Infinity,
+    );
+    expect(after?.uploadedAt.getTime()).toBe(before?.uploadedAt.getTime());
+  });
+
+  it("spends no model call, because accepting a reading asks nobody anything", async () => {
+    await upload(TEST_USER, cvFile("cv.pdf", "application/pdf"));
+    await setModelCallCount(TEST_USER.id, DAILY_MODEL_CALL_LIMIT);
+
+    expect((await setSkills(TEST_USER, { skills: ["Go"] })).status).toBe(200);
+  });
+
+  it("refuses a skill list from a user who has no Profile to put one on", async () => {
+    const response = await setSkills(TEST_USER, { skills: ["Go"] });
+
+    expect(response.status).toBe(404);
+    expect(await response.json()).toMatchObject({
+      error: expect.stringContaining("CV"),
+    });
+  });
+
+  it("refuses a list longer than a Profile may hold", async () => {
+    await upload(TEST_USER, cvFile("cv.pdf", "application/pdf"));
+
+    const response = await setSkills(TEST_USER, {
+      skills: Array.from({ length: SKILL_LIST_LIMIT + 1 }, (_, i) => `S${i}`),
+    });
+
+    expect(response.status).toBe(400);
+  });
+
+  it("refuses a body that is not a skill list at all", async () => {
+    await upload(TEST_USER, cvFile("cv.pdf", "application/pdf"));
+
+    expect((await setSkills(TEST_USER, { skills: "Go" })).status).toBe(400);
+    expect((await setSkills(TEST_USER, {})).status).toBe(400);
+    expect((await setSkills(TEST_USER, { skills: [42] })).status).toBe(400);
+  });
+
+  it("leaves the accepted list alone when it refuses a change", async () => {
+    const store = bucket();
+    await upload(TEST_USER, cvFile("cv.pdf", "application/pdf"), { store });
+    await setSkills(TEST_USER, { skills: CV_SKILLS });
+
+    await setSkills(TEST_USER, { skills: [42] });
+
+    expect((await profileNow(TEST_USER, store)).skills).toEqual(CV_SKILLS);
+  });
+});
+
+describe("discarding a proposed skill list", () => {
+  it("costs the user nothing but the upload, because nothing was persisted", async () => {
+    const store = bucket();
+    await upload(TEST_USER, cvFile("cv.pdf", "application/pdf"), {
+      reader: reading(CV_TEXT, ["Fortran", "COBOL"]),
+      store,
+    });
+
+    // The user read the proposal and closed it. There is nothing to discard.
+    expect((await profileNow(TEST_USER, store)).skills).toEqual([]);
+  });
+
+  it("leaves a previously accepted list exactly as it was", async () => {
+    const store = bucket();
+    await upload(TEST_USER, cvFile("cv.pdf", "application/pdf"), { store });
+    await setSkills(TEST_USER, { skills: CV_SKILLS });
+
+    await upload(TEST_USER, cvFile("mangled.pdf", "application/pdf"), {
+      reader: reading("Jane D0e", ["J4v4"]),
+      store,
+    });
+
+    expect((await profileNow(TEST_USER, store)).skills).toEqual(CV_SKILLS);
+  });
+});
+
+describe("the skill list, once it is the user's", () => {
+  it("can be edited at any time, without touching the document", async () => {
+    const store = bucket();
+    await upload(TEST_USER, cvFile("cv.pdf", "application/pdf"), { store });
+    await setSkills(TEST_USER, { skills: CV_SKILLS });
+
+    await setSkills(TEST_USER, { skills: [...CV_SKILLS, "German"] });
+
+    const profile = await profileNow(TEST_USER, store);
+    expect(profile.skills).toEqual([...CV_SKILLS, "German"]);
+    expect(profile.fileName).toBe("cv.pdf");
+    expect(profile.extractedText).toBe(CV_TEXT);
+  });
+
+  it("is replaced whole, so a skill the user removed is gone", async () => {
+    const store = bucket();
+    await upload(TEST_USER, cvFile("cv.pdf", "application/pdf"), { store });
+    await setSkills(TEST_USER, { skills: CV_SKILLS });
+
+    await setSkills(TEST_USER, { skills: ["TypeScript"] });
+
+    expect((await profileNow(TEST_USER, store)).skills).toEqual(["TypeScript"]);
+  });
+
+  it("can be emptied, for a user who would rather list none", async () => {
+    await upload(TEST_USER, cvFile("cv.pdf", "application/pdf"));
+    await setSkills(TEST_USER, { skills: CV_SKILLS });
+
+    expect(await skillsOf(await setSkills(TEST_USER, { skills: [] }))).toEqual(
+      [],
+    );
+  });
+
+  it("survives replacing the file until the user says otherwise", async () => {
+    const store = bucket();
+    await upload(TEST_USER, cvFile("old.pdf", "application/pdf"), { store });
+    await setSkills(TEST_USER, { skills: CV_SKILLS });
+
+    const response = await upload(
+      TEST_USER,
+      cvFile("new.pdf", "application/pdf"),
+      { reader: reading("Jane Doe, later", ["Rust"]), store },
+    );
+
+    const uploaded = await uploadedOf(response);
+    expect(uploaded.profile.skills).toEqual(CV_SKILLS);
+    expect(uploaded.proposedSkills).toEqual(["Rust"]);
+  });
+
+  it("is replaced by the fresh Draft when the user accepts that instead", async () => {
+    const store = bucket();
+    await upload(TEST_USER, cvFile("old.pdf", "application/pdf"), { store });
+    await setSkills(TEST_USER, { skills: CV_SKILLS });
+
+    await upload(TEST_USER, cvFile("new.pdf", "application/pdf"), {
+      reader: reading("Jane Doe, later", ["Rust"]),
+      store,
+    });
+    await setSkills(TEST_USER, { skills: ["Rust"] });
+
+    expect((await profileNow(TEST_USER, store)).skills).toEqual(["Rust"]);
+  });
+
+  it("is untouched by a provider failure, and by a spent allowance", async () => {
+    const store = bucket();
+    await upload(TEST_USER, cvFile("cv.pdf", "application/pdf"), { store });
+    await setSkills(TEST_USER, { skills: CV_SKILLS });
+
+    await upload(TEST_USER, cvFile("next.pdf", "application/pdf"), {
+      reader: reading(new Error("503")),
+      store,
+    });
+    await setModelCallCount(TEST_USER.id, DAILY_MODEL_CALL_LIMIT);
+    await upload(TEST_USER, cvFile("next.pdf", "application/pdf"), { store });
+
+    expect(await profileNow(TEST_USER, store)).toMatchObject({
+      fileName: "cv.pdf",
+      skills: CV_SKILLS,
+    });
+  });
+
+  it("is one user's own, and not reachable by another", async () => {
+    const store = bucket();
+    await upload(TEST_USER, cvFile("mine.pdf", "application/pdf"), { store });
+    await setSkills(TEST_USER, { skills: CV_SKILLS });
+
+    // The other user has no Profile of their own, so there is nothing here for
+    // them to set — and what they sent lands nowhere near this user's list.
+    expect(
+      (await setSkills(OTHER_TEST_USER, { skills: ["Rust"] })).status,
+    ).toBe(404);
+    expect((await profileNow(TEST_USER, store)).skills).toEqual(CV_SKILLS);
+  });
+
+  it("stays each user's own when both have one", async () => {
+    const store = bucket();
+    await upload(TEST_USER, cvFile("mine.pdf", "application/pdf"), { store });
+    await upload(OTHER_TEST_USER, cvFile("theirs.pdf", "application/pdf"), {
+      store,
+    });
+
+    await setSkills(TEST_USER, { skills: ["TypeScript"] });
+    await setSkills(OTHER_TEST_USER, { skills: ["Rust"] });
+
+    expect((await profileNow(TEST_USER, store)).skills).toEqual(["TypeScript"]);
+    expect((await profileNow(OTHER_TEST_USER, store)).skills).toEqual(["Rust"]);
   });
 });

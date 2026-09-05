@@ -1,15 +1,20 @@
+import { jsonBody } from "../api/request";
 import { errorResponse } from "../api/response";
 import type { CurrentUser } from "../auth/current-user";
 import type { ProfileRow } from "../db/schema";
 import { MODEL_CALL_LIMIT_STATUS, spendModelCall } from "../model-calls/budget";
+import { describeIssues } from "../zod-issues";
 import {
   ACCEPTED_CV_FORMATS,
   CvMediaType,
+  ProfileSkills,
   type Profile,
   type ProfileOrNone,
+  type UploadedCv,
 } from "./contract";
-import { readCvWithGemini, type ReadCv } from "./reader";
-import { getProfile, replaceProfileCv } from "./repository";
+import { readCvWithGemini, type CvReading, type ReadCv } from "./reader";
+import { getProfile, replaceProfileCv, setProfileSkills } from "./repository";
+import { tidySkills } from "./skills";
 import { supabaseCvStore, type CvStore } from "./storage";
 
 /**
@@ -18,8 +23,9 @@ import { supabaseCvStore, type CvStore } from "./storage";
  * a test substitutes here are not the user but the reader and the store.
  *
  * Between them they hold the whole of what an upload does: what a CV may be,
- * what a model call costs, what happens when a file cannot be read, and the
- * order the file and the row are written in.
+ * what a model call costs, what happens when a file cannot be read, the order
+ * the file and the row are written in, and which half of a reading the user
+ * has to say yes to before it is theirs.
  */
 
 /**
@@ -47,8 +53,15 @@ const EXTENSION_TYPES: Record<string, CvMediaType> = {
 
 /**
  * `POST /api/profile`. Takes one CV as `multipart/form-data`, stores it as it
- * arrived, reads its text, and makes it the user's Profile — replacing
- * whatever was there.
+ * arrived, reads it, and makes it the user's Profile — replacing whatever was
+ * there.
+ *
+ * Only half of what was read becomes the Profile. The document and its text
+ * are the file's own and are written straight away; the skills are a Draft,
+ * answered with and not stored, and they become the Profile's only when the
+ * user sends them back to `PUT /api/profile/skills`. That is what lets a
+ * mangled reading cost nothing but the upload, and what keeps a replacement
+ * upload from quietly discarding corrections the user made by hand.
  *
  * Nothing is written until the file has been read. An unreadable file
  * therefore leaves the bucket and the existing Profile exactly as they were,
@@ -99,9 +112,9 @@ export function uploadProfileResponse(
 
     const bytes = new Uint8Array(await file.arrayBuffer());
 
-    let extractedText: string;
+    let reading: CvReading;
     try {
-      extractedText = await read({ bytes, mediaType });
+      reading = await read({ bytes, mediaType });
     } catch {
       // Every way of failing to reach or understand the provider — an outage,
       // an exhausted quota, a malformed reply — is the same answer here, and a
@@ -113,6 +126,7 @@ export function uploadProfileResponse(
       );
     }
 
+    const extractedText = reading.text;
     if (extractedText === "") {
       return errorResponse(
         "No text could be read from that file. If it is a scan or an image, export a cleaner copy and upload it again.",
@@ -133,10 +147,19 @@ export function uploadProfileResponse(
     // Profile would be left naming a document that is no longer there.
     if (replaced !== null) await store.remove(user.id, replaced);
 
+    const answer: UploadedCv = {
+      profile: await toProfile(profile, store),
+      // Tidied here rather than in the reader, so that the list the user is
+      // shown is the list the accept endpoint would keep — a proposal holding
+      // a duplicate the accepted list would drop is a review of something
+      // that cannot happen.
+      proposedSkills: tidySkills(reading.skills),
+    };
+
     // 200 rather than 201: the Profile is one thing at one address, always
     // reachable there, so an upload is a replacement whether or not there was
     // a CV before it.
-    return Response.json(await toProfile(profile, store), { status: 200 });
+    return Response.json(answer, { status: 200 });
   };
 }
 
@@ -157,6 +180,56 @@ export function readProfileResponse(store: CvStore = supabaseCvStore) {
 
     return Response.json(profile);
   };
+}
+
+/**
+ * `PUT /api/profile/skills`. Makes the user's skill list what they say it is.
+ *
+ * Accepting a Draft and editing the list months later are one request, because
+ * they are one act: the user has looked at a list and said what it should be.
+ * A separate accept endpoint would have to take a list the user may have
+ * rewritten entirely, and would then be an edit wearing a different name — and
+ * discarding needs no endpoint at all, since nothing persisted the proposal.
+ *
+ * The whole list is replaced rather than added to, so removing a skill is the
+ * same request as adding one. Nothing here touches the document: the file and
+ * its text have a different owner, and the two halves of a Profile are
+ * deliberately not editable through each other.
+ *
+ * A plain function rather than a factory, unlike the two endpoints above:
+ * there is nothing here for a test to substitute, because this one reaches no
+ * provider and no bucket.
+ */
+export async function setProfileSkillsResponse(
+  request: Request,
+  user: CurrentUser,
+): Promise<Response> {
+  const read = await jsonBody(request);
+  if ("refusal" in read) return read.refusal;
+
+  const sent = ProfileSkills.safeParse(read.body);
+  if (!sent.success) {
+    return errorResponse(
+      "That skill list is not valid.",
+      400,
+      describeIssues(sent.error),
+    );
+  }
+
+  const row = await setProfileSkills(user.id, tidySkills(sent.data.skills));
+
+  // A skill list belongs to a Profile, and a Profile begins with a CV. This is
+  // a 404 rather than a quietly created row: a list with no document behind it
+  // is not something an Analysis could ever measure against.
+  if (row === null) {
+    return errorResponse(
+      "There is no Profile to put a skill list on. Upload a CV first.",
+      404,
+    );
+  }
+
+  const answer: ProfileSkills = { skills: row.skills };
+  return Response.json(answer);
 }
 
 /**
@@ -205,6 +278,7 @@ async function toProfile(row: ProfileRow, store: CvStore): Promise<Profile> {
     // the parse is what keeps the response's promise about which three it is.
     mediaType: CvMediaType.parse(row.mediaType),
     extractedText: row.extractedText,
+    skills: row.skills,
     fileUrl: await store.signedUrl(row.userId, row.storagePath),
     uploadedAt: row.uploadedAt.toISOString(),
   };

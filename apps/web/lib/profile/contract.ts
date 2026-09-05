@@ -33,6 +33,25 @@ export const ACCEPTED_CV_FORMATS =
   "a PDF, a Markdown file or a plain text file";
 
 /**
+ * One skill on a Profile, worded as the user keeps it. There is no vocabulary
+ * behind it and no taxonomy to belong to: a skill is whatever the user says
+ * they can do, and the comparison that reads it later normalises rather than
+ * demanding a canonical name.
+ */
+export const Skill = z.string().trim().min(1).max(120);
+export type Skill = z.infer<typeof Skill>;
+
+/**
+ * How many skills a Profile may list. Generous enough that nobody's CV runs
+ * out, low enough that the column cannot be used as storage — the model is
+ * asked for far fewer, and a list this long is a user who pasted something.
+ */
+export const SKILL_LIST_LIMIT = 100;
+
+export const SkillList = z.array(Skill).max(SKILL_LIST_LIMIT);
+export type SkillList = z.infer<typeof SkillList>;
+
+/**
  * The user's master CV. One per user — there is exactly one, so it has no id
  * of its own and is addressed as the Profile of whoever is asking.
  *
@@ -46,6 +65,12 @@ export const Profile = z.object({
   mediaType: CvMediaType,
   /** The document's text, as read from the file. What an Analysis reads. */
   extractedText: z.string(),
+  /**
+   * The skill list the user accepted, and has edited since. Empty until they
+   * accept one: a Draft the user never answered is not the Profile's, and the
+   * file having been read is not the same as the reading having been believed.
+   */
+  skills: SkillList,
   /** A short-lived signed URL, for viewing the file and for downloading it. */
   fileUrl: z.url(),
   /** When the file that is there now was uploaded. */
@@ -61,3 +86,29 @@ export type Profile = z.infer<typeof Profile>;
  */
 export const ProfileOrNone = Profile.nullable();
 export type ProfileOrNone = z.infer<typeof ProfileOrNone>;
+
+/**
+ * What an upload answers with: the Profile as it now stands, and the Draft the
+ * reading proposed.
+ *
+ * The two are deliberately side by side rather than merged. The Profile's
+ * skills are whatever the user last accepted — a replacement upload does not
+ * touch them — and `proposedSkills` is a Draft in the glossary's sense, held
+ * by the client while the user corrects it and gone if they never accept it.
+ * Nothing persists it, which is what makes discarding cost nothing.
+ */
+export const UploadedCv = z.object({
+  profile: Profile,
+  proposedSkills: SkillList,
+});
+export type UploadedCv = z.infer<typeof UploadedCv>;
+
+/**
+ * The skill list, both as it is sent and as it comes back. Accepting a Draft
+ * and editing the list later are the same request: the user says what the list
+ * should be, and is told what it now is. There is no separate "accept",
+ * because the Draft the user is accepting is one they may have rewritten
+ * entirely, and a list is a list however it was arrived at.
+ */
+export const ProfileSkills = z.object({ skills: SkillList });
+export type ProfileSkills = z.infer<typeof ProfileSkills>;
