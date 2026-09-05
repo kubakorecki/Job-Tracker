@@ -6,7 +6,12 @@ node_modules
 .pnp.js
 
 # testing
-coverage
+# A coverage reporter's output directory, named where it is written
+# rather than as a bare `coverage` — that pattern matched any directory
+# so named at any depth, including the `lib/coverage` source module.
+/coverage
+apps/*/coverage
+packages/*/coverage
 
 # next.js
 .next/

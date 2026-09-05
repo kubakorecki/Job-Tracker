@@ -77,6 +77,16 @@ it?". Where only one number fits, the Tailored CV's reading supersedes the
 Profile's.
 _Avoid_: source, target, subject
 
+**Fit Fraction**:
+How much of what one Posting insists on the user has: its `required`
+Requirements counted against how many of them their Coverage answers, `have` as
+one and `partial` as a half. Preferred and unstated Requirements are not in it,
+so a long list of nice-to-haves cannot drag down a job the user suits. A Job
+Application that insists on nothing, or whose Requirements nothing has read yet,
+has no Fit Fraction at all — an unknown fit is not a bad one. It is what the fit
+ring on a board card and a table row draws.
+_Avoid_: score, match percentage, rating, strength
+
 **Analysis**:
 The model's reading of a Posting's Requirements against one Basis, run only
 when the user asks for it, producing a Coverage and a one-line reason for each
