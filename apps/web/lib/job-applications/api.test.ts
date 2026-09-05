@@ -1246,6 +1246,9 @@ describe("Coverage against the Profile", () => {
     // asked for and an override is set, and neither has happened here.
     expect(await reload(created.id)).toEqual([
       {
+        // The same Requirement the save answered with, still addressable by
+        // the id it was given — which is what an override is set against.
+        id: created.requirements[0]?.id,
         skill: "TypeScript",
         necessity: "required",
         coverage: "have",

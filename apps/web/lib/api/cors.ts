@@ -21,7 +21,7 @@ import { errorResponse } from "./response";
  */
 export const LOCAL_DEVELOPMENT_ORIGIN = "http://localhost:3000";
 
-const ALLOWED_METHODS = "GET, POST, PATCH, DELETE, OPTIONS";
+const ALLOWED_METHODS = "GET, POST, PUT, PATCH, DELETE, OPTIONS";
 
 /** `authorization` is how the extension signs in; `content-type` is its bodies. */
 const ALLOWED_HEADERS = "authorization, content-type";

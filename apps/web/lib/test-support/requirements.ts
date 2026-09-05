@@ -19,6 +19,10 @@ export function asked(
   readings: Partial<Omit<RequirementWithCoverage, keyof Requirement>> = {},
 ): RequirementWithCoverage {
   return {
+    // A Requirement read back carries the row's own id, which is how an
+    // override addresses one. Nothing that uses this fixture cares which id it
+    // is, only that it is one and that no two rows share it.
+    id: crypto.randomUUID(),
     skill,
     necessity,
     coverage: null,

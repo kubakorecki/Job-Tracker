@@ -7,6 +7,7 @@ import {
   Necessity,
   RemoteType,
   UpdateJobApplication,
+  type Coverage,
   type JobApplication,
 } from "@repo/schema";
 import { NECESSITY_LABELS } from "@repo/ui/necessity";
@@ -18,6 +19,10 @@ import { useRouter } from "next/navigation";
 import { useId, useState, type ChangeEvent, type FormEvent } from "react";
 import { dayOf } from "../../../../lib/day";
 import { describeFailure } from "../../../../lib/api/client";
+import {
+  deleteCoverageOverride,
+  putCoverageOverride,
+} from "../../../../lib/coverage/client";
 import {
   deleteJobApplication,
   patchJobApplication,
@@ -31,10 +36,15 @@ import {
   newRequirementEdit,
   requirementChanges,
   requirementEditsFrom,
+  withReadings,
   type RequirementEdit,
 } from "../../../../lib/job-applications/requirement-edits";
 import { describeIssues } from "../../../../lib/zod-issues";
-import { CoverageBadge, CoverageReadings } from "./coverage-badge";
+import {
+  CoverageBadge,
+  CoverageReadings,
+  worthNudging,
+} from "./coverage-badge";
 import {
   FIELD,
   Field,
@@ -139,6 +149,47 @@ export function JobApplicationDetail({
     } finally {
       setSaving(false);
     }
+  }
+
+  /**
+   * The user's own word about one Requirement, said or taken back. It saves
+   * as it is set rather than waiting for the page's button: it is a decision
+   * about a verdict rather than a correction to what the Posting asked for,
+   * and the endpoint that takes it addresses the one Requirement.
+   *
+   * Both copies of the Requirement move with it — the row being edited, so the
+   * badge answers, and the last-persisted Job Application, so the next save is
+   * still measured against what the server holds. It throws on a refusal,
+   * which the row that asked for it reports next to the control.
+   */
+  async function onOverride(
+    requirement: RequirementEdit,
+    coverage: Coverage | null,
+  ): Promise<void> {
+    // A Requirement the server has never heard of has nothing to override; the
+    // control is not offered for one, and this is the other half of that.
+    if (requirement.id === null) return;
+
+    const overridden =
+      coverage === null
+        ? await deleteCoverageOverride(saved.id, requirement.id)
+        : await putCoverageOverride(saved.id, requirement.id, coverage);
+
+    setRequirements((current) =>
+      current.map((row) =>
+        row.key === requirement.key ? withReadings(row, overridden) : row,
+      ),
+    );
+    setSaved((current) => ({
+      ...current,
+      requirements: current.requirements.map((one) =>
+        one.id === overridden.id ? overridden : one,
+      ),
+    }));
+    // The board's cached list carries these Requirements and is still alive
+    // behind this page, so it would otherwise go on showing the verdict the
+    // user has just overruled — and it is what issue 15's fit ring will draw.
+    await queryClient.invalidateQueries({ queryKey: JOB_APPLICATIONS_KEY });
   }
 
   async function onDelete() {
@@ -315,6 +366,7 @@ export function JobApplicationDetail({
             setNotice(null);
             setRequirements(next);
           }}
+          onOverride={onOverride}
           requirements={requirements}
         />
 
@@ -426,10 +478,15 @@ function Requirements({
   requirements,
   hasProfileSkills,
   onChange,
+  onOverride,
 }: {
   requirements: RequirementEdit[];
   hasProfileSkills: boolean;
   onChange: (requirements: RequirementEdit[]) => void;
+  onOverride: (
+    requirement: RequirementEdit,
+    coverage: Coverage | null,
+  ) => Promise<void>;
 }) {
   const [skill, setSkill] = useState("");
   const [necessity, setNecessity] = useState<Necessity>("required");
@@ -493,10 +550,12 @@ function Requirements({
             <ul className="flex flex-col gap-2">
               {group.map((requirement) => (
                 <RequirementRow
+                  hasProfileSkills={hasProfileSkills}
                   key={requirement.key}
                   onCorrect={(correction) =>
                     correct(requirement.key, correction)
                   }
+                  onOverride={(coverage) => onOverride(requirement, coverage)}
                   onRemove={() => remove(requirement.key)}
                   requirement={requirement}
                 />
@@ -540,24 +599,54 @@ function Requirements({
 
 /**
  * One Requirement, correctable: its wording, how badly it is wanted, how the
- * user's CV reads against it, and the way out of the list.
+ * user's CV reads against it, the user's own word about that, and the way out
+ * of the list.
  *
  * The readings go under the row rather than beside the badge, across its whole
  * width. Opening them there pushes the next row down instead of widening a
  * column, so the rows above and below keep their controls in line with this
  * one's — and the three readings have room to be a list rather than a squeeze.
+ *
+ * The override is the one thing here that saves on its own, so it is the one
+ * thing here with its own pending state and its own place to report a refusal:
+ * the page's problem list sits below every Requirement, and a failure to
+ * record a verdict belongs against the verdict.
  */
 function RequirementRow({
   requirement,
+  hasProfileSkills,
   onCorrect,
+  onOverride,
   onRemove,
 }: {
   requirement: RequirementEdit;
+  hasProfileSkills: boolean;
   onCorrect: (correction: Partial<Omit<RequirementEdit, "key">>) => void;
+  onOverride: (coverage: Coverage | null) => Promise<void>;
   onRemove: () => void;
 }) {
   const [showingReadings, setShowingReadings] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [problems, setProblems] = useState<string[]>([]);
+  // Offered once, on the change that earns it, rather than standing under
+  // every claimed skill for as long as the CV is out of date: it is advice
+  // about what the user has just done, and a page of permanent reproaches
+  // would be read as decoration within a day.
+  const [nudging, setNudging] = useState(false);
   const readings = useId();
+
+  async function override(coverage: Coverage | null) {
+    setSaving(true);
+    setProblems([]);
+    try {
+      await onOverride(coverage);
+      setNudging(worthNudging(requirement, coverage, hasProfileSkills));
+    } catch (error) {
+      setProblems(describeFailure(error));
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <li className="flex flex-col gap-1">
@@ -594,7 +683,16 @@ function RequirementRow({
       </div>
 
       {showingReadings && (
-        <CoverageReadings id={readings} requirement={requirement} />
+        <CoverageReadings
+          id={readings}
+          override={{
+            nudging,
+            onSet: requirement.id === null ? undefined : override,
+            problems,
+            saving,
+          }}
+          requirement={requirement}
+        />
       )}
     </li>
   );

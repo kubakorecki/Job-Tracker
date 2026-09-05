@@ -6,6 +6,7 @@ import {
   newRequirementEdit,
   requirementChanges,
   requirementEditsFrom,
+  withReadings,
 } from "./requirement-edits";
 
 /**
@@ -58,6 +59,55 @@ describe("requirementEditsFrom", () => {
 
   it("holds no rows for a Job Application nothing has asked anything of", () => {
     expect(requirementEditsFrom([])).toEqual([]);
+  });
+});
+
+describe("withReadings", () => {
+  const [row] = requirementEditsFrom([
+    asked("Ruby", "required", {
+      coverage: "missing",
+      normalisedCoverage: "missing",
+    }),
+  ]);
+
+  /** The Requirement as it comes back once the user has overruled it. */
+  const overridden = {
+    ...asked("Ruby", "required", {
+      coverage: "have",
+      normalisedCoverage: "missing",
+      overriddenCoverage: "have",
+    }),
+    id: row!.id!,
+  };
+
+  it("takes the readings the write answered with", () => {
+    expect(withReadings(row!, overridden)).toMatchObject({
+      coverage: "have",
+      normalisedCoverage: "missing",
+      overriddenCoverage: "have",
+    });
+  });
+
+  it("leaves the wording the user is part-way through typing alone", () => {
+    // The write was about the verdict. Reaching back into the box would undo a
+    // correction the user has not finished making.
+    const typing = { ...row!, skill: "Ruby on Ra" };
+
+    expect(withReadings(typing, overridden)).toMatchObject({
+      key: typing.key,
+      skill: "Ruby on Ra",
+      necessity: "required",
+    });
+  });
+});
+
+describe("newRequirementEdit", () => {
+  it("has no id, because the server has never heard of it", () => {
+    // Which is what the override control reads to know there is no Requirement
+    // yet for a verdict to be about.
+    expect(
+      newRequirementEdit({ skill: "Postgres", necessity: "required" }),
+    ).toMatchObject({ id: null, skill: "Postgres", coverage: null });
   });
 });
 

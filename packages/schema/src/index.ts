@@ -69,6 +69,16 @@ export type Requirement = z.infer<typeof Requirement>;
  */
 export const RequirementWithCoverage = Requirement.extend({
   /**
+   * The Requirement's own id, which the write shape has no use for — a patch
+   * states the whole list, because a correction changes the skill and the
+   * skill is all a client could have identified it by. It is here because
+   * overriding a Coverage addresses one Requirement rather than restating the
+   * list, and an address that survives a reordering has to be the row's own:
+   * a position would quietly point at the neighbour of the Requirement the
+   * user meant, where an id that no longer exists is a 404.
+   */
+  id: z.uuid(),
+  /**
    * The one Coverage the three readings below amount to, and `null` where none
    * of them has spoken — a user with no Profile has nothing read about them,
    * which is not the same claim as everything being missing.
@@ -84,6 +94,16 @@ export const RequirementWithCoverage = Requirement.extend({
   overriddenCoverage: Coverage.nullable(),
 });
 export type RequirementWithCoverage = z.infer<typeof RequirementWithCoverage>;
+
+/**
+ * What the user says of one Requirement, having disagreed with everything the
+ * tracker read. It is the only Coverage a client ever states, and it beats
+ * both of the readings the tracker reached on its own (ADR-0004); clearing it
+ * is a request of its own rather than a null sent through here, so that
+ * "I have this" and "forget what I said" cannot be confused for one another.
+ */
+export const SetCoverageOverride = z.object({ coverage: Coverage });
+export type SetCoverageOverride = z.infer<typeof SetCoverageOverride>;
 
 /** One Necessity's worth of whatever the caller is holding Requirements as. */
 export type NecessityGroup<Asked> = {

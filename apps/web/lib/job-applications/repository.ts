@@ -2,15 +2,17 @@ import {
   normalizeJobUrl,
   type CreateJobApplication,
   type JobApplication,
-  type Coverage,
   type JobStatus,
   type Requirement,
   type RequirementWithCoverage,
   type UpdateJobApplication,
 } from "@repo/schema";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
-import { resolvedCoverage } from "../coverage/compare";
-import { normalisedReadingOf, PROFILE } from "../coverage/repository";
+import {
+  normalisedReadingOf,
+  PROFILE,
+  withCoverage,
+} from "../coverage/repository";
 import { db, type Transaction } from "../db/client";
 import {
   jobApplications,
@@ -292,6 +294,7 @@ async function requirementsOf(
   const rows = await db()
     .select({
       jobApplicationId: requirements.jobApplicationId,
+      id: requirements.id,
       skill: requirements.skill,
       necessity: requirements.necessity,
       normalisedCoverage: requirements.normalisedCoverage,
@@ -360,49 +363,35 @@ async function replaceRequirements(
   // The automatic reading is written here rather than swept up afterwards,
   // which is what makes it there the moment a Posting is saved: it costs no
   // model call and no second statement, so there is nothing to defer.
-  const written = asks.map((requirement) => ({
-    ...requirement,
-    normalisedCoverage: normalisedReadingOf(requirement.skill, skills),
-    // A row that has just been written has had nothing else read against it.
-    // The Analysis and the override are the user's to ask for, and neither
-    // survives the skill they were about being rewritten.
-    analysedCoverage: null,
-    analysedReason: null,
-    overriddenCoverage: null,
-  }));
+  const written = await tx
+    .insert(requirements)
+    .values(
+      asks.map((requirement, position) => ({
+        ...requirement,
+        userId,
+        jobApplicationId,
+        position,
+        basis: PROFILE,
+        normalisedCoverage: normalisedReadingOf(requirement.skill, skills),
+        // A row that has just been written has had nothing else read against
+        // it. The Analysis and the override are the user's to ask for, and
+        // neither survives the skill they were about being rewritten.
+        analysedCoverage: null,
+        analysedReason: null,
+        overriddenCoverage: null,
+      })),
+    )
+    // The rows come back rather than being answered from what went in, because
+    // the id is the database's to give and a client needs it to address one
+    // Requirement — which is what setting an override does.
+    .returning();
 
-  await tx.insert(requirements).values(
-    written.map((requirement, position) => ({
-      ...requirement,
-      userId,
-      jobApplicationId,
-      position,
-      basis: PROFILE,
-    })),
-  );
-
-  // Answered from what was just written rather than read back: these rows are
-  // new, so a second query could only agree with this.
-  return written.map(withCoverage);
-}
-
-/**
- * A Requirement row as a client is told it: what the Posting asked, the three
- * readings side by side, and the one Coverage they amount to.
- *
- * The resolved value is computed here rather than stored, so that the badge on
- * the detail page, the ring on a board card and the API's own answer all come
- * from `resolvedCoverage` and cannot disagree (ADR-0004).
- */
-function withCoverage(
-  row: Requirement & {
-    normalisedCoverage: Coverage | null;
-    analysedCoverage: Coverage | null;
-    analysedReason: string | null;
-    overriddenCoverage: Coverage | null;
-  },
-): RequirementWithCoverage {
-  return { ...row, coverage: resolvedCoverage(row) };
+  // Put back in the order they were captured in: `returning` answers in
+  // whatever order the rows were written, which is the order they went in
+  // today and is nothing the database promises.
+  return [...written]
+    .sort((one, other) => one.position - other.position)
+    .map(withCoverage);
 }
 
 /**

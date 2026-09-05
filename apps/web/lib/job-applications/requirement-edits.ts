@@ -17,12 +17,19 @@ import type {
 
 /**
  * One Requirement while it is being corrected. The key is the row's identity
- * for as long as the form is open: a Requirement has none in the contract —
- * the skill is what identifies it, and the skill is precisely what a
- * correction changes — so without one, editing "Ruby" into "Rust" would look
- * to React like a different Requirement arriving in the same place.
+ * for as long as the form is open, and is not the Requirement's own id: a row
+ * the user has just typed has no id until the page is saved, and editing
+ * "Ruby" into "Rust" would otherwise look to React like a different
+ * Requirement arriving in the same place.
+ *
+ * The id is what the server knows the Requirement by, and is null for exactly
+ * as long as the server has never heard of it — which is what the override
+ * control reads to know whether there is anything yet to override.
  */
-export type RequirementEdit = RequirementWithCoverage & { key: string };
+export type RequirementEdit = Omit<RequirementWithCoverage, "id"> & {
+  key: string;
+  id: string | null;
+};
 
 /** What a Requirement nothing has been read against yet carries. */
 const NOTHING_READ = {
@@ -31,7 +38,7 @@ const NOTHING_READ = {
   analysedCoverage: null,
   analysedReason: null,
   overriddenCoverage: null,
-} satisfies Omit<RequirementWithCoverage, "skill" | "necessity">;
+} satisfies Omit<RequirementWithCoverage, "id" | "skill" | "necessity">;
 
 /**
  * A Job Application's Requirements, as rows ready to be corrected. The rows
@@ -50,10 +57,39 @@ export function requirementEditsFrom(
 /**
  * A row for a Requirement the user has just typed. It carries no readings, and
  * the badge shows nothing rather than "missing": nothing has compared it to
- * anything yet, and it will not have been until the page is saved.
+ * anything yet, and it will not have been until the page is saved. Its id is
+ * null for the same reason — there is no row to address until then.
  */
 export function newRequirementEdit(requirement: Requirement): RequirementEdit {
-  return { key: crypto.randomUUID(), ...requirement, ...NOTHING_READ };
+  const { skill, necessity } = requirement;
+  return {
+    key: crypto.randomUUID(),
+    id: null,
+    skill,
+    necessity,
+    ...NOTHING_READ,
+  };
+}
+
+/**
+ * The row as it reads once a Coverage has been written to it. The readings are
+ * the server's and are taken whole; the wording stays the row's, because the
+ * user may be part-way through correcting a skill whose verdict they have just
+ * overruled, and a write that answered about the Requirement should not reach
+ * back into the box they are typing in.
+ */
+export function withReadings(
+  edit: RequirementEdit,
+  requirement: RequirementWithCoverage,
+): RequirementEdit {
+  return {
+    ...edit,
+    coverage: requirement.coverage,
+    normalisedCoverage: requirement.normalisedCoverage,
+    analysedCoverage: requirement.analysedCoverage,
+    analysedReason: requirement.analysedReason,
+    overriddenCoverage: requirement.overriddenCoverage,
+  };
 }
 
 /**
