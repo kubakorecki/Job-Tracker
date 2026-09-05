@@ -206,7 +206,7 @@ describe("setting an override", () => {
 
   it("beats the Analysis", async () => {
     const { jobApplication, requirement } = await asked();
-    await giveAnalysedCoverage(TEST_USER, requirement.id, {
+    await giveAnalysedCoverage(TEST_USER, jobApplication.id, requirement.id, {
       coverage: "partial",
       reason: "Two years against the five asked for.",
     });
@@ -235,7 +235,7 @@ describe("setting an override", () => {
       { coverage: "have" },
     );
 
-    await giveAnalysedCoverage(TEST_USER, requirement.id, {
+    await giveAnalysedCoverage(TEST_USER, jobApplication.id, requirement.id, {
       coverage: "missing",
       reason: "The CV does not mention it.",
     });
@@ -310,7 +310,7 @@ describe("clearing an override", () => {
   it("falls back to the Analysis where one has run", async () => {
     const { jobApplication, requirement } = await asked();
     const ids = { id: jobApplication.id, requirementId: requirement.id };
-    await giveAnalysedCoverage(TEST_USER, requirement.id, {
+    await giveAnalysedCoverage(TEST_USER, jobApplication.id, requirement.id, {
       coverage: "partial",
       reason: "Mentioned once, in passing.",
     });

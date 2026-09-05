@@ -187,6 +187,43 @@ export const requirements = pgTable(
 export type RequirementRow = typeof requirements.$inferSelect;
 
 /**
+ * An Analysis: that the model has read one Job Application's Requirements
+ * against one Basis, and when. The verdicts themselves are not here — each one
+ * belongs to the Requirement it is about, in the two analysed columns above.
+ * What is here is the part that belongs to the run rather than to any one
+ * Requirement.
+ *
+ * When it ran is the whole row, because staleness is derived rather than
+ * stored: an Analysis is stale when the Profile or the Requirements moved
+ * after this stamp, and both of those carry their own timestamps. A boolean
+ * written here would have to be unset by every write that could invalidate it,
+ * which is every write in the feature.
+ *
+ * Keyed by the Job Application and the Basis, so there is exactly one Analysis
+ * per Basis and a re-run replaces the stamp rather than piling up history —
+ * only the current reading is ever shown, and the Tailored CV effort adds its
+ * own row here rather than migrating this one (ADR-0004).
+ */
+export const analyses = pgTable(
+  "analyses",
+  {
+    /** No foreign key into `auth.users`, for the same reason as above. */
+    userId: uuid("user_id").notNull(),
+    jobApplicationId: uuid("job_application_id")
+      .notNull()
+      .references(() => jobApplications.id, { onDelete: "cascade" }),
+    basis: basis("basis").notNull(),
+    /** When the model last answered about this Job Application. */
+    ranAt: timestamp("ran_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.jobApplicationId, table.basis] })],
+);
+
+export type AnalysisRow = typeof analyses.$inferSelect;
+
+/**
  * A Profile: the user's master CV, as the file they uploaded and the text read
  * out of it. Keyed by the user rather than by an id of its own, which is what
  * makes "there is exactly one" a fact the database keeps instead of a rule the

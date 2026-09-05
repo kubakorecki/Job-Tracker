@@ -56,6 +56,25 @@ export async function acceptedSkills(userId: string): Promise<string[]> {
 }
 
 /**
+ * When this user's Profile last moved — a new document or an edited skill
+ * list, since either changes what an Analysis was measured against — or `null`
+ * for a user who has no Profile at all.
+ *
+ * A read of its own rather than `getProfile`, for the reason `acceptedSkills`
+ * is: this runs on every read of a Job Application's Analysis, and a Profile
+ * carries a whole CV's text.
+ */
+export async function profileChangedAt(userId: string): Promise<Date | null> {
+  const rows = await db()
+    .select({ updatedAt: profiles.updatedAt })
+    .from(profiles)
+    .where(eq(profiles.userId, userId))
+    .limit(1);
+
+  return rows[0]?.updatedAt ?? null;
+}
+
+/**
  * Makes this user's Profile point at the CV just stored, and answers with the
  * new row alongside the path of the file it replaced — `null` when there was
  * none. The caller takes that old file away afterwards, so an upload that

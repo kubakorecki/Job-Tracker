@@ -143,43 +143,57 @@ export async function setOverriddenCoverage(
   return row === undefined ? null : withCoverage(row);
 }
 
+/** What an Analysis read of one Requirement, ready to be written to its row. */
+export type AnalysedRequirement = {
+  requirementId: string;
+  coverage: Coverage;
+  reason: string;
+};
+
 /**
- * Records what an Analysis read of one Requirement, and answers with the
- * Requirement as it now stands — `null` where this user has no such row.
+ * Records what an Analysis read of one Job Application's Requirements.
+ *
+ * A run rather than a row: the model is asked about every Requirement at once
+ * and answers about all of them, so a write per verdict would be a decision
+ * the caller could get half-way through. It takes a `Queryable` so the caller
+ * can put it in the same transaction as the stamp that says the run happened —
+ * verdicts without a stamp would read as an Analysis nobody ran.
  *
  * It writes the analysed reading and its reason, and reaches no further: the
  * override is a column this cannot touch, which is what makes re-running an
  * Analysis unable to destroy the user's last word (ADR-0004). The precedence
- * that then hides this reading is applied on read, so nothing here has to know
+ * that then hides a verdict is applied on read, so nothing here has to know
  * whether the user has already overruled it.
  *
- * Nothing in the application calls it yet — the Analysis that will is its own
- * ticket. It is here rather than in the test that needs it because a query
- * that names its owner is what tenant isolation is made of (ADR-0001), and a
- * write built somewhere else would not be one.
+ * A statement per Requirement, unlike `recordNormalisedCoverage` above: every
+ * verdict carries its own sentence, so there is nothing for two rows to share
+ * and no set to fold them into. It is one Job Application's asks — a dozen at
+ * the outside — rather than every Requirement a user owns.
+ *
+ * The Job Application is named as well as each Requirement, though the ids
+ * alone would find the rows: it is what makes a verdict about one Job
+ * Application unable to land on another's Requirement, exactly as an override
+ * cannot (ADR-0001).
  */
 export async function recordAnalysedCoverage(
+  queryable: Queryable,
   userId: string,
-  requirementId: string,
-  reading: { coverage: Coverage; reason: string },
-): Promise<RequirementWithCoverage | null> {
-  const rows = await db()
-    .update(requirements)
-    .set({
-      analysedCoverage: reading.coverage,
-      analysedReason: reading.reason,
-    })
-    .where(
-      and(
-        eq(requirements.userId, userId),
-        eq(requirements.id, requirementId),
-        eq(requirements.basis, PROFILE),
-      ),
-    )
-    .returning();
-
-  const [row] = rows;
-  return row === undefined ? null : withCoverage(row);
+  jobApplicationId: string,
+  readings: readonly AnalysedRequirement[],
+): Promise<void> {
+  for (const { requirementId, coverage, reason } of readings) {
+    await queryable
+      .update(requirements)
+      .set({ analysedCoverage: coverage, analysedReason: reason })
+      .where(
+        and(
+          eq(requirements.userId, userId),
+          eq(requirements.jobApplicationId, jobApplicationId),
+          eq(requirements.id, requirementId),
+          eq(requirements.basis, PROFILE),
+        ),
+      );
+  }
 }
 
 /**

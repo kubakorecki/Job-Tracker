@@ -321,13 +321,52 @@ async function requirementsOf(
   return byJobApplication;
 }
 
-/** One Job Application's Requirements, in the order they were captured in. */
-async function requirementsFor(
+/**
+ * One Job Application's Requirements, in the order they were captured in, with
+ * how each one reads. Exported for the Analysis, which has just rewritten the
+ * verdicts on them and has to answer with the list as it now stands.
+ */
+export async function requirementsFor(
   userId: string,
   jobApplicationId: string,
 ): Promise<RequirementWithCoverage[]> {
   const byJobApplication = await requirementsOf(userId, [jobApplicationId]);
   return byJobApplication.get(jobApplicationId) ?? [];
+}
+
+/**
+ * When what this Posting asks for last changed — the newest of its
+ * Requirements — or `null` for a Job Application that asks for nothing.
+ *
+ * `created_at` rather than `updated_at`, and it works because of how
+ * `replaceRequirements` below writes: the list is replaced wholesale on every
+ * edit, so every row is new whenever the asks change. `updated_at` answers a
+ * different question — setting or clearing an override writes the row — and an
+ * Analysis marked stale for that reason would be asking for a model call
+ * because its own verdict was overruled (ADR-0004).
+ *
+ * It sits here rather than with the Analysis that reads it because it is the
+ * shadow of that write: the two have to keep saying the same thing about what
+ * counts as a change, and they are worth reading side by side.
+ */
+export async function requirementsChangedAt(
+  userId: string,
+  jobApplicationId: string,
+): Promise<Date | null> {
+  const rows = await db()
+    .select({ createdAt: requirements.createdAt })
+    .from(requirements)
+    .where(
+      and(
+        eq(requirements.userId, userId),
+        eq(requirements.jobApplicationId, jobApplicationId),
+        eq(requirements.basis, PROFILE),
+      ),
+    )
+    .orderBy(desc(requirements.createdAt))
+    .limit(1);
+
+  return rows[0]?.createdAt ?? null;
 }
 
 /**
