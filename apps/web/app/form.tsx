@@ -15,6 +15,14 @@ export const PRIMARY_BUTTON =
   "rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900";
 
 /**
+ * The button beside the one that matters: adding a row to a list, where the
+ * list saves on somebody else's button. Outlined rather than filled, so that a
+ * form has one obvious thing to press and this is not it.
+ */
+export const SECONDARY_BUTTON =
+  "rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium disabled:opacity-50 dark:border-neutral-700";
+
+/**
  * A button that reads as a link, for the one thing a message can offer: retry
  * it, clear it, undo it. It inherits its colour, so the same button is legible
  * inside a red failure and on the page.

@@ -34,7 +34,14 @@ import {
   type RequirementEdit,
 } from "../../../../lib/job-applications/requirement-edits";
 import { describeIssues } from "../../../../lib/zod-issues";
-import { FIELD, Field, PRIMARY_BUTTON, Problems, Row } from "../../../form";
+import {
+  FIELD,
+  Field,
+  PRIMARY_BUTTON,
+  Problems,
+  Row,
+  SECONDARY_BUTTON,
+} from "../../../form";
 import { JOB_APPLICATIONS_KEY } from "../../use-job-applications";
 
 /**
@@ -518,7 +525,7 @@ function Requirements({
           <NecessitySelect onChange={setNecessity} value={necessity} />
         </Field>
         <button
-          className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium disabled:opacity-50 dark:border-neutral-700"
+          className={SECONDARY_BUTTON}
           disabled={typed === ""}
           onClick={add}
           type="button"

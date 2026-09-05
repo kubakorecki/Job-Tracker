@@ -9,9 +9,9 @@ import type { ApiError } from "./response";
 /** A refusal from the API, in the endpoint's own words. */
 export class ApiRequestError extends Error {
   /**
-   * Every problem the endpoint named. A validation failure lists one line per
-   * offending field; everything else is the single message repeated here, so a
-   * caller can render the list without asking which kind of failure it was.
+   * Every problem the endpoint named, its own sentence first and then any
+   * field it blamed — so a caller can render the list without asking which
+   * kind of failure it was.
    */
   readonly problems: string[];
 
@@ -49,6 +49,26 @@ export async function send<Result = void>(
 }
 
 /**
+ * A file, as `multipart/form-data`. Beside `send` rather than inside it
+ * because the two want opposite things of a body: `send` serialises its own
+ * and declares a content type, and a `FormData` must reach `fetch` untouched
+ * and unannounced so that the browser can write the boundary itself.
+ *
+ * A refusal is read the same way, which is the whole reason this is here and
+ * not in the one feature that uploads anything.
+ */
+export async function upload<Result>(
+  url: string,
+  body: FormData,
+): Promise<Result> {
+  const response = await fetch(url, { method: "POST", body });
+
+  if (!response.ok) throw new ApiRequestError(await problems(response));
+
+  return response.json();
+}
+
+/**
  * What a caught failure amounts to, in the endpoint's own words where it gave
  * any. A request that never arrived has none, and says so.
  */
@@ -59,15 +79,31 @@ export function describeFailure(error: unknown): string[] {
 }
 
 /**
- * What went wrong, preferring the endpoint's own account of it: a duplicate
- * Posting, an expired session and a rejected field read very differently, and
- * the retry message is the only place the user sees the difference.
+ * What went wrong, in the endpoint's own account of it: a duplicate Posting,
+ * an expired session and a rejected field read very differently, and this list
+ * is the only place the user sees the difference.
  */
 async function problems(response: Response): Promise<string[]> {
   try {
-    const failure: ApiError = await response.json();
-    return failure.issues ?? [failure.error];
+    return problemsIn(await response.json());
   } catch {
     return [`The server answered ${response.status}.`];
   }
+}
+
+/**
+ * A refusal as the lines to put in front of the user: what the endpoint said
+ * went wrong, and then each field it blamed.
+ *
+ * Both, rather than the fields where there are fields. The two halves answer
+ * different questions — `error` is the rule, `issues` is what broke it — and a
+ * client that showed only the second would tell someone their file "is not one
+ * of them" without ever saying what the ones are.
+ *
+ * Exported for its test; nothing but `problems` calls it.
+ */
+export function problemsIn(failure: ApiError): string[] {
+  // Keyed by its own text where it is rendered, and an endpoint that put its
+  // sentence in both halves has named one problem rather than two.
+  return [...new Set([failure.error, ...(failure.issues ?? [])])];
 }

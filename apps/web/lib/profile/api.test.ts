@@ -7,12 +7,12 @@ import {
 import { forgetModelCalls, setModelCallCount } from "../model-calls/repository";
 import { OTHER_TEST_USER, TEST_USER } from "../test-support/users";
 import {
-  MAX_CV_BYTES,
   readProfileResponse,
   setProfileSkillsResponse,
   uploadProfileResponse,
 } from "./api";
 import {
+  MAX_CV_BYTES,
   Profile,
   ProfileOrNone,
   ProfileSkills,

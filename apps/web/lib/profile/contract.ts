@@ -33,6 +33,45 @@ export const ACCEPTED_CV_FORMATS =
   "a PDF, a Markdown file or a plain text file";
 
 /**
+ * What a file picker should offer, so that the dialogue shows the three
+ * formats rather than everything on the disk. Extensions as well as media
+ * types, because a `.md` file is `text/markdown`, `text/plain` or nothing at
+ * all depending on the operating system — the same disagreement the endpoint
+ * settles when the file arrives.
+ *
+ * It is a hint and never a check: an `accept` attribute can be stepped past in
+ * every browser, and what a CV may be is decided by the endpoint.
+ */
+export const CV_FILE_ACCEPT =
+  ".pdf,.md,.markdown,.txt,application/pdf,text/markdown,text/plain";
+
+/**
+ * The form field an upload arrives in. Here rather than in either end, so that
+ * the page that sends a CV and the endpoint that reads one name it once.
+ */
+export const CV_FIELD = "file";
+
+/**
+ * The largest CV this will take. A CV is a few pages; anything past this is a
+ * mistake or an attack, and refusing it costs the user a message rather than a
+ * model call. It also sits under the 4.5MB a serverless request body may be on
+ * the deployment, so the refusal is ours and legible rather than the
+ * platform's — which is why the page checks it too, before spending a minute
+ * of someone's connection on a body that cannot arrive.
+ */
+export const MAX_CV_BYTES = 4 * 1024 * 1024;
+
+/** The same size in the units a person reads it in. */
+export const MAX_CV_MEGABYTES = MAX_CV_BYTES / (1024 * 1024);
+
+/**
+ * What too large a CV is told, worded once. The endpoint refuses one and so
+ * does the page, and a user who saw two different sentences for one rule would
+ * reasonably wonder which of the two they had broken.
+ */
+export const CV_TOO_LARGE = `A CV has to be under ${MAX_CV_MEGABYTES}MB.`;
+
+/**
  * One skill on a Profile, worded as the user keeps it. There is no vocabulary
  * behind it and no taxonomy to belong to: a skill is whatever the user says
  * they can do, and the comparison that reads it later normalises rather than

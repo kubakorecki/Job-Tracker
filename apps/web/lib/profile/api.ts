@@ -1,21 +1,23 @@
 import { jsonBody } from "../api/request";
 import { errorResponse } from "../api/response";
 import type { CurrentUser } from "../auth/current-user";
-import type { ProfileRow } from "../db/schema";
 import { MODEL_CALL_LIMIT_STATUS, spendModelCall } from "../model-calls/budget";
 import { describeIssues } from "../zod-issues";
 import {
   ACCEPTED_CV_FORMATS,
+  CV_FIELD,
+  CV_TOO_LARGE,
   CvMediaType,
+  MAX_CV_BYTES,
   ProfileSkills,
-  type Profile,
   type ProfileOrNone,
   type UploadedCv,
 } from "./contract";
 import { readCvWithGemini, type CvReading, type ReadCv } from "./reader";
-import { getProfile, replaceProfileCv, setProfileSkills } from "./repository";
+import { replaceProfileCv, setProfileSkills } from "./repository";
 import { tidySkills } from "./skills";
 import { supabaseCvStore, type CvStore } from "./storage";
+import { profileFrom, readProfile } from "./view";
 
 /**
  * The Profile endpoints, as plain request-to-response functions like the rest
@@ -27,21 +29,6 @@ import { supabaseCvStore, type CvStore } from "./storage";
  * the file and the row are written in, and which half of a reading the user
  * has to say yes to before it is theirs.
  */
-
-/**
- * The form field an upload arrives in. Named here rather than in a client, so
- * that both ends read it from the same place.
- */
-export const CV_FIELD = "file";
-
-/**
- * The largest CV this will take. A CV is a few pages; anything past this is a
- * mistake or an attack, and refusing it costs the user a message rather than a
- * model call. It also sits under the 4.5MB a serverless request body may be on
- * the deployment, so the refusal is ours and legible rather than the
- * platform's.
- */
-export const MAX_CV_BYTES = 4 * 1024 * 1024;
 
 /** The file extensions each accepted format is recognised by, failing that. */
 const EXTENSION_TYPES: Record<string, CvMediaType> = {
@@ -92,10 +79,7 @@ export function uploadProfileResponse(
     }
 
     if (file.size > MAX_CV_BYTES) {
-      return errorResponse(
-        `A CV has to be under ${MAX_CV_BYTES / (1024 * 1024)}MB.`,
-        413,
-      );
+      return errorResponse(CV_TOO_LARGE, 413);
     }
 
     // Spent from the one daily budget every model call comes out of, and spent
@@ -148,7 +132,7 @@ export function uploadProfileResponse(
     if (replaced !== null) await store.remove(user.id, replaced);
 
     const answer: UploadedCv = {
-      profile: await toProfile(profile, store),
+      profile: await profileFrom(profile, store),
       // Tidied here rather than in the reader, so that the list the user is
       // shown is the list the accept endpoint would keep — a proposal holding
       // a duplicate the accepted list would drop is a review of something
@@ -173,10 +157,7 @@ export function uploadProfileResponse(
  */
 export function readProfileResponse(store: CvStore = supabaseCvStore) {
   return async (_request: Request, user: CurrentUser): Promise<Response> => {
-    const row = await getProfile(user.id);
-
-    const profile: ProfileOrNone =
-      row === null ? null : await toProfile(row, store);
+    const profile: ProfileOrNone = await readProfile(user.id, store);
 
     return Response.json(profile);
   };
@@ -264,24 +245,6 @@ function extensionOf(mediaType: CvMediaType): string {
   );
 
   return named === undefined ? "" : `.${named[0]}`;
-}
-
-/**
- * A row as the contract describes it: no storage path, because where the file
- * sits in a private bucket is of no use to a client, and a signed URL in its
- * place.
- */
-async function toProfile(row: ProfileRow, store: CvStore): Promise<Profile> {
-  return {
-    fileName: row.fileName,
-    // The column is text, because media types are somebody else's vocabulary;
-    // the parse is what keeps the response's promise about which three it is.
-    mediaType: CvMediaType.parse(row.mediaType),
-    extractedText: row.extractedText,
-    skills: row.skills,
-    fileUrl: await store.signedUrl(row.userId, row.storagePath),
-    uploadedAt: row.uploadedAt.toISOString(),
-  };
 }
 
 /**

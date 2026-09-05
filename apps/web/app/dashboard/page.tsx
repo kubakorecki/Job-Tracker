@@ -32,6 +32,12 @@ export default async function DashboardPage() {
         <div className="flex items-center gap-4">
           <Link
             className="text-sm underline underline-offset-2 opacity-60"
+            href="/settings/profile"
+          >
+            Your Profile
+          </Link>
+          <Link
+            className="text-sm underline underline-offset-2 opacity-60"
             href="/settings/tokens"
           >
             Personal Access Tokens
