@@ -310,8 +310,8 @@ The two questions this feature answers are deliberately kept apart in the
 model, because they are different questions and both stay useful: "do I have
 this?" is answered against the Profile, and "does what I am sending show it?"
 against the Tailored CV. Keeping the Profile reading after a Tailored CV
-exists is what lets the product say *you have this skill but left it off the CV
-you are sending* — which is the whole point of tailoring, and would be
+exists is what lets the product say _you have this skill but left it off the CV
+you are sending_ — which is the whole point of tailoring, and would be
 destroyed by treating the second reading as a replacement for the first.
 
 Three sources of Coverage with a precedence order, and two Bases, is more

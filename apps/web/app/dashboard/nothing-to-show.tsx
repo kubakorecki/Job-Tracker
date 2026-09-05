@@ -39,11 +39,7 @@ export function NothingToShow({
   return (
     <Empty title="Nothing matches what you are looking for">
       <p>{MISSED[emptiness.narrowedBy]}</p>
-      <button
-        className={TEXT_BUTTON}
-        onClick={onShowEverything}
-        type="button"
-      >
+      <button className={TEXT_BUTTON} onClick={onShowEverything} type="button">
         Show every Job Application
       </button>
     </Empty>

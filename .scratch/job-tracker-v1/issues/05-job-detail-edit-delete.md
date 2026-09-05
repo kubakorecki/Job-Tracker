@@ -41,7 +41,7 @@ Decisions worth knowing about:
   overwrite whatever the extension or another tab had written to a field this
   user never looked at, and — because a date box holds a day where the row
   holds an instant — it would quietly move the applied date to midnight every
-  time an untouched form was saved. `changesFrom` compares two *forms* rather
+  time an untouched form was saved. `changesFrom` compares two _forms_ rather
   than a form against a stored row, which is what makes an untouched date
   distinguishable from one the user deliberately set to that day.
 - **A change the contract will refuse is kept in the patch, not dropped.** An

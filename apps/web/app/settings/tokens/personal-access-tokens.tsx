@@ -69,11 +69,7 @@ export function PersonalAccessTokens({
         <form className="flex flex-col gap-3" onSubmit={onSubmit}>
           <Row>
             <Field label="What is it for?">
-              <input
-                className={FIELD}
-                name="name"
-                placeholder="Work laptop"
-              />
+              <input className={FIELD} name="name" placeholder="Work laptop" />
             </Field>
           </Row>
 
@@ -133,9 +129,7 @@ function IssuedToken({
       className="flex flex-col gap-3 rounded-lg border border-neutral-300 p-4 dark:border-neutral-700"
     >
       <div>
-        <h2 className="text-lg font-semibold">
-          Copy “{issued.name}” now
-        </h2>
+        <h2 className="text-lg font-semibold">Copy “{issued.name}” now</h2>
         <p className="text-sm opacity-60">
           This is the only time this token is shown. Paste it into the
           extension; if you lose it, revoke it and issue another.

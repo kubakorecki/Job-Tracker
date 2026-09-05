@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { getCurrentUser, type CurrentUser } from "../auth/current-user";
 import { OTHER_TEST_USER, TEST_USER } from "../test-support/users";
-import type { IssuedPersonalAccessToken, PersonalAccessToken } from "./contract";
+import type {
+  IssuedPersonalAccessToken,
+  PersonalAccessToken,
+} from "./contract";
 import {
   createPersonalAccessTokenResponse,
   listPersonalAccessTokensResponse,
@@ -166,7 +169,9 @@ describe("a Bearer Personal Access Token", () => {
   it("identifies the user who issued it, with no session anywhere", async () => {
     const token = await issue(TEST_USER, "Laptop");
 
-    await expect(getCurrentUser(presenting(token.token))).resolves.toMatchObject({
+    await expect(
+      getCurrentUser(presenting(token.token)),
+    ).resolves.toMatchObject({
       id: TEST_USER.id,
     });
   });
@@ -208,7 +213,9 @@ describe("a Bearer Personal Access Token", () => {
 describe("DELETE /api/personal-access-tokens/:id", () => {
   it("stops the token working on the very next request", async () => {
     const token = await issue(TEST_USER, "Lost laptop");
-    await expect(getCurrentUser(presenting(token.token))).resolves.not.toBeNull();
+    await expect(
+      getCurrentUser(presenting(token.token)),
+    ).resolves.not.toBeNull();
 
     const response = await revoke(TEST_USER, token.id);
 
@@ -234,7 +241,9 @@ describe("DELETE /api/personal-access-tokens/:id", () => {
     const response = await revoke(TEST_USER, theirs.id);
 
     expect(response.status).toBe(404);
-    await expect(getCurrentUser(presenting(theirs.token))).resolves.not.toBeNull();
+    await expect(
+      getCurrentUser(presenting(theirs.token)),
+    ).resolves.not.toBeNull();
   });
 
   it("refuses to revoke the same token twice", async () => {

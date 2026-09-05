@@ -122,9 +122,9 @@ describe("a response", () => {
 
   it("says its content depends on the origin, so a cache cannot mix the two up", () => {
     expect(answer(EXTENSION_ORIGIN).headers.get("vary")).toContain("Origin");
-    expect(answer("https://not-the-extension.test").headers.get("vary")).toContain(
-      "Origin",
-    );
+    expect(
+      answer("https://not-the-extension.test").headers.get("vary"),
+    ).toContain("Origin");
   });
 });
 

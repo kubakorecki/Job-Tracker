@@ -82,11 +82,7 @@ export function Failure({
         </ul>
       )}
 
-      <button
-        className={TEXT_BUTTON}
-        onClick={onRetry}
-        type="button"
-      >
+      <button className={TEXT_BUTTON} onClick={onRetry} type="button">
         Try again
       </button>
     </div>

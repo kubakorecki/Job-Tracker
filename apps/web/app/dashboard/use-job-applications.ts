@@ -58,8 +58,9 @@ export function useMoveJobApplication() {
     queryClient.getQueryData<JobApplication[]>(JOB_APPLICATIONS_KEY);
 
   const write = (change: (jobApplication: JobApplication) => JobApplication) =>
-    queryClient.setQueryData<JobApplication[]>(JOB_APPLICATIONS_KEY, (current) =>
-      current?.map(change),
+    queryClient.setQueryData<JobApplication[]>(
+      JOB_APPLICATIONS_KEY,
+      (current) => current?.map(change),
     );
 
   const mutation = useMutation({

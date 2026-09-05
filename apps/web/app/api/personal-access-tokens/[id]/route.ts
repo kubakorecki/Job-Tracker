@@ -3,13 +3,13 @@ import { revokePersonalAccessTokenResponse } from "../../../../lib/personal-acce
 
 export { OPTIONS } from "../../../../lib/api/cors";
 
-type Params = Awaited<RouteContext<"/api/personal-access-tokens/[id]">["params"]>;
+type Params = Awaited<
+  RouteContext<"/api/personal-access-tokens/[id]">["params"]
+>;
 
 /**
  * Revoking is a DELETE: it is what a client asks for when it wants a token
  * gone. That the row survives with `revokedAt` set is the API's business, not
  * the caller's — the token stops working either way.
  */
-export const DELETE = sessionRoute<Params>(
-  revokePersonalAccessTokenResponse,
-);
+export const DELETE = sessionRoute<Params>(revokePersonalAccessTokenResponse);

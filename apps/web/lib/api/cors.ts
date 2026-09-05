@@ -39,7 +39,9 @@ export function allowedOrigins(): string[] {
   const pinned = process.env.EXTENSION_ORIGIN ?? "";
 
   return [
-    ...(process.env.NODE_ENV === "production" ? [] : [LOCAL_DEVELOPMENT_ORIGIN]),
+    ...(process.env.NODE_ENV === "production"
+      ? []
+      : [LOCAL_DEVELOPMENT_ORIGIN]),
     ...pinned
       .split(",")
       .map((origin) => origin.trim())

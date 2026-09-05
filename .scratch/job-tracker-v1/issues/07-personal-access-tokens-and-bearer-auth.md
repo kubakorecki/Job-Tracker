@@ -58,7 +58,7 @@ Decisions worth knowing about:
   matches on hash and `revoked_at is null`, stamps last-used and returns the
   owner. There is no window for a token to be revoked between the check and the
   stamp. It is the one repository function that does not take `user_id` first,
-  because it is the query that *establishes* it — ADR-0001's Consequences now
+  because it is the query that _establishes_ it — ADR-0001's Consequences now
   records that exception rather than leaving it to a code comment.
 - **Last-used is stamped when the token authenticates**, not when the request
   goes on to succeed. The purpose is spotting tokens no longer in use, and a

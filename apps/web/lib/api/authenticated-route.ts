@@ -30,7 +30,9 @@ export type AuthenticatedHandler<Params = Record<string, never>> = (
  */
 export function authenticatedRoute<Params = Record<string, never>>(
   handler: AuthenticatedHandler<Params>,
-  resolveUser: (request: Request) => Promise<CurrentUser | null> = getCurrentUser,
+  resolveUser: (
+    request: Request,
+  ) => Promise<CurrentUser | null> = getCurrentUser,
 ) {
   return async (
     request: Request,
@@ -48,7 +50,10 @@ export function authenticatedRoute<Params = Record<string, never>>(
       );
     }
 
-    return withCors(request, await handler(request, user, await context.params));
+    return withCors(
+      request,
+      await handler(request, user, await context.params),
+    );
   };
 }
 

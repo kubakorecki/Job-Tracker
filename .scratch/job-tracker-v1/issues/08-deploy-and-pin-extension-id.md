@@ -70,6 +70,7 @@ Decisions worth knowing about:
   carries the reason. The `NODE_ENV` gate in `allowedOrigins()` stands
   unchanged, and this ticket's criterion was amended to match rather than
   ticked against a sentence nobody believed.
+
 - **The deployment never migrates itself.** There is no release step;
   `apps/web/drizzle/` is applied by hand over the direct connection from a
   machine holding `apps/web/.env.prod`. `DIRECT_URL` from that file wins over

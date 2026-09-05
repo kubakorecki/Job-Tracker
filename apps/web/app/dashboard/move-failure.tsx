@@ -34,11 +34,7 @@ export function MoveFailure({
         Could not move {company ?? "that Job Application"} to{" "}
         {JOB_STATUS_LABELS[failed.move.status]}. {failed.reason}
       </span>
-      <button
-        className={TEXT_BUTTON}
-        onClick={onRetry}
-        type="button"
-      >
+      <button className={TEXT_BUTTON} onClick={onRetry} type="button">
         Retry
       </button>
       <button

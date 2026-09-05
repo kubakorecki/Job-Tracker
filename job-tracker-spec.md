@@ -50,19 +50,19 @@ pnpm 11.22, WXT 0.21, Tailwind 4.3.
 
 ## 3. Tech stack
 
-| Layer | Choice |
-|---|---|
-| Monorepo | Turborepo + pnpm |
-| Web app & API | Next.js 16 (App Router), Route Handlers as the backend |
-| Extension | WXT, Manifest V3, side panel (no popup) |
-| Shared UI | `@repo/ui` — shadcn-style components + Tailwind v4 |
-| Shared contract | `@repo/schema` — Zod schemas **and** `normalizeJobUrl` |
-| Database | Postgres via **Supabase** (two Free-plan projects — see ADR-0003) |
-| ORM | Drizzle (`drizzle-orm/postgres-js`) |
-| Auth | Supabase Auth for the web app; a pasted Personal Access Token for the extension (§6.5) |
-| LLM | Gemini Pro via `@google/genai`, structured output |
-| State/data fetching | TanStack Query |
-| Hosting | Vercel |
+| Layer               | Choice                                                                                 |
+| ------------------- | -------------------------------------------------------------------------------------- |
+| Monorepo            | Turborepo + pnpm                                                                       |
+| Web app & API       | Next.js 16 (App Router), Route Handlers as the backend                                 |
+| Extension           | WXT, Manifest V3, side panel (no popup)                                                |
+| Shared UI           | `@repo/ui` — shadcn-style components + Tailwind v4                                     |
+| Shared contract     | `@repo/schema` — Zod schemas **and** `normalizeJobUrl`                                 |
+| Database            | Postgres via **Supabase** (two Free-plan projects — see ADR-0003)                      |
+| ORM                 | Drizzle (`drizzle-orm/postgres-js`)                                                    |
+| Auth                | Supabase Auth for the web app; a pasted Personal Access Token for the extension (§6.5) |
+| LLM                 | Gemini Pro via `@google/genai`, structured output                                      |
+| State/data fetching | TanStack Query                                                                         |
+| Hosting             | Vercel                                                                                 |
 
 ## 4. Architecture & data flow
 
@@ -108,7 +108,7 @@ an obsolete one:
 - `jobUrl` becomes **nullable**. A Job Application can exist without a Posting
   (a referral, a recruiter email, a posting since taken down).
 - `CreateJobApplication` makes every field optional except `company` and
-  `jobTitle`. Previously every nullable field was *required but nullable*,
+  `jobTitle`. Previously every nullable field was _required but nullable_,
   forcing clients to send ten explicit `null`s. Omitted fields default to
   `null` server-side; omitted `status` defaults to `bookmarked`.
 - Add `ExtractJobResponse` — a discriminated union, see §6.4.
@@ -170,7 +170,7 @@ their tables and endpoints are out of scope (§7).
   created in the Supabase dashboard (ADR-0001). No Row Level Security.
 - `requireUser()` helper resolving the current user in a Route Handler from
   either (a) the Supabase session cookie, or (b) an `Authorization: Bearer
-  <token>` header matched against `api_tokens.token_hash` where
+<token>` header matched against `api_tokens.token_hash` where
   `revoked_at is null`, updating `last_used_at` on success.
 - Every database query lives in a repository module taking `user_id` as a
   non-optional argument. No route handler builds a query inline — this is the
@@ -329,6 +329,7 @@ as the database owner, so nothing needs it.
 ## Task list
 
 ### Phase 0 — Contract
+
 - [ ] `@repo/schema`: make `jobUrl` nullable
 - [ ] `@repo/schema`: `CreateJobApplication` optional except `company` + `jobTitle`
 - [ ] `@repo/schema`: add `ExtractJobResponse`
@@ -336,6 +337,7 @@ as the database owner, so nothing needs it.
 - [ ] One commit, nothing else — the Drizzle schema depends on this being final
 
 ### Phase 1 — Database & Auth
+
 - [ ] Create `job-tracker-dev` and `job-tracker-prod` Supabase projects; capture keys
 - [ ] Create the account by hand in each project's dashboard
 - [ ] Add Drizzle to `apps/web`; `drizzle.config.ts` on `DIRECT_URL`
@@ -346,6 +348,7 @@ as the database owner, so nothing needs it.
 - [ ] Repository module — every query takes `user_id`
 
 ### Phase 2 — Backend API
+
 - [ ] Shared CORS helper + `OPTIONS` handlers
 - [ ] `POST /api/job-applications`
 - [ ] `GET /api/job-applications` (+ `?status=`, `?url=`)
@@ -355,11 +358,13 @@ as the database owner, so nothing needs it.
 - [ ] `GET` / `POST` / `DELETE` `/api/tokens`
 
 ### Phase 2.5 — Deploy
+
 - [ ] Deploy `apps/web` to Vercel against the prod project
 - [ ] Pin the extension ID (`manifest.key` in `wxt.config.ts`)
 - [ ] Add both origins to the CORS allowlist and verify a Bearer call end-to-end
 
 ### Phase 3 — Web dashboard
+
 - [ ] Kanban board, single query key, client-side grouping
 - [ ] Optimistic status changes with rollback + retry toast
 - [ ] "Add job" manual form
@@ -369,11 +374,13 @@ as the database owner, so nothing needs it.
 - [ ] Settings page: token list / generation / revocation
 
 ### Phase 4 — LLM extraction
+
 - [ ] `POST /api/extract-job` with Gemini structured output
 - [ ] Truncation + `ExtractJobResponse` failure shapes
 - [ ] Per-user daily rate limit via `extraction_usage`
 
 ### Phase 5 — Extension wiring
+
 - [ ] Fixed side-panel shell (header link, primary action, manual add, recent jobs)
 - [ ] First-run token + base URL setup, `WXT_API_BASE_URL` default
 - [ ] Already-saved lookup via `?url=` on panel open
@@ -383,6 +390,7 @@ as the database owner, so nothing needs it.
 - [ ] Similar-application hint
 
 ### Phase 6 — Polish
+
 - [ ] Loading/empty/error states
 - [ ] Playwright smoke test (dev project, seeded account, `storageState`)
 - [ ] Update root `README.md`
