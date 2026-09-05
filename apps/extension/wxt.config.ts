@@ -23,7 +23,19 @@ export default defineConfig({
   manifest: {
     name: "Job Tracker",
     description: "Save job postings to your Job Tracker in one click.",
-    permissions: ["storage", "activeTab", "scripting", "sidePanel"],
+    permissions: ["storage", "scripting", "sidePanel"],
+    /**
+     * Standing read access to every http and https page, because a side panel
+     * cannot have anything narrower: Chrome never grants `activeTab` to one —
+     * neither opening it from the toolbar nor clicking inside it counts as the
+     * gesture — so `activeTab` here read as a permission and behaved as none.
+     * ADR-0005 has the reasoning and what it costs the user.
+     *
+     * `tab.url` rides along with this, which is what the already-saved lookup
+     * needs (ADR-0002); it is not visible to an extension holding neither a
+     * host permission nor `tabs`.
+     */
+    host_permissions: ["http://*/*", "https://*/*"],
     action: {},
     /**
      * Pins the extension's identity. Without a `key`, Chrome derives the id of

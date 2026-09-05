@@ -7,18 +7,18 @@ import { browser } from "#imports";
  * read every tab it was opened over would spend it on pages nobody asked
  * about.
  *
- * There is no content script. The manifest asks for `activeTab` and
- * `scripting`, so the read is a one-off injection into the tab the user
- * invoked the extension on, and the extension holds no standing access to any
- * site.
+ * There is no content script. The manifest asks for host access to every http
+ * and https page (ADR-0005) and for `scripting`, so the read is a one-off
+ * injection into the tab the panel is open over, made when the user asks for
+ * it and not before.
  */
 
 /**
  * What the panel managed to read. A tab it cannot read is an ordinary outcome
- * rather than an exception — Chrome's own pages, the PDF viewer, and a tab the
- * `activeTab` grant no longer covers all land here — and the panel answers it
- * the way it answers a provider failure: with the review form and an
- * explanation.
+ * rather than an exception — Chrome's own pages, the Web Store, the PDF viewer
+ * and local files are closed to every extension however it is permissioned —
+ * and the panel answers it the way it answers a provider failure: with the
+ * review form and an explanation.
  */
 export type ActivePosting =
   | { kind: "read"; url: string; pageText: string }
@@ -26,12 +26,11 @@ export type ActivePosting =
 
 /**
  * What a tab that cannot be read leaves the user to do. The remedy is the same
- * whichever way the read failed, so it is worded once: `activeTab` is granted
- * by invoking the extension on a tab, and re-opening the panel from the
- * toolbar icon is how a user re-grants it.
+ * whichever way the read failed, so it is worded once — and it is manual entry,
+ * because nothing the user can do to a `chrome://` tab will make it readable.
  */
 const UNREADABLE =
-  "This tab could not be read. Open the panel from the toolbar icon on the page you want to save, or fill the details in below.";
+  "This page cannot be read — Chrome's own pages, the PDF viewer and local files are closed to extensions. Fill the details in below.";
 
 /**
  * Where the user is, and nothing else. The panel asks this on open, to find
@@ -53,9 +52,9 @@ export async function readActivePosting(): Promise<ActivePosting> {
     return { kind: "unreadable", url: null, problem: UNREADABLE };
   }
 
-  // Known only where the extension has access to the tab, which is the same
-  // condition the injection below needs — so a missing URL is already a sign
-  // the read will fail, and it is reported as one rather than guessed at.
+  // Known for every page the host permission covers, which is the same set the
+  // injection below can reach — so a missing URL is already a sign the read
+  // will fail, and it is reported as one rather than guessed at.
   const url = tab.url ?? null;
 
   let text: string | undefined;

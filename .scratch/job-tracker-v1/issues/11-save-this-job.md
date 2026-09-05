@@ -87,6 +87,13 @@ and duplicate rejection are ticket 12, which is blocked by this one. Until it
 lands, revisiting a saved Posting spends an extraction and the save comes back
 as a 409 rendered through `problems`.
 
+**Resolved since (2026-09-05).** The "still needs a human" check below found
+the failure, and it was worse than the guess: Chrome grants `activeTab` to no
+side panel at all, by design, so every "Save this job" was unreadable and the
+message's remedy was impossible. `tab.url` was invisible for the same reason,
+which disabled ticket 12's lookup in any packed build. The manifest now asks for
+`http://*/*` and `https://*/*` and drops `activeTab` — ADR-0005.
+
 **Still needs a human**, as with ticket 10: the panel cannot be driven from here
 (Chrome automation refuses `chrome-extension://` URLs) and the flow needs a real
 token. Load `apps/extension/.output/chrome-mv3` unpacked, or run
