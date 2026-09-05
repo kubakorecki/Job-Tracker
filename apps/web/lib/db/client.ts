@@ -38,3 +38,19 @@ function poolableUrl(url: string): string {
   parsed.searchParams.delete("pgbouncer");
   return parsed.toString();
 }
+
+/**
+ * The handle a `db().transaction` callback is given, read off the client
+ * rather than named, so it follows the schema without being restated.
+ */
+export type Transaction = Parameters<
+  Parameters<ReturnType<typeof db>["transaction"]>[0]
+>[0];
+
+/**
+ * Anything a statement can be run on: the client itself, or a transaction on
+ * it. Repository functions that may be called either on their own or as part
+ * of somebody else's transaction take one of these, so that the caller decides
+ * what has to succeed together rather than the callee.
+ */
+export type Queryable = ReturnType<typeof db> | Transaction;

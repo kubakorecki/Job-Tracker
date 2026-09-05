@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { recordNormalisedCoverage } from "../coverage/repository";
 import { db } from "../db/client";
 import { profiles, type ProfileRow } from "../db/schema";
 
@@ -30,6 +31,28 @@ export async function getProfile(userId: string): Promise<ProfileRow | null> {
     .limit(1);
 
   return rows[0] ?? null;
+}
+
+/**
+ * Just the skill list this user has accepted — empty for a user who has no
+ * Profile at all, which is the same answer as a Profile whose list they have
+ * not accepted yet.
+ *
+ * The two are deliberately one answer: the comparison has nothing to measure a
+ * Requirement against either way, and `normalisedReadingOf` is where that
+ * turns into "nothing has been read" rather than "you have none of this".
+ *
+ * A read of its own rather than `getProfile`, because it runs on every write
+ * of a Job Application's Requirements and a Profile carries a whole CV's text.
+ */
+export async function acceptedSkills(userId: string): Promise<string[]> {
+  const rows = await db()
+    .select({ skills: profiles.skills })
+    .from(profiles)
+    .where(eq(profiles.userId, userId))
+    .limit(1);
+
+  return rows[0]?.skills ?? [];
 }
 
 /**
@@ -101,13 +124,23 @@ export async function setProfileSkills(
   userId: string,
   skills: string[],
 ): Promise<ProfileRow | null> {
-  const [row] = await db()
-    .update(profiles)
-    .set({ skills })
-    .where(eq(profiles.userId, userId))
-    .returning();
+  return db().transaction(async (tx) => {
+    const [row] = await tx
+      .update(profiles)
+      .set({ skills })
+      .where(eq(profiles.userId, userId))
+      .returning();
 
-  return row ?? null;
+    if (row === undefined) return null;
+
+    // The user's own side of the comparison just moved, so every Requirement
+    // they own reads differently now. In the same transaction as the write
+    // above, because a reading that survived a failed skill change would be
+    // describing a list nobody has.
+    await recordNormalisedCoverage(tx, userId, row.skills);
+
+    return row;
+  });
 }
 
 /**

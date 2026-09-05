@@ -1,19 +1,23 @@
 import {
   normalizeJobUrl,
-  type Basis,
   type CreateJobApplication,
   type JobApplication,
+  type Coverage,
   type JobStatus,
   type Requirement,
+  type RequirementWithCoverage,
   type UpdateJobApplication,
 } from "@repo/schema";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
-import { db } from "../db/client";
+import { resolvedCoverage } from "../coverage/compare";
+import { normalisedReadingOf, PROFILE } from "../coverage/repository";
+import { db, type Transaction } from "../db/client";
 import {
   jobApplications,
   requirements,
   type JobApplicationRow,
 } from "../db/schema";
+import { acceptedSkills } from "../profile/repository";
 
 /**
  * Every read and write of a Job Application. Nothing else in the app builds a
@@ -21,20 +25,6 @@ import {
  * rather than reading it from a session — that signature is what makes tenant
  * isolation reviewable, and it is all that enforces it (ADR-0001).
  */
-
-/**
- * The only Basis anything reads or writes here. Coverage against a Tailored CV
- * is a later effort, and it adds its own rows rather than moving these
- * (ADR-0004) — so a Job Application's Requirements are exactly the rows
- * measured against the Profile, and naming that here keeps the read from
- * doubling once the second Basis exists.
- */
-const PROFILE: Basis = "profile";
-
-/** The handle a `db().transaction` callback is given, read off the client. */
-type Transaction = Parameters<
-  Parameters<ReturnType<typeof db>["transaction"]>[0]
->[0];
 
 /** Thrown when a Job Application already exists for this user's Posting. */
 export class DuplicatePostingError extends Error {
@@ -53,6 +43,12 @@ export async function createJobApplication(
   // leaving a Job Application that has silently lost what the Posting asked
   // for.
   const { requirements: asks, ...fields } = input;
+
+  // What the automatic reading is measured against, read once and before the
+  // transaction: the Profile's skill list is the user's own side of the
+  // comparison and has nothing to do with this Job Application, so it is not
+  // something the write has to hold a lock over.
+  const skills = await acceptedSkills(userId);
 
   const created = await db()
     .transaction(async (tx) => {
@@ -73,8 +69,10 @@ export async function createJobApplication(
         throw new Error("The insert returned no Job Application.");
       }
 
-      await replaceRequirements(tx, userId, row.id, asks);
-      return row;
+      return {
+        row,
+        asks: await replaceRequirements(tx, userId, row.id, asks, skills),
+      };
     })
     .catch((error: unknown) => {
       if (input.jobUrl !== null && isUniqueViolation(error)) {
@@ -83,7 +81,7 @@ export async function createJobApplication(
       throw error;
     });
 
-  return toJobApplication(created, asks);
+  return toJobApplication(created.row, created.asks);
 }
 
 /**
@@ -160,6 +158,10 @@ export async function updateJobApplication(
   // along with it, and the Requirements, which are a table of their own.
   const { appliedAt, jobUrl, requirements: asks, ...fields } = patch;
 
+  // Only a patch that restates the Requirements has anything to read them
+  // against; one that leaves them alone leaves their readings alone too.
+  const skills = asks === undefined ? [] : await acceptedSkills(userId);
+
   const columns = {
     ...fields,
     ...(appliedAt === undefined
@@ -201,9 +203,13 @@ export async function updateJobApplication(
 
       // A patch that never named the Requirements leaves them alone; one that
       // named them states the whole list, so what it does not carry is gone.
-      if (asks !== undefined)
-        await replaceRequirements(tx, userId, row.id, asks);
-      return row;
+      return {
+        row,
+        asks:
+          asks === undefined
+            ? undefined
+            : await replaceRequirements(tx, userId, row.id, asks, skills),
+      };
     })
     .catch((error: unknown) => {
       if (patch.jobUrl != null && isUniqueViolation(error)) {
@@ -214,11 +220,12 @@ export async function updateJobApplication(
 
   if (updated === null) return null;
 
-  // A patch that stated the Requirements has already said what they are; only
-  // one that left them alone has to go and look.
+  // A patch that stated the Requirements has already had them written, and the
+  // write answered with how each one reads; only one that left them alone has
+  // to go and look.
   return toJobApplication(
-    updated,
-    asks ?? (await requirementsFor(userId, updated.id)),
+    updated.row,
+    updated.asks ?? (await requirementsFor(userId, updated.row.id)),
   );
 }
 
@@ -278,8 +285,8 @@ function appliedAtOnStatusChange(patch: UpdateJobApplication) {
 async function requirementsOf(
   userId: string,
   jobApplicationIds: string[],
-): Promise<Map<string, Requirement[]>> {
-  const byJobApplication = new Map<string, Requirement[]>();
+): Promise<Map<string, RequirementWithCoverage[]>> {
+  const byJobApplication = new Map<string, RequirementWithCoverage[]>();
   if (jobApplicationIds.length === 0) return byJobApplication;
 
   const rows = await db()
@@ -287,6 +294,10 @@ async function requirementsOf(
       jobApplicationId: requirements.jobApplicationId,
       skill: requirements.skill,
       necessity: requirements.necessity,
+      normalisedCoverage: requirements.normalisedCoverage,
+      analysedCoverage: requirements.analysedCoverage,
+      analysedReason: requirements.analysedReason,
+      overriddenCoverage: requirements.overriddenCoverage,
     })
     .from(requirements)
     .where(
@@ -300,7 +311,7 @@ async function requirementsOf(
 
   for (const { jobApplicationId, ...requirement } of rows) {
     const list = byJobApplication.get(jobApplicationId) ?? [];
-    list.push(requirement);
+    list.push(withCoverage(requirement));
     byJobApplication.set(jobApplicationId, list);
   }
 
@@ -311,7 +322,7 @@ async function requirementsOf(
 async function requirementsFor(
   userId: string,
   jobApplicationId: string,
-): Promise<Requirement[]> {
+): Promise<RequirementWithCoverage[]> {
   const byJobApplication = await requirementsOf(userId, [jobApplicationId]);
   return byJobApplication.get(jobApplicationId) ?? [];
 }
@@ -332,7 +343,8 @@ async function replaceRequirements(
   userId: string,
   jobApplicationId: string,
   asks: Requirement[],
-): Promise<void> {
+  skills: readonly string[],
+): Promise<RequirementWithCoverage[]> {
   await tx
     .delete(requirements)
     .where(
@@ -343,18 +355,54 @@ async function replaceRequirements(
       ),
     );
 
-  if (asks.length === 0) return;
+  if (asks.length === 0) return [];
+
+  // The automatic reading is written here rather than swept up afterwards,
+  // which is what makes it there the moment a Posting is saved: it costs no
+  // model call and no second statement, so there is nothing to defer.
+  const written = asks.map((requirement) => ({
+    ...requirement,
+    normalisedCoverage: normalisedReadingOf(requirement.skill, skills),
+    // A row that has just been written has had nothing else read against it.
+    // The Analysis and the override are the user's to ask for, and neither
+    // survives the skill they were about being rewritten.
+    analysedCoverage: null,
+    analysedReason: null,
+    overriddenCoverage: null,
+  }));
 
   await tx.insert(requirements).values(
-    asks.map((requirement, position) => ({
+    written.map((requirement, position) => ({
+      ...requirement,
       userId,
       jobApplicationId,
       position,
-      skill: requirement.skill,
-      necessity: requirement.necessity,
       basis: PROFILE,
     })),
   );
+
+  // Answered from what was just written rather than read back: these rows are
+  // new, so a second query could only agree with this.
+  return written.map(withCoverage);
+}
+
+/**
+ * A Requirement row as a client is told it: what the Posting asked, the three
+ * readings side by side, and the one Coverage they amount to.
+ *
+ * The resolved value is computed here rather than stored, so that the badge on
+ * the detail page, the ring on a board card and the API's own answer all come
+ * from `resolvedCoverage` and cannot disagree (ADR-0004).
+ */
+function withCoverage(
+  row: Requirement & {
+    normalisedCoverage: Coverage | null;
+    analysedCoverage: Coverage | null;
+    analysedReason: string | null;
+    overriddenCoverage: Coverage | null;
+  },
+): RequirementWithCoverage {
+  return { ...row, coverage: resolvedCoverage(row) };
 }
 
 /**
@@ -364,7 +412,7 @@ async function replaceRequirements(
  */
 function toJobApplication(
   row: JobApplicationRow,
-  asks: Requirement[],
+  asks: RequirementWithCoverage[],
 ): JobApplication {
   return {
     id: row.id,

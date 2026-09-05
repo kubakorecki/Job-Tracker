@@ -52,6 +52,39 @@ export const Requirement = z.object({
 });
 export type Requirement = z.infer<typeof Requirement>;
 
+/**
+ * A Requirement as it comes back, with what the user's CV answers to it. The
+ * write shape above is what a client states; this is what it is told, and the
+ * difference is the point — Coverage is computed rather than sent, and a
+ * client that could state one could claim to have a skill it never showed.
+ *
+ * All four values are carried rather than the resolved one alone, because a
+ * badge that surprises its reader has to be able to say why it reads as it
+ * does: the automatic comparison, the Analysis and the user's own word are
+ * each recoverable here, and `coverage` is whichever of them won (ADR-0004).
+ *
+ * The three readings are named as `resolvedCoverage` names them, so anything
+ * holding this shape resolves through that one function rather than through a
+ * second copy of the precedence order.
+ */
+export const RequirementWithCoverage = Requirement.extend({
+  /**
+   * The one Coverage the three readings below amount to, and `null` where none
+   * of them has spoken — a user with no Profile has nothing read about them,
+   * which is not the same claim as everything being missing.
+   */
+  coverage: Coverage.nullable(),
+  /** The automatic comparison against the Profile's accepted skill list. */
+  normalisedCoverage: Coverage.nullable(),
+  /** What an Analysis read, when one has been run. */
+  analysedCoverage: Coverage.nullable(),
+  /** The Analysis's one line on why it read the Requirement that way. */
+  analysedReason: z.string().nullable(),
+  /** The user's own word, which beats both of the above. */
+  overriddenCoverage: Coverage.nullable(),
+});
+export type RequirementWithCoverage = z.infer<typeof RequirementWithCoverage>;
+
 /** One Necessity's worth of whatever the caller is holding Requirements as. */
 export type NecessityGroup<Asked> = {
   necessity: Necessity;
@@ -154,6 +187,13 @@ export const JobApplication = z.object({
   id: z.uuid(),
   userId: z.string(),
   ...jobApplicationFields,
+  /**
+   * Stated as bare Requirements and answered with covered ones: what a client
+   * sends is what the Posting asks for, and what it gets back also carries how
+   * the user's Profile reads against each one. The override after the spread
+   * is what makes the two shapes differ in the one field where they should.
+   */
+  requirements: z.array(RequirementWithCoverage),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
 });
@@ -163,17 +203,20 @@ export type JobApplication = z.infer<typeof JobApplication>;
  * Shape returned by the LLM extraction endpoint — a Draft, not yet saved.
  * Every field is optional: the model fills in what the page actually says.
  */
-export const JobExtraction = JobApplication.pick({
-  company: true,
-  jobTitle: true,
-  location: true,
-  remoteType: true,
-  salaryMin: true,
-  salaryMax: true,
-  currency: true,
-  description: true,
-  requirements: true,
-}).partial();
+export const JobExtraction = z
+  .object(jobApplicationFields)
+  .pick({
+    company: true,
+    jobTitle: true,
+    location: true,
+    remoteType: true,
+    salaryMin: true,
+    salaryMax: true,
+    currency: true,
+    description: true,
+    requirements: true,
+  })
+  .partial();
 export type JobExtraction = z.infer<typeof JobExtraction>;
 
 /**

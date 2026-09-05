@@ -1,4 +1,4 @@
-import type { JobApplication } from "@repo/schema";
+import type { JobApplication, RequirementWithCoverage } from "@repo/schema";
 import { afterAll, afterEach, describe, expect, it } from "vitest";
 import { authenticatedRoute } from "../api/authenticated-route";
 import type { CurrentUser } from "../auth/current-user";
@@ -7,7 +7,12 @@ import {
   forgetTestTokens,
   issueTestToken,
 } from "../test-support/personal-access-tokens";
+import {
+  forgetTestProfiles,
+  giveProfileSkills,
+} from "../test-support/profiles";
 import { OTHER_TEST_USER, TEST_USER } from "../test-support/users";
+import { setProfileSkillsResponse } from "../profile/api";
 import {
   createJobApplicationResponse,
   deleteJobApplicationResponse,
@@ -165,7 +170,7 @@ describe("POST /api/job-applications", () => {
     const reloaded: JobApplication = await (
       await read(TEST_USER, created.id)
     ).json();
-    expect(reloaded.requirements).toEqual(asked);
+    expect(reloaded.requirements).toMatchObject(asked);
   });
 
   it("carries Requirements on a Job Application that never came from a Posting", async () => {
@@ -190,7 +195,7 @@ describe("POST /api/job-applications", () => {
     const reloaded: JobApplication = await (
       await read(TEST_USER, created.id)
     ).json();
-    expect(reloaded.requirements).toEqual(byHand);
+    expect(reloaded.requirements).toMatchObject(byHand);
   });
 
   it("refuses a Requirement whose Necessity is not one of the three", async () => {
@@ -415,7 +420,7 @@ describe("GET /api/job-applications", () => {
 
     const forMe: JobApplication[] = await (await list(TEST_USER)).json();
 
-    expect(forMe.find(({ id }) => id === mine.id)?.requirements).toEqual([
+    expect(forMe.find(({ id }) => id === mine.id)?.requirements).toMatchObject([
       { skill: "Next.js", necessity: "required" },
     ]);
     expect(
@@ -729,7 +734,7 @@ describe("PATCH /api/job-applications/:id", () => {
       });
 
       expect(response.status).toBe(200);
-      await expect(reloadedRequirements(created.id)).resolves.toEqual([
+      await expect(reloadedRequirements(created.id)).resolves.toMatchObject([
         { skill: "Typescript", necessity: "required" },
         { skill: "GraphQL", necessity: "preferred" },
         { skill: "Postgres", necessity: "required" },
@@ -743,7 +748,7 @@ describe("PATCH /api/job-applications/:id", () => {
         requirements: [{ skill: "Typescript", necessity: "required" }],
       });
 
-      await expect(reloadedRequirements(created.id)).resolves.toEqual([
+      await expect(reloadedRequirements(created.id)).resolves.toMatchObject([
         { skill: "Typescript", necessity: "required" },
       ]);
     });
@@ -758,7 +763,7 @@ describe("PATCH /api/job-applications/:id", () => {
         ],
       });
 
-      await expect(reloadedRequirements(created.id)).resolves.toEqual([
+      await expect(reloadedRequirements(created.id)).resolves.toMatchObject([
         { skill: "TypeScript", necessity: "required" },
         { skill: "GraphQL", necessity: "preferred" },
       ]);
@@ -774,7 +779,7 @@ describe("PATCH /api/job-applications/:id", () => {
         ],
       });
 
-      await expect(reloadedRequirements(created.id)).resolves.toEqual([
+      await expect(reloadedRequirements(created.id)).resolves.toMatchObject([
         { skill: "Typescript", necessity: "required" },
         { skill: "GraphQL", necessity: "unstated" },
       ]);
@@ -795,7 +800,7 @@ describe("PATCH /api/job-applications/:id", () => {
         expect(named).toContain(necessity);
       }
 
-      await expect(reloadedRequirements(created.id)).resolves.toEqual(
+      await expect(reloadedRequirements(created.id)).resolves.toMatchObject(
         AS_EXTRACTED,
       );
     });
@@ -816,7 +821,7 @@ describe("PATCH /api/job-applications/:id", () => {
       const stillTheirs: JobApplication = await (
         await read(OTHER_TEST_USER, theirs.id)
       ).json();
-      expect(stillTheirs.requirements).toEqual([
+      expect(stillTheirs.requirements).toMatchObject([
         { skill: "OpenTelemetry", necessity: "required" },
       ]);
     });
@@ -1168,6 +1173,235 @@ describe("DELETE /api/job-applications/:id", () => {
     const response = await remove(TEST_USER, NO_SUCH_ID);
 
     expect(response.status).toBe(404);
+  });
+});
+
+/**
+ * What the Profile answers to what a Posting asks. The reading is automatic,
+ * costs no model call, and is there the moment the Job Application is saved —
+ * so every assertion below is about a response nobody had to ask for.
+ *
+ * The Profile is a real row, written the way an upload and an acceptance would
+ * have written it, because "compared against the accepted skill list" is only
+ * true if the list a comparison reads is the one that write left behind.
+ */
+describe("Coverage against the Profile", () => {
+  /** The skills the user has accepted, until a test says otherwise. */
+  const SKILLS = ["TypeScript", "Postgres", "Node.js"];
+
+  /** What a Posting asks, half of which this user has. */
+  const ASKED = [
+    { skill: "TypeScript", necessity: "required" },
+    { skill: "Kubernetes", necessity: "required" },
+  ] as const;
+
+  afterEach(() => forgetTestProfiles(TEST_USER, OTHER_TEST_USER));
+
+  /** What one Job Application's Requirements read as, asked for again. */
+  async function reload(id: string): Promise<RequirementWithCoverage[]> {
+    const reloaded: JobApplication = await (await read(TEST_USER, id)).json();
+    return reloaded.requirements;
+  }
+
+  /** `PUT /api/profile/skills`, the one request that changes a skill list. */
+  async function acceptSkills(
+    user: CurrentUser,
+    skills: string[],
+  ): Promise<Response> {
+    return authenticatedRoute(setProfileSkillsResponse)(
+      new Request(`${ENDPOINT}/../profile/skills`, {
+        method: "PUT",
+        headers: await bearer(user),
+        body: JSON.stringify({ skills }),
+      }),
+      noParams,
+    );
+  }
+
+  it("reads every Requirement the moment the Posting is saved", async () => {
+    await giveProfileSkills(TEST_USER, SKILLS);
+
+    const created = await save(TEST_USER, {
+      company: "Vercel",
+      jobTitle: "Platform Engineer",
+      requirements: ASKED,
+    });
+
+    expect(created.requirements).toMatchObject([
+      { skill: "TypeScript", coverage: "have" },
+      { skill: "Kubernetes", coverage: "missing" },
+    ]);
+  });
+
+  it("carries the readings behind the verdict, so a surprise can be understood", async () => {
+    await giveProfileSkills(TEST_USER, SKILLS);
+
+    const created = await save(TEST_USER, {
+      company: "Linear",
+      jobTitle: "Product Engineer",
+      requirements: [{ skill: "TypeScript", necessity: "required" }],
+    });
+
+    // The automatic comparison is the only one that has spoken: an Analysis is
+    // asked for and an override is set, and neither has happened here.
+    expect(await reload(created.id)).toEqual([
+      {
+        skill: "TypeScript",
+        necessity: "required",
+        coverage: "have",
+        normalisedCoverage: "have",
+        analysedCoverage: null,
+        analysedReason: null,
+        overriddenCoverage: null,
+      },
+    ]);
+  });
+
+  it("sees past the spelling a skill happens to be written in", async () => {
+    // Case, punctuation and stray whitespace are not differences between two
+    // skills; a Posting asking for "NODE.JS " is asking for what this CV calls
+    // "Node.js".
+    await giveProfileSkills(TEST_USER, SKILLS);
+
+    const created = await save(TEST_USER, {
+      company: "Railway",
+      jobTitle: "Backend Engineer",
+      requirements: [{ skill: "NODE.JS ", necessity: "preferred" }],
+    });
+
+    expect(created.requirements).toMatchObject([{ coverage: "have" }]);
+  });
+
+  it("reads a Requirement again when its wording is corrected", async () => {
+    await giveProfileSkills(TEST_USER, SKILLS);
+
+    const created = await save(TEST_USER, {
+      company: "Neon",
+      jobTitle: "Database Engineer",
+      requirements: [{ skill: "Postgress", necessity: "required" }],
+    });
+    expect(created.requirements).toMatchObject([{ coverage: "missing" }]);
+
+    const response = await patch(TEST_USER, created.id, {
+      requirements: [{ skill: "Postgres", necessity: "required" }],
+    });
+
+    expect(response.status).toBe(200);
+    const corrected: JobApplication = await response.json();
+    expect(corrected.requirements).toMatchObject([
+      { skill: "Postgres", coverage: "have" },
+    ]);
+    expect(await reload(created.id)).toMatchObject([{ coverage: "have" }]);
+  });
+
+  it("reads a Requirement it has never seen before, added by hand", async () => {
+    await giveProfileSkills(TEST_USER, SKILLS);
+
+    const created = await save(TEST_USER, {
+      company: "Supabase",
+      jobTitle: "Engineer",
+      requirements: [{ skill: "TypeScript", necessity: "required" }],
+    });
+
+    await patch(TEST_USER, created.id, {
+      requirements: [
+        { skill: "TypeScript", necessity: "required" },
+        { skill: "Elixir", necessity: "preferred" },
+      ],
+    });
+
+    expect(await reload(created.id)).toMatchObject([
+      { skill: "TypeScript", coverage: "have" },
+      { skill: "Elixir", coverage: "missing" },
+    ]);
+  });
+
+  it("reads every saved Job Application again when the skill list changes", async () => {
+    // The skill list is the user's own side of the comparison, so accepting a
+    // new one changes what every Posting they have saved reads as — not only
+    // the one they happen to be looking at.
+    await giveProfileSkills(TEST_USER, SKILLS);
+
+    const one = await save(TEST_USER, {
+      company: "Grafana",
+      jobTitle: "Engineer",
+      requirements: [{ skill: "Kubernetes", necessity: "required" }],
+    });
+    const another = await save(TEST_USER, {
+      company: "Fly.io",
+      jobTitle: "Engineer",
+      requirements: [{ skill: "Kubernetes", necessity: "preferred" }],
+    });
+
+    const accepted = await acceptSkills(TEST_USER, [...SKILLS, "Kubernetes"]);
+    expect(accepted.status).toBe(200);
+
+    expect(await reload(one.id)).toMatchObject([{ coverage: "have" }]);
+    expect(await reload(another.id)).toMatchObject([{ coverage: "have" }]);
+  });
+
+  it("takes a reading back when the skill it rested on is removed", async () => {
+    await giveProfileSkills(TEST_USER, SKILLS);
+
+    const created = await save(TEST_USER, {
+      company: "Render",
+      jobTitle: "Engineer",
+      requirements: [{ skill: "Postgres", necessity: "required" }],
+    });
+    expect(created.requirements).toMatchObject([{ coverage: "have" }]);
+
+    await acceptSkills(TEST_USER, ["TypeScript"]);
+
+    expect(await reload(created.id)).toMatchObject([{ coverage: "missing" }]);
+  });
+
+  it("never reads one user's Requirements against another's skills", async () => {
+    await giveProfileSkills(OTHER_TEST_USER, ["Kubernetes"]);
+
+    const mine = await save(TEST_USER, {
+      company: "Honeycomb",
+      jobTitle: "Engineer",
+      requirements: [{ skill: "Kubernetes", necessity: "required" }],
+    });
+
+    expect(mine.requirements).toMatchObject([{ coverage: null }]);
+  });
+
+  it("says nothing at all about a user who has no Profile", async () => {
+    // Not "missing": nothing has been compared, because there is nothing to
+    // compare against. A verdict here would be a claim about a user who has
+    // told us nothing, and would read as a poor fit rather than an unknown one.
+    const created = await save(TEST_USER, {
+      company: "Anthropic",
+      jobTitle: "Engineer",
+      requirements: ASKED,
+    });
+
+    expect(created.requirements).toMatchObject([
+      { skill: "TypeScript", coverage: null, normalisedCoverage: null },
+      { skill: "Kubernetes", coverage: null, normalisedCoverage: null },
+    ]);
+    expect(await reload(created.id)).toMatchObject([
+      { coverage: null },
+      { coverage: null },
+    ]);
+  });
+
+  it("says nothing about a user whose CV is uploaded but whose skills are not accepted", async () => {
+    // A Draft nobody answered is not a skill list. Until the user says which
+    // of the model's proposals are theirs, there is still nothing to compare.
+    await giveProfileSkills(TEST_USER, []);
+
+    const created = await save(TEST_USER, {
+      company: "Modal",
+      jobTitle: "Engineer",
+      requirements: ASKED,
+    });
+
+    expect(created.requirements).toMatchObject([
+      { coverage: null },
+      { coverage: null },
+    ]);
   });
 });
 

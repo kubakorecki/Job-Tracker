@@ -3,6 +3,7 @@ import { getCurrentUser } from "../../../../lib/auth/current-user";
 import { SIGN_IN_PATH } from "../../../../lib/auth/route-access";
 import { isJobApplicationId } from "../../../../lib/job-applications/api";
 import { getJobApplication } from "../../../../lib/job-applications/repository";
+import { acceptedSkills } from "../../../../lib/profile/repository";
 import { JobApplicationDetail } from "./job-application-detail";
 
 export default async function JobApplicationPage({
@@ -25,9 +26,18 @@ export default async function JobApplicationPage({
     : null;
   if (jobApplication === null) notFound();
 
+  // Whether there is anything to compare a Requirement against. The page reads
+  // it rather than the component inferring it from the readings, because "we
+  // have not read this" and "you have told us nothing to read it against" look
+  // alike on a Requirement and are two different things to tell the user.
+  const skills = await acceptedSkills(user.id);
+
   return (
     <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 p-12">
-      <JobApplicationDetail jobApplication={jobApplication} />
+      <JobApplicationDetail
+        hasProfileSkills={skills.length > 0}
+        jobApplication={jobApplication}
+      />
     </main>
   );
 }

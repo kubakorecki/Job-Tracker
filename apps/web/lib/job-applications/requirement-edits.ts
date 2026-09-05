@@ -1,7 +1,7 @@
 import type {
   JobApplication,
-  Necessity,
   Requirement,
+  RequirementWithCoverage,
   UpdateJobApplication,
 } from "@repo/schema";
 
@@ -22,22 +22,38 @@ import type {
  * correction changes — so without one, editing "Ruby" into "Rust" would look
  * to React like a different Requirement arriving in the same place.
  */
-export type RequirementEdit = {
-  key: string;
-  skill: string;
-  necessity: Necessity;
-};
+export type RequirementEdit = RequirementWithCoverage & { key: string };
 
-/** A Job Application's Requirements, as rows ready to be corrected. */
+/** What a Requirement nothing has been read against yet carries. */
+const NOTHING_READ = {
+  coverage: null,
+  normalisedCoverage: null,
+  analysedCoverage: null,
+  analysedReason: null,
+  overriddenCoverage: null,
+} satisfies Omit<RequirementWithCoverage, "skill" | "necessity">;
+
+/**
+ * A Job Application's Requirements, as rows ready to be corrected. The rows
+ * carry the Coverage readings along with the wording, because the badge sits
+ * on the row it belongs to and is read while the row is being edited.
+ */
 export function requirementEditsFrom(
-  requirements: Requirement[],
+  requirements: RequirementWithCoverage[],
 ): RequirementEdit[] {
-  return requirements.map((requirement) => newRequirementEdit(requirement));
+  return requirements.map((requirement) => ({
+    key: crypto.randomUUID(),
+    ...requirement,
+  }));
 }
 
-/** A row for a Requirement that has not been saved yet, or has just been typed. */
+/**
+ * A row for a Requirement the user has just typed. It carries no readings, and
+ * the badge shows nothing rather than "missing": nothing has compared it to
+ * anything yet, and it will not have been until the page is saved.
+ */
 export function newRequirementEdit(requirement: Requirement): RequirementEdit {
-  return { key: crypto.randomUUID(), ...requirement };
+  return { key: crypto.randomUUID(), ...requirement, ...NOTHING_READ };
 }
 
 /**
@@ -46,7 +62,9 @@ export function newRequirementEdit(requirement: Requirement): RequirementEdit {
  * dropped, so that `UpdateJobApplication` gets to name the problem instead of
  * this silently throwing away a Requirement the user meant to rename.
  */
-export function asRequirements(edits: RequirementEdit[]): Requirement[] {
+export function asRequirements(
+  edits: readonly RequirementEdit[],
+): Requirement[] {
   return edits.map(({ skill, necessity }) => ({
     skill: skill.trim(),
     necessity,
@@ -60,7 +78,7 @@ export function asRequirements(edits: RequirementEdit[]): Requirement[] {
  * and the endpoint reads the difference.
  */
 export function requirementChanges(
-  edits: RequirementEdit[],
+  edits: readonly RequirementEdit[],
   saved: JobApplication,
 ): Pick<UpdateJobApplication, "requirements"> {
   const asked = asRequirements(edits);
@@ -69,8 +87,15 @@ export function requirementChanges(
     : { requirements: asked };
 }
 
-/** Whether two lists ask for the same things, in the same order, as badly. */
-function sameRequirements(one: Requirement[], other: Requirement[]): boolean {
+/**
+ * Whether two lists ask for the same things, in the same order, as badly. The
+ * Coverage readings are no part of it: they are what a CV answers back rather
+ * than something the user is correcting, and a patch never states them.
+ */
+function sameRequirements(
+  one: readonly Requirement[],
+  other: readonly Requirement[],
+): boolean {
   return (
     one.length === other.length &&
     one.every(

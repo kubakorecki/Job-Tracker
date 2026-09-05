@@ -15,7 +15,7 @@ import { JOB_STATUS_LABELS, StatusBadge } from "@repo/ui/status-badge";
 import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, type ChangeEvent, type FormEvent } from "react";
+import { useId, useState, type ChangeEvent, type FormEvent } from "react";
 import { dayOf } from "../../../../lib/day";
 import { describeFailure } from "../../../../lib/api/client";
 import {
@@ -34,6 +34,7 @@ import {
   type RequirementEdit,
 } from "../../../../lib/job-applications/requirement-edits";
 import { describeIssues } from "../../../../lib/zod-issues";
+import { CoverageBadge, CoverageReadings } from "./coverage-badge";
 import {
   FIELD,
   Field,
@@ -56,8 +57,16 @@ import { JOB_APPLICATIONS_KEY } from "../../use-job-applications";
  */
 export function JobApplicationDetail({
   jobApplication,
+  hasProfileSkills,
 }: {
   jobApplication: JobApplication;
+  /**
+   * Whether there is a skill list to compare a Requirement against at all. It
+   * comes from the page rather than being guessed from the readings, because
+   * an unread Requirement and a user with nothing to read against are two
+   * different pieces of news and only one of them is the user's to fix.
+   */
+  hasProfileSkills: boolean;
 }) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -301,6 +310,7 @@ export function JobApplicationDetail({
         </Field>
 
         <Requirements
+          hasProfileSkills={hasProfileSkills}
           onChange={(next) => {
             setNotice(null);
             setRequirements(next);
@@ -414,9 +424,11 @@ function DeleteJobApplication({
  */
 function Requirements({
   requirements,
+  hasProfileSkills,
   onChange,
 }: {
   requirements: RequirementEdit[];
+  hasProfileSkills: boolean;
   onChange: (requirements: RequirementEdit[]) => void;
 }) {
   const [skill, setSkill] = useState("");
@@ -455,6 +467,19 @@ function Requirements({
     <fieldset className="flex flex-col gap-3">
       <legend className="mb-1 text-sm opacity-60">Requirements</legend>
 
+      {groups.length > 0 && !hasProfileSkills && (
+        <p className="text-sm opacity-60">
+          Nothing is being compared yet.{" "}
+          <Link
+            className="underline underline-offset-2"
+            href="/settings/profile"
+          >
+            Upload your CV and accept its skills
+          </Link>{" "}
+          and every Requirement here will say whether you have it.
+        </p>
+      )}
+
       {groups.length === 0 ? (
         <p className="text-sm opacity-60">
           Nothing is recorded as asked for yet.
@@ -467,38 +492,14 @@ function Requirements({
             </h3>
             <ul className="flex flex-col gap-2">
               {group.map((requirement) => (
-                <li
-                  className="flex flex-wrap items-center gap-2"
+                <RequirementRow
                   key={requirement.key}
-                >
-                  <input
-                    aria-label="Skill"
-                    className={`${FIELD} min-w-0 flex-1`}
-                    onChange={(event) =>
-                      correct(requirement.key, { skill: event.target.value })
-                    }
-                    value={requirement.skill}
-                  />
-                  {/* The select fills what it is given, so its width is the
-                      row's business rather than its own. */}
-                  <div className="w-40 shrink-0">
-                    <NecessitySelect
-                      label={`Necessity of ${requirement.skill}`}
-                      onChange={(wanted) =>
-                        correct(requirement.key, { necessity: wanted })
-                      }
-                      value={requirement.necessity}
-                    />
-                  </div>
-                  <button
-                    aria-label={`Remove ${requirement.skill}`}
-                    className="text-sm underline underline-offset-2 opacity-60"
-                    onClick={() => remove(requirement.key)}
-                    type="button"
-                  >
-                    Remove
-                  </button>
-                </li>
+                  onCorrect={(correction) =>
+                    correct(requirement.key, correction)
+                  }
+                  onRemove={() => remove(requirement.key)}
+                  requirement={requirement}
+                />
               ))}
             </ul>
           </div>
@@ -534,6 +535,68 @@ function Requirements({
         </button>
       </div>
     </fieldset>
+  );
+}
+
+/**
+ * One Requirement, correctable: its wording, how badly it is wanted, how the
+ * user's CV reads against it, and the way out of the list.
+ *
+ * The readings go under the row rather than beside the badge, across its whole
+ * width. Opening them there pushes the next row down instead of widening a
+ * column, so the rows above and below keep their controls in line with this
+ * one's — and the three readings have room to be a list rather than a squeeze.
+ */
+function RequirementRow({
+  requirement,
+  onCorrect,
+  onRemove,
+}: {
+  requirement: RequirementEdit;
+  onCorrect: (correction: Partial<Omit<RequirementEdit, "key">>) => void;
+  onRemove: () => void;
+}) {
+  const [showingReadings, setShowingReadings] = useState(false);
+  const readings = useId();
+
+  return (
+    <li className="flex flex-col gap-1">
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          aria-label="Skill"
+          className={`${FIELD} min-w-0 flex-1`}
+          onChange={(event) => onCorrect({ skill: event.target.value })}
+          value={requirement.skill}
+        />
+        {/* The select fills what it is given, so its width is the row's
+            business rather than its own. */}
+        <div className="w-40 shrink-0">
+          <NecessitySelect
+            label={`Necessity of ${requirement.skill}`}
+            onChange={(wanted) => onCorrect({ necessity: wanted })}
+            value={requirement.necessity}
+          />
+        </div>
+        <CoverageBadge
+          onToggle={() => setShowingReadings((shown) => !shown)}
+          readingsId={readings}
+          requirement={requirement}
+          showing={showingReadings}
+        />
+        <button
+          aria-label={`Remove ${requirement.skill}`}
+          className="text-sm underline underline-offset-2 opacity-60"
+          onClick={onRemove}
+          type="button"
+        >
+          Remove
+        </button>
+      </div>
+
+      {showingReadings && (
+        <CoverageReadings id={readings} requirement={requirement} />
+      )}
+    </li>
   );
 }
 

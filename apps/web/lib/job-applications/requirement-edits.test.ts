@@ -1,7 +1,9 @@
 import type { JobApplication } from "@repo/schema";
 import { describe, expect, it } from "vitest";
+import { asked } from "../test-support/requirements";
 import {
   asRequirements,
+  newRequirementEdit,
   requirementChanges,
   requirementEditsFrom,
 } from "./requirement-edits";
@@ -24,10 +26,7 @@ const SAVED: JobApplication = {
   salaryMax: 160000,
   currency: "USD",
   description: "Works on Basecamp and HEY.",
-  requirements: [
-    { skill: "Ruby", necessity: "required" },
-    { skill: "Rails", necessity: "preferred" },
-  ],
+  requirements: [asked("Ruby", "required"), asked("Rails", "preferred")],
   status: "applied",
   source: "referral",
   appliedAt: "2026-02-14T10:30:00.000Z",
@@ -50,8 +49,8 @@ describe("requirementEditsFrom", () => {
     // identifies it, and the skill is the thing a correction changes. The list
     // needs something stabler than that to hold a row still while it is edited.
     const rows = requirementEditsFrom([
-      { skill: "Ruby", necessity: "required" },
-      { skill: "Ruby", necessity: "preferred" },
+      asked("Ruby", "required"),
+      asked("Ruby", "preferred"),
     ]);
 
     expect(new Set(rows.map(({ key }) => key)).size).toBe(2);
@@ -64,15 +63,17 @@ describe("requirementEditsFrom", () => {
 
 describe("asRequirements", () => {
   it("gives back what the rows say, as the contract states a Requirement", () => {
-    expect(asRequirements(requirementEditsFrom(SAVED.requirements))).toEqual(
-      SAVED.requirements,
-    );
+    // The Coverage readings the rows carry are no part of it: a patch states
+    // what the Posting asks for, and how a CV answers that is not the user's
+    // to send.
+    expect(asRequirements(requirementEditsFrom(SAVED.requirements))).toEqual([
+      { skill: "Ruby", necessity: "required" },
+      { skill: "Rails", necessity: "preferred" },
+    ]);
   });
 
   it("trims a skill, so a stray space is not a correction", () => {
-    const [row] = requirementEditsFrom([
-      { skill: "Ruby", necessity: "required" },
-    ]);
+    const [row] = requirementEditsFrom([asked("Ruby", "required")]);
 
     expect(asRequirements([{ ...row!, skill: "  Ruby  " }])).toEqual([
       { skill: "Ruby", necessity: "required" },
@@ -80,9 +81,7 @@ describe("asRequirements", () => {
   });
 
   it("keeps a skill the user emptied, so the contract gets to name the problem", () => {
-    const [row] = requirementEditsFrom([
-      { skill: "Ruby", necessity: "required" },
-    ]);
+    const [row] = requirementEditsFrom([asked("Ruby", "required")]);
 
     expect(asRequirements([{ ...row!, skill: "" }])).toEqual([
       { skill: "", necessity: "required" },
@@ -104,10 +103,7 @@ describe("requirementChanges", () => {
   });
 
   it("states the whole list when a Requirement was added", () => {
-    const added = [
-      ...rows,
-      { key: "new", skill: "Postgres", necessity: "required" as const },
-    ];
+    const added = [...rows, newRequirementEdit(asked("Postgres", "required"))];
 
     expect(requirementChanges(added, SAVED)).toEqual({
       requirements: [

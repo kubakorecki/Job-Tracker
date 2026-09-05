@@ -1,5 +1,6 @@
 import type { JobApplication } from "@repo/schema";
 import { describe, expect, it } from "vitest";
+import { asked } from "../test-support/requirements";
 import { changesFrom, editsFrom } from "./edits";
 
 /**
@@ -20,7 +21,7 @@ const SAVED: JobApplication = {
   salaryMax: 160000,
   currency: "USD",
   description: "Works on Basecamp and HEY.",
-  requirements: [{ skill: "ruby", necessity: "required" }],
+  requirements: [asked("ruby", "required")],
   status: "applied",
   source: "referral",
   appliedAt: "2026-02-14T10:30:00.000Z",
