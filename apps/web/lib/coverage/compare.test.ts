@@ -1,7 +1,9 @@
 import type { Coverage, Necessity } from "@repo/schema";
 import { describe, expect, it } from "vitest";
 import {
+  coverageSource,
   type CoverageReadings,
+  type CoverageSource,
   fitFractionOf,
   normalisedCoverageOf,
   resolvedCoverage,
@@ -75,19 +77,23 @@ describe("resolvedCoverage", () => {
   const combinations: {
     readings: CoverageReadings;
     resolves: Coverage | null;
+    from: CoverageSource | null;
   }[] = [
-    { readings: NOTHING_READ, resolves: null },
+    { readings: NOTHING_READ, resolves: null, from: null },
     {
       readings: { ...NOTHING_READ, normalisedCoverage: NORMALISED },
       resolves: NORMALISED,
+      from: "automatic",
     },
     {
       readings: { ...NOTHING_READ, analysedCoverage: ANALYSED },
       resolves: ANALYSED,
+      from: "analysis",
     },
     {
       readings: { ...NOTHING_READ, overriddenCoverage: OVERRIDDEN },
       resolves: OVERRIDDEN,
+      from: "override",
     },
     {
       readings: {
@@ -96,6 +102,7 @@ describe("resolvedCoverage", () => {
         overriddenCoverage: null,
       },
       resolves: ANALYSED,
+      from: "analysis",
     },
     {
       readings: {
@@ -104,6 +111,7 @@ describe("resolvedCoverage", () => {
         overriddenCoverage: OVERRIDDEN,
       },
       resolves: OVERRIDDEN,
+      from: "override",
     },
     {
       readings: {
@@ -112,6 +120,7 @@ describe("resolvedCoverage", () => {
         overriddenCoverage: OVERRIDDEN,
       },
       resolves: OVERRIDDEN,
+      from: "override",
     },
     {
       readings: {
@@ -120,6 +129,7 @@ describe("resolvedCoverage", () => {
         overriddenCoverage: OVERRIDDEN,
       },
       resolves: OVERRIDDEN,
+      from: "override",
     },
   ];
 
@@ -129,6 +139,31 @@ describe("resolvedCoverage", () => {
       expect(resolvedCoverage(readings)).toBe(resolves);
     },
   );
+
+  it.each(combinations)(
+    "reads $readings as spoken by $from",
+    ({ readings, from }) => {
+      expect(coverageSource(readings)).toBe(from);
+    },
+  );
+
+  it("names the source of the very verdict it resolves to, in every combination", () => {
+    // The badge says where a verdict came from and the panel says what it
+    // said, so the two answers are worth nothing unless they are about the
+    // same reading. One ordering underneath both is what makes that so.
+    const readingOf: Record<CoverageSource, keyof CoverageReadings> = {
+      automatic: "normalisedCoverage",
+      analysis: "analysedCoverage",
+      override: "overriddenCoverage",
+    };
+
+    for (const { readings } of combinations) {
+      const spoke = coverageSource(readings);
+      expect(spoke === null ? null : readings[readingOf[spoke]]).toBe(
+        resolvedCoverage(readings),
+      );
+    }
+  });
 
   it("returns each source's own verdict rather than a verdict of its own", () => {
     for (const spoken of ["have", "partial", "missing"] satisfies Coverage[]) {

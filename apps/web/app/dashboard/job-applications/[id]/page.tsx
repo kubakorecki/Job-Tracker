@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { readAnalysis } from "../../../../lib/analysis/view";
 import { getCurrentUser } from "../../../../lib/auth/current-user";
 import { SIGN_IN_PATH } from "../../../../lib/auth/route-access";
 import { isJobApplicationId } from "../../../../lib/job-applications/api";
@@ -26,15 +27,27 @@ export default async function JobApplicationPage({
     : null;
   if (jobApplication === null) notFound();
 
-  // Whether there is anything to compare a Requirement against. The page reads
-  // it rather than the component inferring it from the readings, because "we
-  // have not read this" and "you have told us nothing to read it against" look
-  // alike on a Requirement and are two different things to tell the user.
-  const skills = await acceptedSkills(user.id);
+  // What the page knows about this Job Application beyond the record itself.
+  // Neither read waits on the other.
+  const [skills, analysis] = await Promise.all([
+    // Whether there is anything to compare a Requirement against. The page
+    // reads it rather than the component inferring it from the readings,
+    // because "we have not read this" and "you have told us nothing to read it
+    // against" look alike on a Requirement and are two different things to
+    // tell the user.
+    acceptedSkills(user.id),
+    // Read through the feature rather than through its own endpoint, as the
+    // Profile page does: this renders on the server, where an HTTP hop to this
+    // app's own API would buy nothing. Whether the run is stale is decided
+    // there and travels with it, so the banner renders an answer rather than
+    // reaching one.
+    readAnalysis(user.id, jobApplication),
+  ]);
 
   return (
     <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 p-12">
       <JobApplicationDetail
+        analysis={analysis}
         hasProfileSkills={skills.length > 0}
         jobApplication={jobApplication}
       />

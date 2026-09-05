@@ -2,6 +2,10 @@
 
 import { Coverage, type RequirementWithCoverage } from "@repo/schema";
 import Link from "next/link";
+import {
+  coverageSource,
+  type CoverageSource,
+} from "../../../../lib/coverage/compare";
 import { FIELD, Problems } from "../../../form";
 
 /**
@@ -25,6 +29,11 @@ import { FIELD, Problems } from "../../../form";
  * row, beside the controls that edit the Requirement, and the readings belong
  * under it, across the whole width, where they neither stretch the badge nor
  * push the row's controls out of line with its neighbours'.
+ *
+ * Both are told whether the Analysis has gone stale, and neither decides it:
+ * `stale` is what the endpoint answered (`analysis/staleness.ts`), so the
+ * greyed verdict here and the banner above the section cannot come to disagree
+ * about a Job Application the user can no longer act on.
  */
 
 /**
@@ -43,6 +52,22 @@ const COVERAGE_LABELS: Record<Coverage, string> = {
 };
 
 /**
+ * What a badge says about where its verdict came from, after the verdict
+ * itself. Where a Coverage comes from is `coverageSource`'s answer, never a
+ * test of the columns here (ADR-0004).
+ *
+ * The automatic comparison is marked with nothing. It is the reading that is
+ * always there, so a word for it would sit on almost every badge and single
+ * out nothing; the two that are worth naming are the one the user made and the
+ * one they spent a model call on.
+ */
+const SOURCE_MARKERS: Record<CoverageSource, string | null> = {
+  override: "yours",
+  analysis: "analysed",
+  automatic: null,
+};
+
+/**
  * Colour carries the same news as the word, never news of its own — the label
  * is always there to be read, so nothing depends on telling green from red.
  */
@@ -57,19 +82,31 @@ export function CoverageBadge({
   requirement,
   readingsId,
   showing,
+  stale,
   onToggle,
 }: {
   requirement: ReadRequirement;
   /** The panel this badge opens, so that the two are announced as a pair. */
   readingsId: string;
   showing: boolean;
+  /** Whether the Analysis this badge may be speaking for has gone out of date. */
+  stale: boolean;
   onToggle: () => void;
 }) {
-  // A verdict the user set says so on its face. Told in a word rather than by
-  // a colour or an outline alone, because "I decided this" and "the tool
-  // decided this" is the difference the whole override exists to make, and it
-  // has to survive being read out loud as readily as being looked at.
-  const yours = requirement.overriddenCoverage !== null;
+  // Which of the three is talking. A verdict the user set says so on its face,
+  // and so does one the model reached: told in a word rather than by a colour
+  // or an outline alone, because "I decided this", "the model decided this"
+  // and "a string comparison decided this" are three different weights of
+  // claim, and each has to survive being read out loud as readily as being
+  // looked at.
+  const spoke = coverageSource(requirement);
+  const marker = spoke === null ? null : SOURCE_MARKERS[spoke];
+
+  // Only a verdict the Analysis is speaking for can be out of date. The user's
+  // own word stands until they take it back, and the automatic comparison is
+  // recomputed whenever either side of it moves, so greying either would be
+  // casting doubt on a reading that is current.
+  const outOfDate = stale && spoke === "analysis";
 
   return (
     <button
@@ -77,18 +114,48 @@ export function CoverageBadge({
       aria-expanded={showing}
       // The badge is one of a column of them, so the word on its own would be
       // read out as "Missing" with nothing to say what is missing.
-      aria-label={`Coverage of ${requirement.skill}: ${coverageLabel(requirement.coverage)}${yours ? ", yours" : ""}. Show what each reading said, and set your own.`}
+      aria-label={`Coverage of ${requirement.skill}: ${coverageLabel(requirement.coverage)}${marker === null ? "" : `, ${marker}`}${outOfDate ? ", out of date" : ""}. Show what each reading said, and set your own.`}
       className={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium ${
         requirement.coverage === null
           ? "border-neutral-300 opacity-60 dark:border-neutral-700"
           : COVERAGE_STYLES[requirement.coverage]
-      } ${yours ? "ring-1 ring-current/40" : ""}`}
+      } ${spoke === "override" ? "ring-1 ring-current/40" : ""} ${
+        // Greyed rather than hidden or restyled: the verdict is still the one
+        // the page is showing, and the colour is what stops speaking for it.
+        outOfDate ? "opacity-60 grayscale" : ""
+      }`}
       onClick={onToggle}
       type="button"
     >
       {coverageLabel(requirement.coverage)}
-      {yours && <span className="font-normal opacity-70"> · yours</span>}
+      {marker !== null && (
+        <span className="font-normal opacity-70"> · {marker}</span>
+      )}
     </button>
+  );
+}
+
+/**
+ * The model's one line about one Requirement, which is the half of an Analysis
+ * a string comparison could never produce: not that something is wrong, but
+ * what about the CV made it so.
+ *
+ * It sits on the row and not behind the disclosure, because it is what the
+ * user spent a model call to read — a page of them is the answer to "what do I
+ * change?", and an answer that has to be opened one Requirement at a time is
+ * one nobody reads twice. It is the only place the reason appears: the panel
+ * below says what each source's verdict was, and repeating the line an inch
+ * under itself would be noise rather than emphasis.
+ */
+export function AnalysedReason({
+  reason,
+  stale,
+}: {
+  reason: string;
+  stale: boolean;
+}) {
+  return (
+    <p className={`text-xs ${stale ? "opacity-40" : "opacity-60"}`}>{reason}</p>
   );
 }
 
@@ -99,12 +166,17 @@ export function CoverageBadge({
 export function CoverageReadings({
   requirement,
   id,
+  stale,
   override,
 }: {
   requirement: ReadRequirement;
   id: string;
+  /** Whether the Analysis's line here is about a CV or a list that has moved on. */
+  stale: boolean;
   override: Overriding;
 }) {
+  const outOfDate = stale && requirement.analysedCoverage !== null;
+
   return (
     <div
       className="flex flex-col gap-1 rounded-md border border-neutral-200 p-2 text-xs dark:border-neutral-800"
@@ -117,13 +189,23 @@ export function CoverageReadings({
           value={requirement.normalisedCoverage}
         />
         <Reading
-          label="Analysis"
+          // Out of date only where there is something to be out of date. A
+          // Requirement the last run did not answer about has heard nothing
+          // from the Analysis, and "Not run (out of date)" would be a
+          // complaint about a verdict nobody gave.
+          //
+          // A different question from the badge's, which asks whether the
+          // verdict on show is the Analysis's: an overridden Requirement reads
+          // as the user's word, in full colour, over an analysed reading this
+          // line still has to mark as old.
+          faded={outOfDate}
+          // Said in the label rather than left to the dimming, so that the one
+          // thing a stale verdict most needs to carry survives being read out
+          // loud as well as being looked at.
+          label={outOfDate ? "Analysis (out of date)" : "Analysis"}
           unread="Not run"
           value={requirement.analysedCoverage}
         />
-        {requirement.analysedReason !== null && (
-          <dd className="opacity-60">{requirement.analysedReason}</dd>
-        )}
         <div className="flex items-center justify-between gap-3">
           <dt className="opacity-60">Your own</dt>
           <dd>
@@ -270,13 +352,16 @@ function Reading({
   label,
   value,
   unread,
+  faded = false,
 }: {
   label: string;
   value: Coverage | null;
   unread: string;
+  /** Whether this source's word no longer describes what it read. */
+  faded?: boolean;
 }) {
   return (
-    <div className="flex justify-between gap-3">
+    <div className={`flex justify-between gap-3 ${faded ? "opacity-50" : ""}`}>
       <dt className="opacity-60">{label}</dt>
       <dd className={value === null ? "opacity-60" : "font-medium"}>
         {value === null ? unread : COVERAGE_LABELS[value]}

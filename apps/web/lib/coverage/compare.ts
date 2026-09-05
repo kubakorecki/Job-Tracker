@@ -95,6 +95,52 @@ function normalised(skill: string): string {
 }
 
 /**
+ * Which of the three ways of reaching a Coverage produced the one a
+ * Requirement reads by: the user's own word, the model's, or the string
+ * comparison that is always there.
+ */
+export type CoverageSource = "override" | "analysis" | "automatic";
+
+/** The column each source speaks through. */
+const READING_OF: Record<CoverageSource, keyof CoverageReadings> = {
+  override: "overriddenCoverage",
+  analysis: "analysedCoverage",
+  automatic: "normalisedCoverage",
+};
+
+/**
+ * The precedence, and the only statement of it: the user's override, then the
+ * Analysis, then the normalised comparison (ADR-0004). Both functions below
+ * walk this one list, so what a badge says a verdict came from and what it
+ * says the verdict is cannot be about two different readings.
+ */
+const BY_PRECEDENCE: readonly CoverageSource[] = [
+  "override",
+  "analysis",
+  "automatic",
+];
+
+/**
+ * Who spoke the Coverage a Requirement reads by, or null where none of the
+ * three has — the same null `resolvedCoverage` answers with, and for the same
+ * reason.
+ *
+ * It is a question of its own because the interface asks it: a verdict from
+ * the Analysis is worth marking as one, both because the user paid for it and
+ * because it is the one that can go out of date. Answering it by testing the
+ * columns at the badge would be a second copy of the precedence order living
+ * where nobody would think to change it.
+ */
+export function coverageSource(
+  readings: CoverageReadings,
+): CoverageSource | null {
+  return (
+    BY_PRECEDENCE.find((source) => readings[READING_OF[source]] !== null) ??
+    null
+  );
+}
+
+/**
  * The one Coverage a Requirement's three readings amount to: the user's
  * override, then the Analysis, then the normalised comparison, and null when
  * none of the three has spoken — a user with no Profile has nothing read about
@@ -104,12 +150,10 @@ function normalised(skill: string): string {
  * available to the affordance that explains a surprising badge, and what makes
  * re-running an Analysis unable to destroy an override (ADR-0004).
  */
-export function resolvedCoverage({
-  normalisedCoverage,
-  analysedCoverage,
-  overriddenCoverage,
-}: CoverageReadings): Coverage | null {
-  return overriddenCoverage ?? analysedCoverage ?? normalisedCoverage;
+export function resolvedCoverage(readings: CoverageReadings): Coverage | null {
+  const spoke = coverageSource(readings);
+
+  return spoke === null ? null : readings[READING_OF[spoke]];
 }
 
 /**

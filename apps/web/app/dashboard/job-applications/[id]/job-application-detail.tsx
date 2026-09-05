@@ -19,6 +19,8 @@ import { useRouter } from "next/navigation";
 import { useId, useState, type ChangeEvent, type FormEvent } from "react";
 import { dayOf } from "../../../../lib/day";
 import { describeFailure } from "../../../../lib/api/client";
+import { fetchAnalysis, runAnalysis } from "../../../../lib/analysis/client";
+import type { AnalysisOrNone } from "../../../../lib/analysis/contract";
 import {
   deleteCoverageOverride,
   putCoverageOverride,
@@ -40,7 +42,9 @@ import {
   type RequirementEdit,
 } from "../../../../lib/job-applications/requirement-edits";
 import { describeIssues } from "../../../../lib/zod-issues";
+import { AnalysisSection } from "./analysis";
 import {
+  AnalysedReason,
   CoverageBadge,
   CoverageReadings,
   worthNudging,
@@ -68,6 +72,7 @@ import { JOB_APPLICATIONS_KEY } from "../../use-job-applications";
 export function JobApplicationDetail({
   jobApplication,
   hasProfileSkills,
+  analysis: lastAnalysis,
 }: {
   jobApplication: JobApplication;
   /**
@@ -77,6 +82,13 @@ export function JobApplicationDetail({
    * different pieces of news and only one of them is the user's to fix.
    */
   hasProfileSkills: boolean;
+  /**
+   * The last Analysis of this Job Application, or `null` where none has run.
+   * Whether it is stale is the endpoint's answer and travels with it, so the
+   * banner, the greyed badges and the API cannot come to three different
+   * views of the same run.
+   */
+  analysis: AnalysisOrNone;
 }) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -92,6 +104,10 @@ export function JobApplicationDetail({
   const [requirements, setRequirements] = useState<RequirementEdit[]>(() =>
     requirementEditsFrom(jobApplication.requirements),
   );
+  // The run as last read or written: the page starts with what the server
+  // rendered, a run replaces it, and a save asks again — because a save is
+  // what can make one stale, or stop it being worth saying.
+  const [analysis, setAnalysis] = useState<AnalysisOrNone>(lastAnalysis);
   const [problems, setProblems] = useState<string[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -141,6 +157,7 @@ export function JobApplicationDetail({
       setEdits(editsFrom(updated));
       setRequirements(requirementEditsFrom(updated.requirements));
       setNotice("Saved.");
+      await refreshAnalysis();
       // The board reads the one cached list, and this Job Application is in
       // it; the layout's cache is still alive behind this page.
       await queryClient.invalidateQueries({ queryKey: JOB_APPLICATIONS_KEY });
@@ -148,6 +165,64 @@ export function JobApplicationDetail({
       setProblems(describeFailure(error));
     } finally {
       setSaving(false);
+    }
+  }
+
+  /**
+   * Runs the Analysis, and takes what it answered: the run itself, and every
+   * Requirement as it now reads.
+   *
+   * Only the readings are taken onto the rows. The wording on screen stays the
+   * user's, as it does after an override — a run says nothing about what a
+   * Posting asks for, and reaching into a box somebody may be typing in would
+   * be a model call correcting a person. A row the server has never heard of
+   * is left alone entirely: it was no part of what was analysed, and says so
+   * by still reading "Not read".
+   *
+   * It throws whatever the endpoint refused with, which the control that asked
+   * for it puts in front of the user in the endpoint's own words.
+   */
+  async function onAnalyse(): Promise<void> {
+    const result = await runAnalysis(saved.id);
+    const answered = new Map(result.requirements.map((one) => [one.id, one]));
+
+    setAnalysis(result.analysis);
+    setRequirements((current) =>
+      current.map((row) => {
+        const read = row.id === null ? undefined : answered.get(row.id);
+        return read === undefined ? row : withReadings(row, read);
+      }),
+    );
+    setSaved((current) => ({ ...current, requirements: result.requirements }));
+    // The board's cached list carries these Requirements, and a run has just
+    // changed what several of them read — including what issue 15's fit ring
+    // draws from.
+    await queryClient.invalidateQueries({ queryKey: JOB_APPLICATIONS_KEY });
+  }
+
+  /**
+   * The Analysis as the endpoint now reads it, asked for after a save because
+   * a save is what moves it: editing the Requirements is one of the two things
+   * that can leave a run describing something that is no longer there, and
+   * moving the Status past Applied is what stops that being worth saying at
+   * all. Both rules are the endpoint's (`analysis/staleness.ts`) and neither
+   * is worked out again here.
+   *
+   * A save that changed nothing an Analysis reads still asks; one request that
+   * spends nothing is cheaper than a rule about which fields matter, kept in
+   * step with the one on the server.
+   *
+   * Failing to re-read is not failing to save. The banner is left saying what
+   * it said and the next page load settles it — reporting it as a problem
+   * under a form that has just saved would blame the save for it.
+   */
+  async function refreshAnalysis(): Promise<void> {
+    if (analysis === null) return;
+
+    try {
+      setAnalysis(await fetchAnalysis(saved.id));
+    } catch {
+      // Left as it was; see above.
     }
   }
 
@@ -360,6 +435,22 @@ export function JobApplicationDetail({
           />
         </Field>
 
+        {/* Only where there is something to analyse. A Job Application that
+            records no Requirements has nothing to ask the model about — the
+            endpoint refuses it without spending anything — and a control that
+            could only fail is not one to offer. Whether there is a CV to read
+            is deliberately not asked here: the answer is the Profile's prose,
+            which this page does not hold, and the endpoint says so plainly. */}
+        {saved.requirements.length > 0 && (
+          <AnalysisSection
+            analysis={analysis}
+            onRun={onAnalyse}
+            unsaved={
+              requirementChanges(requirements, saved).requirements !== undefined
+            }
+          />
+        )}
+
         <Requirements
           hasProfileSkills={hasProfileSkills}
           onChange={(next) => {
@@ -368,6 +459,7 @@ export function JobApplicationDetail({
           }}
           onOverride={onOverride}
           requirements={requirements}
+          stale={analysis?.stale === true}
         />
 
         <Field label="Notes">
@@ -477,11 +569,18 @@ function DeleteJobApplication({
 function Requirements({
   requirements,
   hasProfileSkills,
+  stale,
   onChange,
   onOverride,
 }: {
   requirements: RequirementEdit[];
   hasProfileSkills: boolean;
+  /**
+   * Whether the Analysis that spoke about these has gone out of date. It is
+   * carried down rather than worked out on the way, because it is one fact
+   * about the run and every row of it is greyed or not together.
+   */
+  stale: boolean;
   onChange: (requirements: RequirementEdit[]) => void;
   onOverride: (
     requirement: RequirementEdit,
@@ -558,6 +657,7 @@ function Requirements({
                   onOverride={(coverage) => onOverride(requirement, coverage)}
                   onRemove={() => remove(requirement.key)}
                   requirement={requirement}
+                  stale={stale}
                 />
               ))}
             </ul>
@@ -599,8 +699,12 @@ function Requirements({
 
 /**
  * One Requirement, correctable: its wording, how badly it is wanted, how the
- * user's CV reads against it, the user's own word about that, and the way out
- * of the list.
+ * user's CV reads against it, what the model made of it, the user's own word
+ * about that, and the way out of the list.
+ *
+ * The Analysis's line stands under the row rather than inside the disclosure,
+ * because it is the answer to "what do I change?" and one the user spent a
+ * model call on; the three verdicts behind the badge are still a click away.
  *
  * The readings go under the row rather than beside the badge, across its whole
  * width. Opening them there pushes the next row down instead of widening a
@@ -615,12 +719,15 @@ function Requirements({
 function RequirementRow({
   requirement,
   hasProfileSkills,
+  stale,
   onCorrect,
   onOverride,
   onRemove,
 }: {
   requirement: RequirementEdit;
   hasProfileSkills: boolean;
+  /** Whether what the Analysis said about this one still describes anything. */
+  stale: boolean;
   onCorrect: (correction: Partial<Omit<RequirementEdit, "key">>) => void;
   onOverride: (coverage: Coverage | null) => Promise<void>;
   onRemove: () => void;
@@ -671,6 +778,7 @@ function RequirementRow({
           readingsId={readings}
           requirement={requirement}
           showing={showingReadings}
+          stale={stale}
         />
         <button
           aria-label={`Remove ${requirement.skill}`}
@@ -682,6 +790,10 @@ function RequirementRow({
         </button>
       </div>
 
+      {requirement.analysedReason !== null && (
+        <AnalysedReason reason={requirement.analysedReason} stale={stale} />
+      )}
+
       {showingReadings && (
         <CoverageReadings
           id={readings}
@@ -692,6 +804,7 @@ function RequirementRow({
             saving,
           }}
           requirement={requirement}
+          stale={stale}
         />
       )}
     </li>

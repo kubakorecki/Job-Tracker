@@ -1,0 +1,152 @@
+"use client";
+
+import { useState } from "react";
+import { describeFailure } from "../../../../lib/api/client";
+import type { AnalysisOrNone } from "../../../../lib/analysis/contract";
+import { dayOf } from "../../../../lib/day";
+import { Problems, SECONDARY_BUTTON } from "../../../form";
+
+/**
+ * The Analysis, as the one thing on this page the user asks for rather than
+ * types: the control that runs it, the wait while the model reads, and the
+ * banner that says the answer it gave has stopped describing the world.
+ *
+ * One control and one only. Running an Analysis spends a model call from the
+ * day's allowance, so it is never something the page does on its own — not on
+ * opening, not on saving, not on a Requirement changing — and there is nothing
+ * here that runs one over more than the Job Application in front of the user.
+ *
+ * Nothing here mentions plans, tiers or payment, and nothing should: whether
+ * this is one day sold is a question about an endpoint, and the user is being
+ * told what a button does rather than what it might one day cost.
+ */
+
+export function AnalysisSection({
+  analysis,
+  unsaved,
+  onRun,
+}: {
+  /** The last run and what has become of it, or `null` where none has run. */
+  analysis: AnalysisOrNone;
+  /**
+   * Whether the Requirements on screen have been changed and not yet saved. An
+   * Analysis reads what the database holds, so running one now would answer
+   * about a list the user is no longer looking at.
+   */
+  unsaved: boolean;
+  /** Runs one, and throws whatever the endpoint refused with. */
+  onRun: () => Promise<void>;
+}) {
+  const [running, setRunning] = useState(false);
+  const [problems, setProblems] = useState<string[]>([]);
+
+  async function run() {
+    setProblems([]);
+    setRunning(true);
+
+    try {
+      await onRun();
+    } catch (error) {
+      // Whatever the endpoint said, in its own words. The four refusals are
+      // worded apart on purpose — nothing to analyse, no CV to analyse
+      // against, a provider that could not be reached, and a spent allowance —
+      // and the last two are the pair that matter most here: one says try
+      // again shortly and the other says the day's calls are gone.
+      setProblems(describeFailure(error));
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  return (
+    <section className="flex flex-col gap-2 rounded-md border border-neutral-200 p-3 dark:border-neutral-800">
+      {analysis?.stale === true && <Stale ranAt={analysis.ranAt} />}
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-col gap-0.5">
+          <h2 className="text-sm font-medium">Analysis</h2>
+          <p className="text-xs opacity-60">
+            {analysis === null ? (
+              <>
+                A deeper reading than the automatic comparison: the model reads
+                your CV against each Requirement and says in a line what it
+                makes of it. It spends one call from today&rsquo;s allowance.
+              </>
+            ) : (
+              <>Last run on {dayOf(analysis.ranAt)}.</>
+            )}
+          </p>
+        </div>
+
+        <button
+          className={SECONDARY_BUTTON}
+          disabled={running || unsaved}
+          onClick={run}
+          type="button"
+        >
+          {running
+            ? "Reading…"
+            : analysis === null
+              ? "Run an Analysis"
+              : "Run it again"}
+        </button>
+      </div>
+
+      {running && (
+        // A model call takes seconds, and a button that simply went quiet for
+        // them would read as a page that had stopped working — the same reason
+        // the CV upload says what it is waiting for.
+        <p aria-live="polite" className="text-xs opacity-60" role="status">
+          Reading your CV against these Requirements… the model is being asked
+          about each one, which takes a few seconds.
+        </p>
+      )}
+
+      {unsaved && (
+        <p className="text-xs opacity-60">
+          Save your changes first. An Analysis reads the Requirements as they
+          are saved, so it would answer about the list you have just changed.
+        </p>
+      )}
+
+      <Problems problems={problems} />
+    </section>
+  );
+}
+
+/**
+ * The banner over a verdict that no longer describes anything: the CV it read
+ * or the Requirements it read have moved since, so what it concluded is about
+ * a document or a list that is not there any more.
+ *
+ * It says which two things could have moved rather than which one did.
+ * Answering that exactly would mean keeping what the run read, and the user
+ * knows what they changed; what they cannot know is that a verdict they are
+ * looking at is older than the change.
+ *
+ * It does not promise that the old verdicts are still below it, because one of
+ * the two changes takes them with it: saving an edit to the Requirements
+ * replaces every row, and a row's analysed reading goes with the row. A CV
+ * that has moved leaves them all standing, greyed. The banner reads the same
+ * either way, and says the one thing that is true of both — what the model
+ * last said was about something that is no longer there.
+ *
+ * It is shown only when the endpoint says `stale`, which is already silent for
+ * a Job Application past `applied` — there is nothing to be done about a CV
+ * that has moved on once the application is with somebody else, and offering a
+ * model call for it would be asking the user to spend on a document they can
+ * no longer send.
+ */
+function Stale({ ranAt }: { ranAt: string }) {
+  return (
+    <p
+      className="rounded-md border border-amber-600/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-300"
+      role="status"
+    >
+      This Analysis is out of date. Your CV or what this job asks for has
+      changed since it ran on {dayOf(ranAt)}, so what it concluded is about
+      something that is no longer there. Run it again to have the model read
+      what is there now.
+    </p>
+  );
+}
