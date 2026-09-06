@@ -31,6 +31,7 @@ const COPIED = {
   salaryPeriod: "annual",
   currency: "GBP",
   description: "Building things at Acme.",
+  closesOn: "2026-09-30",
 };
 
 /** Every field filled in, including a skill of each Necessity. */
@@ -66,6 +67,7 @@ const EMPTY = {
   salaryPeriod: "",
   currency: "",
   description: "",
+  closesOn: "",
   requiredSkills: [],
   preferredSkills: [],
   unstatedSkills: [],
@@ -171,6 +173,29 @@ describe("readDraft", () => {
       ...COMPLETE_DRAFT,
       salaryPeriod: undefined,
     });
+  });
+
+  it("keeps a Closing Date the page stated, as the day it is", () => {
+    expect(read({ ...EMPTY, closesOn: "2026-09-30" })).toEqual({
+      closesOn: "2026-09-30",
+    });
+  });
+
+  it("carries no Closing Date for a page that stated none", () => {
+    expect(read({ ...EMPTY, company: "Acme" })).toEqual({ company: "Acme" });
+  });
+
+  it("drops a Closing Date the model worded as anything but a calendar day", () => {
+    // Anything the contract would refuse has to go here rather than travel to
+    // a form that cannot save: the review form holds this in a date box, and a
+    // box holding "in 5 days" would be a Draft the user could not correct
+    // without knowing what the model had put there.
+    for (const worded of ["in 5 days", "30/09/2026", "September", "2026-13-40"]) {
+      expect(read({ ...COMPLETE, closesOn: worded })).toEqual({
+        ...COMPLETE_DRAFT,
+        closesOn: undefined,
+      });
+    }
   });
 
   it("falls back on a field the model worded wrongly rather than losing the rest", () => {

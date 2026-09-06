@@ -20,6 +20,7 @@ const A_JOB_APPLICATION: JobApplication = {
   salaryMin: null,
   salaryMax: null,
   salaryPeriod: null,
+  closesOn: null,
   currency: null,
   description: null,
   requirements: [],

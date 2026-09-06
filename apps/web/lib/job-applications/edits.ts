@@ -61,6 +61,10 @@ const TO_STORED: ToStored = {
   salaryPeriod: (text) => (text === "" ? null : (text as SalaryPeriod)),
   currency: orNull,
   description: orNull,
+  // A day out of a date box needs no conversion: the box and the contract
+  // both hold `2026-09-30`, which is the whole reason a Closing Date is
+  // stored as a day rather than an instant (ADR-0007).
+  closesOn: orNull,
   status: (text) => text as JobStatus,
   source: orNull,
   appliedAt: (text) => appliedAtFromDateInput(text.trim()),
@@ -86,6 +90,7 @@ export function editsFrom(jobApplication: JobApplication): JobApplicationEdits {
     salaryPeriod: jobApplication.salaryPeriod ?? "",
     currency: jobApplication.currency ?? "",
     description: jobApplication.description ?? "",
+    closesOn: jobApplication.closesOn ?? "",
     status: jobApplication.status,
     source: jobApplication.source ?? "",
     appliedAt: appliedDateInput(jobApplication.appliedAt),

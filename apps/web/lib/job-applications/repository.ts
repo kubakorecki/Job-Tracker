@@ -455,6 +455,7 @@ function toJobApplication(
     salaryPeriod: row.salaryPeriod,
     currency: row.currency,
     description: row.description,
+    closesOn: row.closesOn,
     requirements: asks,
     status: row.status,
     source: row.source,

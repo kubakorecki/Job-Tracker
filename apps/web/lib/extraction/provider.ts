@@ -45,7 +45,7 @@ export const EXTRACTION_MODEL = "gemini-2.5-pro";
 export type ExtractJob = (request: ExtractJobRequest) => Promise<JobExtraction>;
 
 /**
- * What the model is asked to fill in. It is deliberately flat — nine
+ * What the model is asked to fill in. It is deliberately flat — ten
  * primitives and three arrays of strings, no nested objects and no `anyOf` —
  * because Gemini accepts only a subset of JSON Schema and a schema it cannot
  * process is rejected outright rather than partially honoured.
@@ -119,6 +119,11 @@ const DRAFT_PROPERTIES = {
     description:
       "The posting's own summary of the role, in at most a short paragraph. Empty if the page does not describe one.",
   },
+  closesOn: {
+    type: "string",
+    description:
+      "The last day applications are accepted, as the page states it, in YYYY-MM-DD form. Empty unless the page names a calendar date; never worked out from a countdown, a posting date or how long the advert has been up.",
+  },
 } satisfies Record<Exclude<keyof JobExtraction, "requirements">, FlatProperty>;
 
 /**
@@ -175,6 +180,7 @@ const ProviderDraft = z.object({
   salaryPeriod: SalaryPeriod.or(z.literal("")).catch(""),
   currency: z.string().catch(""),
   description: z.string().catch(""),
+  closesOn: z.string().catch(""),
   requiredSkills: skillList(),
   preferredSkills: skillList(),
   unstatedSkills: skillList(),
@@ -198,6 +204,8 @@ Leave a field empty when the page does not state it: an empty string for text, 0
 Record what the posting asks of a candidate as separate skills, each worded as the page words it: technologies, practices, qualifications, languages, and quantities of experience such as "5+ years of backend". Put each one in the list that matches how badly the posting says it wants it — requiredSkills for what it states a candidate must have, preferredSkills for what it calls desirable, a bonus, a plus or nice to have, and unstatedSkills for anything it names without saying which. A skill listed without a stated preference is unstated: never move one up into requiredSkills because it sounds important or is mentioned first. At most twelve skills across the three lists together, and all three empty if the posting asks for nothing.
 
 Record a salary as the page states it, never converted to another period: plain numbers with no separators or symbols, the period the page quotes over in salaryPeriod, and the currency as an ISO 4217 code — a page writing "z\u0142" or "PLN" means PLN, "\u00a3" means GBP. A monthly rate stays monthly and an hourly rate stays hourly; do not annualise, and do not read an annual equivalent the page does not print.
+
+Record the day applications close only where the page states one as a date — "applications close on 30 September 2026", "apply by 30/09/2026" — and write it as YYYY-MM-DD. A page that says how long is left rather than when it ends, such as "closes in 5 days" or "posted 3 weeks ago", states nothing: that is a fact about when the page was rendered, not about the role, so leave closesOn empty. Never take the posting's own date, an interview date or a start date for the day applications close.
 
 Where the posting states several salaries for one role — an employment contract beside a B2B rate, gross beside net — take the widest span they cover together: salaryMin from the lowest figure stated and salaryMax from the highest, provided they are quoted over the same period. Where the periods differ, record the range for the contract of employment and ignore the rest.`;
 
@@ -246,8 +254,24 @@ export function readDraft(json: string): JobExtraction {
     salaryPeriod: raw.salaryPeriod === "" ? undefined : raw.salaryPeriod,
     currency: nonEmpty(raw.currency),
     description: nonEmpty(raw.description),
+    closesOn: calendarDay(raw.closesOn),
     requirements: requirementsOf(raw),
   };
+}
+
+/**
+ * One Closing Date, or nothing. The flat schema can only ask for a string,
+ * and a
+ * model asked for a date in a particular shape will occasionally answer with
+ * a countdown, a month, or a day that does not exist — so what does not parse as
+ * the calendar day the contract states is dropped here, where the rest of the
+ * Draft survives it. Letting one through would be worse than losing it: it
+ * would travel to a date box that cannot hold it and stop the whole Draft
+ * saving, over a field the page may never have named.
+ */
+function calendarDay(value: string): string | undefined {
+  const day = z.iso.date().safeParse(value.trim());
+  return day.success ? day.data : undefined;
 }
 
 /**

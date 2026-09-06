@@ -939,6 +939,7 @@ describe("PATCH /api/job-applications/:id", () => {
       salaryPeriod: "annual",
       currency: "USD",
       description: "Works on Basecamp and HEY.",
+      closesOn: "2026-05-31",
       requirements: [
         { skill: "ruby", necessity: "required" },
         { skill: "rails", necessity: "preferred" },
@@ -1067,6 +1068,7 @@ describe("GET /api/job-applications/:id", () => {
       salaryPeriod: "monthly",
       currency: "INR",
       description: "Owns the collection runner.",
+      closesOn: "2026-06-30",
       requirements: [
         { skill: "node", necessity: "required" },
         { skill: "api", necessity: "unstated" },

@@ -156,6 +156,7 @@ describe("CreateJobApplication", () => {
       salaryPeriod: null,
       currency: null,
       description: null,
+      closesOn: null,
       requirements: [],
       status: "bookmarked",
       source: null,
@@ -240,6 +241,43 @@ describe("UpdateJobApplication", () => {
   });
 });
 
+describe("a Closing Date", () => {
+  it("is a calendar day", () => {
+    expect(
+      CreateJobApplication.parse({ ...MINIMAL, closesOn: "2026-09-30" })
+        .closesOn,
+    ).toBe("2026-09-30");
+  });
+
+  it("is not an instant", () => {
+    expect(
+      CreateJobApplication.safeParse({
+        ...MINIMAL,
+        closesOn: "2026-09-30T00:00:00.000Z",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("refuses a day that is not one", () => {
+    expect(
+      CreateJobApplication.safeParse({ ...MINIMAL, closesOn: "30/09/2026" })
+        .success,
+    ).toBe(false);
+  });
+
+  it("can be cleared, for a Posting whose Closing Date was never real", () => {
+    expect(UpdateJobApplication.safeParse({ closesOn: null }).success).toBe(
+      true,
+    );
+  });
+
+  it("is a Posting fact, so a Draft can propose one", () => {
+    expect(
+      JobExtraction.parse({ closesOn: "2026-09-30" }).closesOn,
+    ).toBe("2026-09-30");
+  });
+});
+
 describe("JobApplication", () => {
   const stored = {
     id: "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
@@ -253,6 +291,7 @@ describe("JobApplication", () => {
     salaryPeriod: null,
     currency: null,
     description: null,
+    closesOn: null,
     requirements: [],
     status: "bookmarked",
     source: null,

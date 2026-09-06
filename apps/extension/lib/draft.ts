@@ -29,6 +29,7 @@ export type DraftTextFields = {
   salaryPeriod: string;
   currency: string;
   description: string;
+  closesOn: string;
   status: string;
 };
 
@@ -73,6 +74,7 @@ export function fieldsFrom(
     salaryPeriod: draft.salaryPeriod ?? "",
     currency: draft.currency ?? "",
     description: draft.description ?? "",
+    closesOn: draft.closesOn ?? "",
     requirements: draft.requirements ?? [],
     status: STARTING_STATUS,
   };
@@ -119,6 +121,7 @@ export function createFrom(
     salaryPeriod: optional(fields.salaryPeriod),
     currency: optional(fields.currency),
     description: optional(fields.description),
+    closesOn: optional(fields.closesOn),
     requirements:
       fields.requirements.length === 0 ? undefined : fields.requirements,
     status: fields.status,

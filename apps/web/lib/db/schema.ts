@@ -90,6 +90,16 @@ export const jobApplications = pgTable(
     salaryPeriod: salaryPeriod("salary_period"),
     currency: text("currency"),
     description: text("description"),
+    /**
+     * The day the Posting stops accepting applications. A `date` rather than a
+     * timestamp, unlike `applied_at` beside it: a Posting states a day,
+     * and a timestamp would have to invent a time of day and a zone to hold it
+     * in — after which nothing could tell the invention from what the Posting
+     * said (ADR-0007). Read as a string for the same reason: a `Date` is an
+     * instant in the reader's zone, and the day would move for anyone west of
+     * UTC.
+     */
+    closesOn: date("closes_on", { mode: "string" }),
     status: jobStatus("status").notNull().default("bookmarked"),
     source: text("source"),
     appliedAt: timestamp("applied_at", { withTimezone: true, mode: "date" }),

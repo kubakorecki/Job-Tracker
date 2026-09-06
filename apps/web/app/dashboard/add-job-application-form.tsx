@@ -28,14 +28,17 @@ export function AddJobApplicationForm() {
     const values = new FormData(form);
     const value = (name: string) => (values.get(name) ?? "").toString().trim();
     const jobUrl = value("jobUrl");
+    const closesOn = value("closesOn");
 
     const input = CreateJobApplication.safeParse({
       company: value("company"),
       jobTitle: value("jobTitle"),
       status: value("status"),
       // Omitted rather than sent empty: a Job Application with no Posting is
-      // the ordinary case, and the contract's default is null.
+      // the ordinary case, and the contract's default is null. The Closing
+      // Date goes the same way, for the same reason.
       ...(jobUrl === "" ? {} : { jobUrl }),
+      ...(closesOn === "" ? {} : { closesOn }),
     });
 
     if (!input.success) {
@@ -81,6 +84,14 @@ export function AddJobApplicationForm() {
               </option>
             ))}
           </select>
+        </Field>
+
+        {/* The one field worth asking for beyond a name and a Status: a
+            bookmark made by hand is made at the moment the user knows the
+            Closing Date, and one recorded later is a Closing Date the user had
+            to come back for (ADR-0007). */}
+        <Field label="Closes on (optional)">
+          <input className={FIELD} name="closesOn" type="date" />
         </Field>
       </Row>
 

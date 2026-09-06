@@ -143,6 +143,18 @@ export function ReviewForm({
               ))}
             </select>
           </Field>
+
+          {/* The Posting's own Closing Date, which is the whole reason a bookmark
+              is worth making before the user has decided: it is read off the
+              page where the page states one, and typed in here where it does
+              not (ADR-0007). */}
+          <Field label="Closes on">
+            <input
+              onChange={changes(set("closesOn"))}
+              type="date"
+              value={fields.closesOn}
+            />
+          </Field>
         </div>
 
         <div className="row">

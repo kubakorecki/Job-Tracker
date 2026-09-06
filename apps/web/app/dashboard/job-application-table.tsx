@@ -4,6 +4,7 @@ import type { JobApplication } from "@repo/schema";
 import { StatusBadge } from "@repo/ui/status-badge";
 import Link from "next/link";
 import { appliedOn } from "../../lib/job-applications/applied-date";
+import { ClosingBadge } from "./closing-badge";
 import { FitRing } from "./fit-ring";
 
 const CELL = "px-3 py-2 align-middle";
@@ -15,7 +16,9 @@ const CELL = "px-3 py-2 align-middle";
  *
  * Fit sits before the Status rather than at the end: scanning down it is the
  * whole reason it is here, and where a Job Application sits and when it was
- * applied for are a pair worth leaving together.
+ * applied for are a pair worth leaving together. Closes follows Applied, which
+ * puts the user's own date next to the Posting's — the two between them being
+ * the whole of what says whether anything is still owed.
  */
 const COLUMNS = [
   "Company",
@@ -24,6 +27,7 @@ const COLUMNS = [
   "Fit",
   "Status",
   "Applied",
+  "Closes",
 ];
 
 /**
@@ -86,6 +90,19 @@ export function JobApplicationTable({
               </td>
               <td className={`${CELL} whitespace-nowrap opacity-60`}>
                 {appliedOn(jobApplication.appliedAt)}
+              </td>
+              {/* A dash where no Closing Date is recorded, as Location has:
+                  an unrecorded date is a blank the user could fill in, which
+                  is not what the empty Fit cell above means. The badge is
+                  handed the dash rather than asked whether to draw one, so
+                  the cell keeps no opinion of its own about when a Closing
+                  Date is missing. */}
+              <td className={CELL}>
+                <ClosingBadge
+                  closesOn={jobApplication.closesOn}
+                  status={jobApplication.status}
+                  unrecorded={<span className="opacity-60">—</span>}
+                />
               </td>
             </tr>
           ))}

@@ -44,6 +44,7 @@ import {
   type RequirementEdit,
 } from "../../../../lib/job-applications/requirement-edits";
 import { describeIssues } from "../../../../lib/zod-issues";
+import { ClosingBadge } from "../../closing-badge";
 import { AnalysisSection } from "./analysis";
 import {
   AnalysedReason,
@@ -300,7 +301,15 @@ export function JobApplicationDetail({
             <h1 className="text-2xl font-semibold">{saved.company}</h1>
             <p className="text-sm opacity-60">{saved.jobTitle}</p>
           </div>
-          <StatusBadge status={saved.status} />
+          {/* Beside the Status, because the two are read together: what a
+              Closing Date asks of the user depends entirely on where they are
+              standing (ADR-0007). It reads the saved Job Application rather
+              than the boxes below, so an unsaved edit cannot make the badge
+              claim something the record does not yet say. */}
+          <div className="flex items-center gap-2">
+            <ClosingBadge closesOn={saved.closesOn} status={saved.status} />
+            <StatusBadge status={saved.status} />
+          </div>
         </div>
         <p className="text-xs opacity-50">
           Added on {dayOf(saved.createdAt)} · last changed{" "}
@@ -365,6 +374,14 @@ export function JobApplicationDetail({
               onChange={edit("appliedAt")}
               type="date"
               value={edits.appliedAt}
+            />
+          </Field>
+          <Field label="Closes on">
+            <input
+              className={FIELD}
+              onChange={edit("closesOn")}
+              type="date"
+              value={edits.closesOn}
             />
           </Field>
         </Row>

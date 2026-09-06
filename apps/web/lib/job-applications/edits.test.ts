@@ -22,6 +22,7 @@ const SAVED: JobApplication = {
   salaryPeriod: "annual",
   currency: "USD",
   description: "Works on Basecamp and HEY.",
+  closesOn: "2026-03-31",
   requirements: [asked("ruby", "required")],
   status: "applied",
   source: "referral",
@@ -45,6 +46,7 @@ describe("editsFrom", () => {
       salaryPeriod: "annual",
       currency: "USD",
       description: "Works on Basecamp and HEY.",
+      closesOn: "2026-03-31",
       status: "applied",
       source: "referral",
       appliedAt: "2026-02-14",
@@ -64,6 +66,7 @@ describe("editsFrom", () => {
       salaryPeriod: null,
       currency: null,
       description: null,
+      closesOn: null,
       requirements: [],
       source: null,
       appliedAt: null,
@@ -80,6 +83,7 @@ describe("editsFrom", () => {
       salaryPeriod: "",
       currency: "",
       description: "",
+      closesOn: "",
       source: "",
       appliedAt: "",
       excitement: "",
@@ -108,6 +112,18 @@ describe("changesFrom", () => {
       location: null,
       excitement: null,
     });
+  });
+
+  it("carries a Closing Date the user moved, as the day it is", () => {
+    const edits = { ...editsFrom(SAVED), closesOn: "2026-04-15" };
+
+    expect(changesFrom(edits, SAVED)).toEqual({ closesOn: "2026-04-15" });
+  });
+
+  it("clears a Closing Date the user emptied", () => {
+    const edits = { ...editsFrom(SAVED), closesOn: "" };
+
+    expect(changesFrom(edits, SAVED)).toEqual({ closesOn: null });
   });
 
   it("reads salary and excitement as numbers", () => {

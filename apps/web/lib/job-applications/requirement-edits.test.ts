@@ -26,6 +26,7 @@ const SAVED: JobApplication = {
   salaryMin: 120000,
   salaryMax: 160000,
   salaryPeriod: "annual",
+  closesOn: null,
   currency: "USD",
   description: "Works on Basecamp and HEY.",
   requirements: [asked("Ruby", "required"), asked("Rails", "preferred")],

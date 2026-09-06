@@ -175,6 +175,14 @@ const jobApplicationFields = {
   salaryPeriod: SalaryPeriod.nullable(),
   currency: z.string().nullable(),
   description: z.string().nullable(),
+  /**
+   * The day the Posting stops accepting applications, as the Posting states
+   * it. A calendar day rather than an instant: a Posting states a date, and
+   * storing an instant would invent a time of day nobody wrote down
+   * (ADR-0007). Null wherever the Posting named no Closing Date, or there is
+   * no Posting to name one.
+   */
+  closesOn: z.iso.date().nullable(),
   requirements: z.array(Requirement),
   status: JobStatus,
   source: z.string().nullable(),
@@ -250,6 +258,7 @@ export const JobExtraction = z
     salaryPeriod: true,
     currency: true,
     description: true,
+    closesOn: true,
     requirements: true,
   })
   .partial();
@@ -304,6 +313,7 @@ const CREATE_DEFAULTS = {
   salaryPeriod: null,
   currency: null,
   description: null,
+  closesOn: null,
   requirements: [],
   status: "bookmarked",
   source: null,

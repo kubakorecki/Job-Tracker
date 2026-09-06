@@ -62,6 +62,22 @@ contract work — and a bare figure means nothing without it. A Posting's own
 period is kept as stated and never converted (ADR-0006).
 _Avoid_: frequency, interval, per, cadence
 
+**Closing Date**:
+The day a Posting stops accepting applications, as the Posting states it. A
+calendar day rather than an instant, because that is what a Posting states and
+a time of day would be our invention (ADR-0007). Null wherever the Posting
+named none, or there is no Posting to name one.
+_Avoid_: deadline, expiry, valid until, end date
+
+**Closing**:
+What a Closing Date amounts to today, given where the Job Application sits:
+`open`, `closing-soon`, `missed` or `closed`. Only a bookmarked Job Application
+can be hurried or can have missed anything — a Closing Date on one already
+applied for asks nothing of the user. Once past, on a Job Application that was applied
+for, it is the day the employer stopped collecting candidates, and how long ago
+that was is what says whether silence still means nothing (ADR-0007).
+_Avoid_: urgency, expiry state, freshness
+
 **Necessity**:
 How badly a Posting wants a Requirement: required, preferred, or unstated.
 Read from the Posting's own wording — `unstated` is what a Posting that lists

@@ -5,6 +5,7 @@ import type { JobApplication } from "@repo/schema";
 import { StatusBadge } from "@repo/ui/status-badge";
 import Link from "next/link";
 import { appliedOn } from "../../lib/job-applications/applied-date";
+import { ClosingBadge } from "./closing-badge";
 import { FitRing } from "./fit-ring";
 
 const CARD =
@@ -13,12 +14,13 @@ const CARD =
 /**
  * The four things that identify a Job Application without opening it —
  * company, job title, when it was applied for, and where it sits — and, where
- * there is anything to say of it, how much of what the Posting insists on the
- * user has (story 43).
+ * there is anything to say of them, how much of what the Posting insists on
+ * the user has (story 43) and when it stops taking applications (ADR-0007).
  *
- * The ring is on a line of its own rather than in the row below, which already
- * carries the date and the Status and has a card's width to do it in. A card
- * with no fraction to draw simply does not have the line.
+ * Those last two share a line of their own rather than the row below, which
+ * already carries the date and the Status and has a card's width to do it in.
+ * Both draw nothing when they have nothing to say, and a card where neither
+ * has anything simply does not have the line.
  */
 export function JobApplicationCard({
   jobApplication,
@@ -29,11 +31,16 @@ export function JobApplicationCard({
     <div className={CARD}>
       <p className="truncate font-medium">{jobApplication.company}</p>
       <p className="truncate text-sm opacity-60">{jobApplication.jobTitle}</p>
-      {/* Hidden rather than conditional: whether there is a ring to draw is
-          `FitRing`'s own answer, and asking it here would be the second copy
-          of a rule about when a fit is unknown. */}
-      <div className="mt-2 empty:hidden">
+      {/* Hidden rather than conditional: whether there is a ring to draw, and
+          whether there is a Closing to name, are each their own component's
+          answer, and asking here would be a second copy of both rules. The row
+          is empty exactly when both of them drew nothing. */}
+      <div className="mt-2 flex flex-wrap items-center gap-2 empty:hidden">
         <FitRing requirements={jobApplication.requirements} />
+        <ClosingBadge
+          closesOn={jobApplication.closesOn}
+          status={jobApplication.status}
+        />
       </div>
       <div className="mt-2 flex items-center justify-between gap-2">
         <span className="text-xs opacity-60">
