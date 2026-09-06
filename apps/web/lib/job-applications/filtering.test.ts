@@ -19,6 +19,7 @@ const A_JOB_APPLICATION: JobApplication = {
   remoteType: null,
   salaryMin: null,
   salaryMax: null,
+  salaryPeriod: null,
   currency: null,
   description: null,
   requirements: [],

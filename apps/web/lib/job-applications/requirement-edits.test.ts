@@ -25,6 +25,7 @@ const SAVED: JobApplication = {
   remoteType: "hybrid",
   salaryMin: 120000,
   salaryMax: 160000,
+  salaryPeriod: "annual",
   currency: "USD",
   description: "Works on Basecamp and HEY.",
   requirements: [asked("Ruby", "required"), asked("Rails", "preferred")],

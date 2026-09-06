@@ -26,6 +26,7 @@ export type DraftTextFields = {
   remoteType: string;
   salaryMin: string;
   salaryMax: string;
+  salaryPeriod: string;
   currency: string;
   description: string;
   status: string;
@@ -69,6 +70,7 @@ export function fieldsFrom(
     remoteType: draft.remoteType ?? "",
     salaryMin: number(draft.salaryMin),
     salaryMax: number(draft.salaryMax),
+    salaryPeriod: draft.salaryPeriod ?? "",
     currency: draft.currency ?? "",
     description: draft.description ?? "",
     requirements: draft.requirements ?? [],
@@ -114,6 +116,7 @@ export function createFrom(
     remoteType: optional(fields.remoteType),
     salaryMin: number(fields.salaryMin),
     salaryMax: number(fields.salaryMax),
+    salaryPeriod: optional(fields.salaryPeriod),
     currency: optional(fields.currency),
     description: optional(fields.description),
     requirements:

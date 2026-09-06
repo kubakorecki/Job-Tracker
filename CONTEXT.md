@@ -54,6 +54,14 @@ Replaces the flat `keywords` list, which could not say whether the Posting
 insisted on something or merely liked it.
 _Avoid_: keyword, tag, criterion
 
+**Salary Period**:
+The stretch of time a salary figure is a rate over: annual, monthly, daily or
+hourly. Recorded beside the two bounds because a Posting quotes over whatever
+its market quotes in — annual in the UK, monthly across Poland, hourly for
+contract work — and a bare figure means nothing without it. A Posting's own
+period is kept as stated and never converted (ADR-0006).
+_Avoid_: frequency, interval, per, cadence
+
 **Necessity**:
 How badly a Posting wants a Requirement: required, preferred, or unstated.
 Read from the Posting's own wording — `unstated` is what a Posting that lists

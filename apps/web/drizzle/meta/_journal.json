@@ -43,6 +43,13 @@
       "when": 1788626444549,
       "tag": "0005_brown_ser_duncan",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788693488947,
+      "tag": "0006_slim_galactus",
+      "breakpoints": true
     }
   ]
 }

@@ -936,6 +936,7 @@ describe("PATCH /api/job-applications/:id", () => {
       remoteType: "hybrid",
       salaryMin: 120000,
       salaryMax: 160000,
+      salaryPeriod: "annual",
       currency: "USD",
       description: "Works on Basecamp and HEY.",
       requirements: [
@@ -1063,6 +1064,7 @@ describe("GET /api/job-applications/:id", () => {
       remoteType: "onsite",
       salaryMin: 40000,
       salaryMax: 60000,
+      salaryPeriod: "monthly",
       currency: "INR",
       description: "Owns the collection runner.",
       requirements: [

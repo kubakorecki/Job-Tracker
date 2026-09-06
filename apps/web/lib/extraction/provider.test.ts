@@ -28,6 +28,7 @@ const COPIED = {
   remoteType: "hybrid",
   salaryMin: 90000,
   salaryMax: 110000,
+  salaryPeriod: "annual",
   currency: "GBP",
   description: "Building things at Acme.",
 };
@@ -62,6 +63,7 @@ const EMPTY = {
   remoteType: "",
   salaryMin: 0,
   salaryMax: 0,
+  salaryPeriod: "",
   currency: "",
   description: "",
   requiredSkills: [],
@@ -138,6 +140,37 @@ describe("readDraft", () => {
 
   it("keeps a salary the page stated on one side only", () => {
     expect(read({ ...EMPTY, salaryMin: 50000 })).toEqual({ salaryMin: 50000 });
+  });
+
+  it("keeps the period a salary was quoted over rather than a year's worth", () => {
+    // The whole of what the Polish market states, and the reason the period is
+    // carried at all: 17 000 a month is not 17 000, and annualising it here
+    // would be arithmetic nothing downstream could tell from the page's words.
+    expect(
+      read({
+        ...EMPTY,
+        salaryMin: 17000,
+        salaryMax: 26090,
+        salaryPeriod: "monthly",
+        currency: "PLN",
+      }),
+    ).toEqual({
+      salaryMin: 17000,
+      salaryMax: 26090,
+      salaryPeriod: "monthly",
+      currency: "PLN",
+    });
+  });
+
+  it("carries no period for a page that stated no salary", () => {
+    expect(read({ ...EMPTY, company: "Acme" })).toEqual({ company: "Acme" });
+  });
+
+  it("falls back on a period the model worded wrongly rather than losing the figures", () => {
+    expect(read({ ...COMPLETE, salaryPeriod: "per fortnight" })).toEqual({
+      ...COMPLETE_DRAFT,
+      salaryPeriod: undefined,
+    });
   });
 
   it("falls back on a field the model worded wrongly rather than losing the rest", () => {

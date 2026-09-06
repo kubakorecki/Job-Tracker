@@ -5,6 +5,7 @@ import {
   Necessity,
   RemoteType,
   type Requirement,
+  SalaryPeriod,
 } from "@repo/schema";
 import { z } from "zod";
 import { geminiApiKey } from "../env";
@@ -44,7 +45,7 @@ export const EXTRACTION_MODEL = "gemini-2.5-pro";
 export type ExtractJob = (request: ExtractJobRequest) => Promise<JobExtraction>;
 
 /**
- * What the model is asked to fill in. It is deliberately flat — eight
+ * What the model is asked to fill in. It is deliberately flat — nine
  * primitives and three arrays of strings, no nested objects and no `anyOf` —
  * because Gemini accepts only a subset of JSON Schema and a schema it cannot
  * process is rejected outright rather than partially honoured.
@@ -95,17 +96,23 @@ const DRAFT_PROPERTIES = {
   salaryMin: {
     type: "number",
     description:
-      "The bottom of the stated annual salary range, as a plain number. A single stated figure goes in both bounds. 0 if the page states no salary.",
+      "The bottom of the stated salary range, as a plain number, over the period given by salaryPeriod. A single stated figure goes in both bounds. Where the posting states several ranges, the lowest of their bottoms. 0 if the page states no salary.",
   },
   salaryMax: {
     type: "number",
     description:
-      "The top of the stated annual salary range, as a plain number. 0 if the page states no salary.",
+      "The top of the stated salary range, as a plain number, over the period given by salaryPeriod. Where the posting states several ranges, the highest of their tops. 0 if the page states no salary.",
+  },
+  salaryPeriod: {
+    type: "string",
+    enum: [...SalaryPeriod.options, ""],
+    description:
+      "The period the two salary figures are a rate over, as the posting states it. Empty if no salary is stated.",
   },
   currency: {
     type: "string",
     description:
-      "The ISO 4217 code of the stated salary, such as GBP or USD. Empty if no salary is stated.",
+      "The ISO 4217 code of the stated salary, such as GBP, USD or PLN. Empty if no salary is stated.",
   },
   description: {
     type: "string",
@@ -165,6 +172,7 @@ const ProviderDraft = z.object({
   remoteType: RemoteType.or(z.literal("")).catch(""),
   salaryMin: z.number().nonnegative().catch(0),
   salaryMax: z.number().nonnegative().catch(0),
+  salaryPeriod: SalaryPeriod.or(z.literal("")).catch(""),
   currency: z.string().catch(""),
   description: z.string().catch(""),
   requiredSkills: skillList(),
@@ -189,7 +197,9 @@ Leave a field empty when the page does not state it: an empty string for text, 0
 
 Record what the posting asks of a candidate as separate skills, each worded as the page words it: technologies, practices, qualifications, languages, and quantities of experience such as "5+ years of backend". Put each one in the list that matches how badly the posting says it wants it — requiredSkills for what it states a candidate must have, preferredSkills for what it calls desirable, a bonus, a plus or nice to have, and unstatedSkills for anything it names without saying which. A skill listed without a stated preference is unstated: never move one up into requiredSkills because it sounds important or is mentioned first. At most twelve skills across the three lists together, and all three empty if the posting asks for nothing.
 
-Salaries are annual figures in the currency the page names, written as plain numbers with no separators or symbols. Convert an hourly, daily or monthly rate only when the page itself gives the annual equivalent; otherwise leave the salary empty.`;
+Record a salary as the page states it, never converted to another period: plain numbers with no separators or symbols, the period the page quotes over in salaryPeriod, and the currency as an ISO 4217 code — a page writing "z\u0142" or "PLN" means PLN, "\u00a3" means GBP. A monthly rate stays monthly and an hourly rate stays hourly; do not annualise, and do not read an annual equivalent the page does not print.
+
+Where the posting states several salaries for one role — an employment contract beside a B2B rate, gross beside net — take the widest span they cover together: salaryMin from the lowest figure stated and salaryMax from the highest, provided they are quoted over the same period. Where the periods differ, record the range for the contract of employment and ignore the rest.`;
 
 /**
  * The Gemini implementation. Everything that can go wrong here — no key, no
@@ -233,6 +243,7 @@ export function readDraft(json: string): JobExtraction {
     remoteType: raw.remoteType === "" ? undefined : raw.remoteType,
     salaryMin: raw.salaryMin === 0 ? undefined : raw.salaryMin,
     salaryMax: raw.salaryMax === 0 ? undefined : raw.salaryMax,
+    salaryPeriod: raw.salaryPeriod === "" ? undefined : raw.salaryPeriod,
     currency: nonEmpty(raw.currency),
     description: nonEmpty(raw.description),
     requirements: requirementsOf(raw),

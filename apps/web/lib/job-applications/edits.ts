@@ -2,6 +2,7 @@ import type {
   JobApplication,
   JobStatus,
   RemoteType,
+  SalaryPeriod,
   UpdateJobApplication,
 } from "@repo/schema";
 import { appliedAtFromDateInput, appliedDateInput } from "./applied-date";
@@ -34,8 +35,8 @@ export type JobApplicationEdits = Record<TextField, string>;
  * type demands one per editable field, so a field added to the contract stops
  * the build here rather than quietly becoming uneditable.
  *
- * The two closed sets — Status and remote type — are asserted rather than
- * parsed here. The controls that produce them are built from the contract's
+ * The three closed sets — Status, remote type and salary period — are
+ * asserted rather than parsed here. The controls that produce them are built from the contract's
  * own options, and the assembled patch is parsed against the contract before
  * it is sent, so a value from anywhere else is refused there with a line
  * naming the field.
@@ -57,6 +58,7 @@ const TO_STORED: ToStored = {
   remoteType: (text) => (text === "" ? null : (text as RemoteType)),
   salaryMin: numberOrNull,
   salaryMax: numberOrNull,
+  salaryPeriod: (text) => (text === "" ? null : (text as SalaryPeriod)),
   currency: orNull,
   description: orNull,
   status: (text) => text as JobStatus,
@@ -81,6 +83,7 @@ export function editsFrom(jobApplication: JobApplication): JobApplicationEdits {
     remoteType: jobApplication.remoteType ?? "",
     salaryMin: number(jobApplication.salaryMin),
     salaryMax: number(jobApplication.salaryMax),
+    salaryPeriod: jobApplication.salaryPeriod ?? "",
     currency: jobApplication.currency ?? "",
     description: jobApplication.description ?? "",
     status: jobApplication.status,

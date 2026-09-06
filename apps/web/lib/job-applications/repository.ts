@@ -452,6 +452,7 @@ function toJobApplication(
     remoteType: row.remoteType,
     salaryMin: row.salaryMin,
     salaryMax: row.salaryMax,
+    salaryPeriod: row.salaryPeriod,
     currency: row.currency,
     description: row.description,
     requirements: asks,

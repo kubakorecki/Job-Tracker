@@ -18,6 +18,19 @@ export const RemoteType = z.enum(["remote", "hybrid", "onsite"]);
 export type RemoteType = z.infer<typeof RemoteType>;
 
 /**
+ * The stretch of time one salary figure covers. A Posting states a rate over
+ * whatever period its market quotes in — annual in the UK and the US, monthly
+ * across most of Poland, hourly or daily for contract work — and the figure
+ * means nothing without it. It is carried beside the bounds rather than
+ * normalised into a year, because annualising is arithmetic on top of what
+ * the Posting said: the multiplier is a guess (twelve months or thirteen,
+ * how many billable days), and the guess would be indistinguishable from the
+ * Posting's own words once stored.
+ */
+export const SalaryPeriod = z.enum(["annual", "monthly", "daily", "hourly"]);
+export type SalaryPeriod = z.infer<typeof SalaryPeriod>;
+
+/**
  * How badly a Posting wants a Requirement. `unstated` is what a Posting that
  * names a skill without saying which it is gets, so that nothing is ever
  * guessed upward into something the Posting insisted on.
@@ -158,6 +171,8 @@ const jobApplicationFields = {
   remoteType: RemoteType.nullable(),
   salaryMin: z.number().nonnegative().nullable(),
   salaryMax: z.number().nonnegative().nullable(),
+  /** What the bounds above are a rate over. Null wherever no salary is recorded. */
+  salaryPeriod: SalaryPeriod.nullable(),
   currency: z.string().nullable(),
   description: z.string().nullable(),
   requirements: z.array(Requirement),
@@ -232,6 +247,7 @@ export const JobExtraction = z
     remoteType: true,
     salaryMin: true,
     salaryMax: true,
+    salaryPeriod: true,
     currency: true,
     description: true,
     requirements: true,
@@ -285,6 +301,7 @@ const CREATE_DEFAULTS = {
   remoteType: null,
   salaryMin: null,
   salaryMax: null,
+  salaryPeriod: null,
   currency: null,
   description: null,
   requirements: [],

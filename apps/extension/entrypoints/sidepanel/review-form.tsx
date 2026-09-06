@@ -2,10 +2,12 @@ import {
   JobStatus,
   nearDuplicatesOf,
   RemoteType,
+  SalaryPeriod,
   type CreateJobApplication,
   type JobApplication,
 } from "@repo/schema";
 import { REMOTE_TYPE_LABELS } from "@repo/ui/remote-type";
+import { SALARY_PERIOD_LABELS } from "@repo/ui/salary-period";
 import { JOB_STATUS_LABELS } from "@repo/ui/status-badge";
 import { useState, type FormEvent, type ReactNode } from "react";
 import {
@@ -165,6 +167,20 @@ export function ReviewForm({
               onChange={changes(set("currency"))}
               value={fields.currency}
             />
+          </Field>
+
+          <Field label="Per">
+            <select
+              onChange={changes(set("salaryPeriod"))}
+              value={fields.salaryPeriod}
+            >
+              <option value="">Not stated</option>
+              {SalaryPeriod.options.map((period) => (
+                <option key={period} value={period}>
+                  {SALARY_PERIOD_LABELS[period]}
+                </option>
+              ))}
+            </select>
           </Field>
         </div>
 

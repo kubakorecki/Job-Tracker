@@ -6,12 +6,14 @@ import {
   JobStatus,
   Necessity,
   RemoteType,
+  SalaryPeriod,
   UpdateJobApplication,
   type Coverage,
   type JobApplication,
 } from "@repo/schema";
 import { NECESSITY_LABELS } from "@repo/ui/necessity";
 import { REMOTE_TYPE_LABELS } from "@repo/ui/remote-type";
+import { SALARY_PERIOD_LABELS } from "@repo/ui/salary-period";
 import { JOB_STATUS_LABELS, StatusBadge } from "@repo/ui/status-badge";
 import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
@@ -415,6 +417,20 @@ export function JobApplicationDetail({
               placeholder="GBP"
               value={edits.currency}
             />
+          </Field>
+          <Field label="Per">
+            <select
+              className={FIELD}
+              onChange={edit("salaryPeriod")}
+              value={edits.salaryPeriod}
+            >
+              <option value="">Not recorded</option>
+              {SalaryPeriod.options.map((period) => (
+                <option key={period} value={period}>
+                  {SALARY_PERIOD_LABELS[period]}
+                </option>
+              ))}
+            </select>
           </Field>
         </Row>
 

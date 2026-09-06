@@ -4,6 +4,7 @@ import {
   JobStatus,
   Necessity,
   RemoteType,
+  SalaryPeriod,
 } from "@repo/schema";
 import { sql } from "drizzle-orm";
 import {
@@ -35,6 +36,10 @@ export const jobStatus = pgEnum(
 export const remoteType = pgEnum(
   "remote_type",
   RemoteType.options as [RemoteType, ...RemoteType[]],
+);
+export const salaryPeriod = pgEnum(
+  "salary_period",
+  SalaryPeriod.options as [SalaryPeriod, ...SalaryPeriod[]],
 );
 export const necessity = pgEnum(
   "necessity",
@@ -81,6 +86,8 @@ export const jobApplications = pgTable(
       scale: 2,
       mode: "number",
     }),
+    /** What the two bounds above are a rate over; null wherever they are. */
+    salaryPeriod: salaryPeriod("salary_period"),
     currency: text("currency"),
     description: text("description"),
     status: jobStatus("status").notNull().default("bookmarked"),
