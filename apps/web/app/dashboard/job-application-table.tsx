@@ -4,6 +4,7 @@ import type { JobApplication } from "@repo/schema";
 import { StatusBadge } from "@repo/ui/status-badge";
 import Link from "next/link";
 import { appliedOn } from "../../lib/job-applications/applied-date";
+import { FitRing } from "./fit-ring";
 
 const CELL = "px-3 py-2 align-middle";
 
@@ -11,8 +12,19 @@ const CELL = "px-3 py-2 align-middle";
  * The columns, in order. Each cell below is written out rather than derived:
  * a company is a link, a Status is a badge, and they have little in common
  * beyond sitting in the same row.
+ *
+ * Fit sits before the Status rather than at the end: scanning down it is the
+ * whole reason it is here, and where a Job Application sits and when it was
+ * applied for are a pair worth leaving together.
  */
-const COLUMNS = ["Company", "Job title", "Location", "Status", "Applied"];
+const COLUMNS = [
+  "Company",
+  "Job title",
+  "Location",
+  "Fit",
+  "Status",
+  "Applied",
+];
 
 /**
  * The same Job Applications as the board, a row apiece. The board shows the
@@ -61,6 +73,13 @@ export function JobApplicationTable({
               <td className={CELL}>{jobApplication.jobTitle}</td>
               <td className={`${CELL} opacity-60`}>
                 {jobApplication.location ?? "—"}
+              </td>
+              {/* Empty where there is no fraction, rather than the dash the
+                  other columns use for a field nobody filled in: a mark in a
+                  column of rings is a verdict, and an unknown fit is not one
+                  (story 48). */}
+              <td className={CELL}>
+                <FitRing requirements={jobApplication.requirements} />
               </td>
               <td className={CELL}>
                 <StatusBadge status={jobApplication.status} />
