@@ -3,11 +3,11 @@
 import type { JobApplication } from "@repo/schema";
 import { StatusBadge } from "@repo/ui/status-badge";
 import Link from "next/link";
-import { appliedOn } from "../../lib/job-applications/applied-date";
 import { ClosingBadge } from "./closing-badge";
 import { FitRing } from "./fit-ring";
+import { SilenceOf } from "./silence-tag";
 
-const CELL = "px-3 py-2 align-middle";
+const CELL = "px-3.5 py-[11px] align-middle";
 
 /**
  * The columns, in order. Each cell below is written out rather than derived:
@@ -15,10 +15,13 @@ const CELL = "px-3 py-2 align-middle";
  * beyond sitting in the same row.
  *
  * Fit sits before the Status rather than at the end: scanning down it is the
- * whole reason it is here, and where a Job Application sits and when it was
- * applied for are a pair worth leaving together. Closes follows Applied, which
- * puts the user's own date next to the Posting's — the two between them being
- * the whole of what says whether anything is still owed.
+ * whole reason it is here. Silence follows the Status, and Closes follows
+ * Silence — the two axes side by side, and then the one date that says whether
+ * either of them still means anything.
+ *
+ * Applied has gone. The date it showed was being read as "how long have they
+ * had this", which is the question Silence answers properly; the date itself
+ * is a field on the Job Application's own page.
  */
 const COLUMNS = [
   "Company",
@@ -26,14 +29,15 @@ const COLUMNS = [
   "Location",
   "Fit",
   "Status",
-  "Applied",
+  "Silence",
   "Closes",
 ];
 
 /**
  * The same Job Applications as the board, a row apiece. The board shows the
  * shape of the pipeline; this shows as many Job Applications at once as the
- * screen will hold, which is what makes scanning fifty of them possible.
+ * screen will hold, which is what makes scanning fifty of them possible — and
+ * is the release valve for six columns, which stop working around then.
  *
  * A row opens the very same detail view a card does — the company is the link,
  * since a table row cannot be an anchor.
@@ -48,12 +52,16 @@ export function JobApplicationTable({
   jobApplications: JobApplication[];
 }) {
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full border-collapse text-sm">
+    <div className="overflow-x-auto rounded-panel border border-line bg-paper-raised">
+      <table className="w-full border-collapse text-[13px]">
         <thead>
-          <tr className="border-b border-neutral-200 text-left dark:border-neutral-800">
+          <tr className="border-b border-line bg-paper-sunk text-left">
             {COLUMNS.map((column) => (
-              <th className={`${CELL} font-medium`} key={column} scope="col">
+              <th
+                className={`${CELL} type-eyebrow text-ink-faint`}
+                key={column}
+                scope="col"
+              >
                 {column}
               </th>
             ))}
@@ -63,19 +71,19 @@ export function JobApplicationTable({
         <tbody>
           {jobApplications.map((jobApplication) => (
             <tr
-              className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50 dark:border-neutral-900 dark:hover:bg-neutral-900/50"
+              className="border-b border-line last:border-0 hover:bg-paper-sunk"
               key={jobApplication.id}
             >
-              <td className={`${CELL} font-medium`}>
+              <td className={`${CELL} font-semibold`}>
                 <Link
-                  className="underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                  className="text-ink underline-offset-2 hover:underline"
                   href={`/dashboard/job-applications/${jobApplication.id}`}
                 >
                   {jobApplication.company}
                 </Link>
               </td>
               <td className={CELL}>{jobApplication.jobTitle}</td>
-              <td className={`${CELL} opacity-60`}>
+              <td className={`${CELL} text-ink-faint`}>
                 {jobApplication.location ?? "—"}
               </td>
               {/* Empty where there is no fraction, rather than the dash the
@@ -88,8 +96,15 @@ export function JobApplicationTable({
               <td className={CELL}>
                 <StatusBadge status={jobApplication.status} />
               </td>
-              <td className={`${CELL} whitespace-nowrap opacity-60`}>
-                {appliedOn(jobApplication.appliedAt)}
+              {/* Empty for the same reason the Fit cell is: a fresh Job
+                  Application has no silence, which is not a blank the user
+                  could fill in. */}
+              <td className={CELL}>
+                <SilenceOf
+                  appliedAt={jobApplication.appliedAt}
+                  status={jobApplication.status}
+                  updatedAt={jobApplication.updatedAt}
+                />
               </td>
               {/* A dash where no Closing Date is recorded, as Location has:
                   an unrecorded date is a blank the user could fill in, which
@@ -101,7 +116,7 @@ export function JobApplicationTable({
                 <ClosingBadge
                   closesOn={jobApplication.closesOn}
                   status={jobApplication.status}
-                  unrecorded={<span className="opacity-60">—</span>}
+                  unrecorded={<span className="text-ink-faint">—</span>}
                 />
               </td>
             </tr>

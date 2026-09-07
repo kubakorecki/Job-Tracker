@@ -6,28 +6,91 @@ import type { ReactNode } from "react";
  * cannot drift into three different-looking ways of asking for a name — and so
  * that `packages/ui`, which has to carry its own Tailwind prefix and its own
  * build, stays for what more than one app needs.
+ *
+ * The numbers are `docs/design-system.md`'s: 34px controls, 28px small, radius
+ * 5, and a focus that is a `spectre` border over a three-pixel `spectre-tint`
+ * ring. Nothing here dims text with opacity — a tint under a dimmed colour
+ * double-dims and cannot be tuned per surface, which is what `ink-muted` and
+ * `ink-faint` are for. The one exception is a disabled control, where the
+ * whole thing fades rather than the words on it.
  */
 
-export const FIELD =
-  "w-full rounded-md border border-neutral-300 bg-transparent px-3 py-2 text-sm dark:border-neutral-700";
+/** What a control that is a single line tall stands at. */
+export const CONTROL_HEIGHT = "h-[34px]";
 
-export const PRIMARY_BUTTON =
-  "rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900";
+const FIELD_BASE =
+  "w-full rounded-control border border-line-strong px-2.5 text-[13px] text-ink placeholder:text-ink-faint focus:border-spectre focus:ring-3 focus:ring-spectre-tint focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-42";
+
+/** A box the user types one line into. */
+export const FIELD = `${FIELD_BASE} ${CONTROL_HEIGHT} bg-paper-raised`;
 
 /**
- * The button beside the one that matters: adding a row to a list, where the
- * list saves on somebody else's button. Outlined rather than filled, so that a
- * form has one obvious thing to press and this is not it.
+ * The same box inside a panel that is itself `paper-raised` — it sits a step
+ * back from what it is on, rather than disappearing into it.
  */
-export const SECONDARY_BUTTON =
-  "rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium disabled:opacity-50 dark:border-neutral-700";
+export const FIELD_ON_RAISED = `${FIELD_BASE} ${CONTROL_HEIGHT} bg-paper`;
 
 /**
- * A button that reads as a link, for the one thing a message can offer: retry
- * it, clear it, undo it. It inherits its colour, so the same button is legible
- * inside a red failure and on the page.
+ * The same box with its outline held back until it is wanted. For a column of
+ * them — a list of Requirements, where every row is editable and a stack of
+ * eight bordered boxes reads as a form rather than as a list of what a job
+ * asks for. The border comes back on hover and on focus, so nothing is hidden
+ * from anybody who goes looking for it.
+ */
+export const QUIET_FIELD = `${FIELD_BASE} ${CONTROL_HEIGHT} border-transparent bg-transparent px-2 hover:border-line-strong focus:bg-paper`;
+
+/** A select draws its own caret out of two gradients: no icon font, no SVG. */
+export const SELECT = `${FIELD} caret cursor-pointer`;
+export const SELECT_ON_RAISED = `${FIELD_ON_RAISED} caret cursor-pointer`;
+
+/** A box that grows down the page rather than standing at one line. */
+export const TEXTAREA = `${FIELD_BASE} bg-paper-raised py-2 leading-[1.55]`;
+export const TEXTAREA_ON_RAISED = `${FIELD_BASE} bg-paper py-2 leading-[1.55]`;
+
+const BUTTON_BASE =
+  "inline-flex shrink-0 items-center justify-center gap-[7px] whitespace-nowrap rounded-control border border-transparent font-semibold disabled:cursor-not-allowed disabled:opacity-42";
+
+/** The one thing on a form worth pressing. */
+export const PRIMARY_BUTTON = `${BUTTON_BASE} ${CONTROL_HEIGHT} px-3.5 text-[13px] bg-ink text-paper-raised hover:bg-spectre`;
+
+/**
+ * The button beside the one that matters: adding a row to a list, asking
+ * again, going back. Outlined rather than filled, so that a form has one
+ * obvious thing to press and this is not it.
+ *
+ * There is no filled-accent button anywhere in the system — the primary button
+ * hovering to the brand hue is the one place colour is used as a reward.
+ */
+export const SECONDARY_BUTTON = `${BUTTON_BASE} ${CONTROL_HEIGHT} px-3.5 text-[13px] bg-paper-raised text-ink-muted border-line-strong hover:text-ink hover:border-ink-faint`;
+
+/** The same, for a control inside a message or beside a field. */
+export const SECONDARY_BUTTON_SMALL = `${BUTTON_BASE} h-[28px] px-2.5 text-xs bg-paper-raised text-ink-muted border-line-strong hover:text-ink hover:border-ink-faint`;
+
+/**
+ * The one that cannot be undone by typing the field back. Outlined rather than
+ * filled: a red block is what a page uses to say something has gone wrong, and
+ * nothing has gone wrong until the user presses this.
+ */
+export const DANGER_BUTTON = `${BUTTON_BASE} h-[28px] px-2.5 text-xs bg-transparent text-rose border-rose`;
+
+/**
+ * A control that is only its icon: 28px square, the page's faint ink until it
+ * is pointed at. Every one of these says what it does in an `aria-label`,
+ * because an icon on its own is a picture of a verb and not the verb.
+ */
+export const ICON_BUTTON =
+  "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-control text-ink-faint hover:bg-paper-sunk hover:text-ink";
+
+/**
+ * A control that reads as a line of prose, for the one thing a sentence can
+ * offer: follow it, clear it, undo it. It inherits its colour, so the same
+ * button is legible inside a `rose` failure and on the page.
  */
 export const TEXT_BUTTON = "font-medium underline underline-offset-2";
+
+/** What a label says of the control under it. */
+export const LABEL =
+  "block text-[11px] font-semibold tracking-[0.05em] text-ink-faint uppercase";
 
 /** A labelled control. The label wraps the control, so the whole of it is a target. */
 export function Field({
@@ -38,8 +101,8 @@ export function Field({
   children: ReactNode;
 }) {
   return (
-    <label className="flex-1 text-sm">
-      <span className="mb-1 block opacity-60">{label}</span>
+    <label className="flex min-w-0 flex-1 flex-col gap-1.5">
+      <span className={LABEL}>{label}</span>
       {children}
     </label>
   );
@@ -50,12 +113,16 @@ export function Row({ children }: { children: ReactNode }) {
   return <div className="flex flex-col gap-3 sm:flex-row">{children}</div>;
 }
 
-/** Everything the user has to put right before a form will save. */
+/**
+ * Everything the user has to put right before a form will save. It says what
+ * to do rather than that something is wrong, which is the rule for anything a
+ * user is being asked to fix.
+ */
 export function Problems({ problems }: { problems: string[] }) {
   if (problems.length === 0) return null;
 
   return (
-    <ul className="text-sm text-red-600 dark:text-red-400" role="alert">
+    <ul className="text-xs text-rose" role="alert">
       {problems.map((problem) => (
         <li key={problem}>{problem}</li>
       ))}

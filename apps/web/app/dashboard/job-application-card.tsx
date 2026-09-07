@@ -2,55 +2,97 @@
 
 import { useDraggable } from "@dnd-kit/core";
 import type { JobApplication } from "@repo/schema";
-import { StatusBadge } from "@repo/ui/status-badge";
 import Link from "next/link";
-import { appliedOn } from "../../lib/job-applications/applied-date";
+import { todayInUtc } from "../../lib/day";
+import { silenceOf, type SilenceKind } from "../../lib/job-applications/silence";
+import { Ghost } from "../ghost";
 import { ClosingBadge } from "./closing-badge";
 import { FitRing } from "./fit-ring";
-
-const CARD =
-  "rounded-md border border-neutral-200 bg-white p-3 dark:border-neutral-800 dark:bg-neutral-900";
+import { SilenceTag } from "./silence-tag";
 
 /**
- * The four things that identify a Job Application without opening it —
- * company, job title, when it was applied for, and where it sits — and, where
- * there is anything to say of them, how much of what the Posting insists on
- * the user has (story 43) and when it stops taking applications (ADR-0007).
+ * What identifies a Job Application without opening it: the company, the job
+ * title, and one line of marks — how much of what the Posting insists on the
+ * user has (story 43), and the one thing with a clock on it.
  *
- * Those last two share a line of their own rather than the row below, which
- * already carries the date and the Status and has a card's width to do it in.
- * Both draw nothing when they have nothing to say, and a card where neither
- * has anything simply does not have the line.
+ * No Status badge and no applied date. The column the card is standing in says
+ * the Status, and the date has been replaced by something that answers the
+ * question the date was being read for: not "when did I send this" but "how
+ * long have they had it".
+ *
+ * Silence and a Closing Date share the one tag slot. They are the same kind of
+ * news — a clock running somewhere the user is not — and they cannot both be
+ * urgent at once: only a Job Application still waiting can go quiet, and only
+ * a bookmarked one can be hurried by a Closing Date (ADR-0007).
+ *
+ * The card fades toward the page as the silence grows, and never turns red.
+ * Ghosting is an absence, not an error.
  */
 export function JobApplicationCard({
   jobApplication,
 }: {
   jobApplication: JobApplication;
 }) {
+  const silence = silenceOf(jobApplication, todayInUtc());
+  const tone = silence === null ? null : silence.kind;
+
   return (
-    <div className={CARD}>
-      <p className="truncate font-medium">{jobApplication.company}</p>
-      <p className="truncate text-sm opacity-60">{jobApplication.jobTitle}</p>
+    <div
+      className={`relative flex flex-col gap-[3px] overflow-hidden rounded-card border px-3 pt-[11px] pb-3 ${TONES[tone ?? "live"]}`}
+    >
+      {/* The mark bleeding out of the corner of a Job Application nobody is
+          going to answer. Five per cent ink: a stain on the paper rather than
+          a picture, and the only place the glyph is ever filled in. */}
+      {tone === "ghosted" && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute -right-3.5 -bottom-5 text-ink opacity-5"
+        >
+          <Ghost drawing="filled" size={86} />
+        </span>
+      )}
+
+      <span
+        className={`truncate text-[13.5px] leading-[1.3] font-semibold ${tone === "ghosted" ? "text-ink-muted" : "text-ink"}`}
+      >
+        {jobApplication.company}
+      </span>
+      <span
+        className={`truncate text-xs leading-[1.35] ${tone === "ghosted" ? "text-ink-faint" : "text-ink-muted"}`}
+      >
+        {jobApplication.jobTitle}
+      </span>
+
       {/* Hidden rather than conditional: whether there is a ring to draw, and
           whether there is a Closing to name, are each their own component's
           answer, and asking here would be a second copy of both rules. The row
-          is empty exactly when both of them drew nothing. */}
-      <div className="mt-2 flex flex-wrap items-center gap-2 empty:hidden">
+          is empty exactly when all of them drew nothing. */}
+      <div className="mt-[7px] flex flex-wrap items-center gap-1.5 empty:hidden">
         <FitRing requirements={jobApplication.requirements} />
-        <ClosingBadge
-          closesOn={jobApplication.closesOn}
-          status={jobApplication.status}
-        />
-      </div>
-      <div className="mt-2 flex items-center justify-between gap-2">
-        <span className="text-xs opacity-60">
-          {appliedOn(jobApplication.appliedAt)}
-        </span>
-        <StatusBadge status={jobApplication.status} />
+        {silence !== null ? (
+          <SilenceTag silence={silence} />
+        ) : (
+          <ClosingBadge
+            closesOn={jobApplication.closesOn}
+            status={jobApplication.status}
+          />
+        )}
       </div>
     </div>
   );
 }
+
+/**
+ * How far a card has faded. `cold` breaks its outline in the accent that goes
+ * with the label; `ghosted` lets go of the page entirely — dashed, unfilled,
+ * and a step lighter throughout.
+ */
+const TONES: Record<SilenceKind | "live", string> = {
+  live: "border-line bg-paper-raised",
+  quiet: "border-line bg-paper-raised",
+  cold: "border-dashed border-ember bg-paper-raised",
+  ghosted: "border-dashed border-line-strong bg-transparent",
+};
 
 /**
  * The same card, pickable up — and, since ticket 05, a link through to the
@@ -75,7 +117,7 @@ export function DraggableJobApplicationCard({
     <Link
       // While dragging, the original stays in place as a gap: what follows the
       // cursor is the copy in the overlay.
-      className={`cursor-grab touch-none focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${isDragging ? "opacity-30" : ""}`}
+      className={`block cursor-grab touch-none rounded-card focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-spectre ${isDragging ? "opacity-30" : ""}`}
       href={`/dashboard/job-applications/${jobApplication.id}`}
       ref={setNodeRef}
       {...listeners}

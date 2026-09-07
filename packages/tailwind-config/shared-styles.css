@@ -1,7 +1,107 @@
 @import "tailwindcss";
 
+/*
+ * The one place the visual language is stated. Both `apps/web` and
+ * `packages/ui` import this file, so a Status pill built in the package and a
+ * card built in the app cannot drift into two palettes. Written up, with the
+ * reasoning behind every number, in `docs/design-system.md`.
+ *
+ * Every neutral carries the same 285° hue at very low chroma, so the greys
+ * read as a cool bone-white paper rather than as switched-off colour, and the
+ * four accents all sit at L 0.52 / C 0.12 and differ only in hue — a green
+ * badge and a red badge carry the same weight, and no Status can win an
+ * argument by being brighter. 0.12 is the ceiling rather than a preference:
+ * it is the most these four hues hold at that lightness inside sRGB, and past
+ * it the browser silently clips ember and vital and shifts their hue.
+ *
+ * The palette is stated as plain custom properties first and mapped into
+ * Tailwind's theme below, rather than declared in `@theme` directly. Tailwind
+ * namespaces theme variables per prefix — `--color-paper` in `apps/web` and
+ * `--ui-color-paper` in the `ui:`-prefixed package — so a dark theme written
+ * against either name would silently miss the other build. These names have no
+ * prefix to miss, and `apps/extension`, which has no Tailwind at all, states
+ * the same table under the same names.
+ */
+:root {
+  color-scheme: light dark;
+
+  --paper: oklch(0.972 0.006 285);
+  --paper-raised: oklch(0.998 0.002 285);
+  --paper-sunk: oklch(0.951 0.008 285);
+  --line: oklch(0.905 0.008 285);
+  --line-strong: oklch(0.858 0.01 285);
+  --ink: oklch(0.215 0.022 285);
+  --ink-muted: oklch(0.42 0.018 285);
+  --ink-faint: oklch(0.53 0.014 285);
+
+  --spectre: oklch(0.52 0.12 298); /* brand · Applied · links · focus */
+  --spectre-tint: oklch(0.945 0.032 298);
+  --ember: oklch(0.52 0.12 62); /* Interviewing · going cold */
+  --ember-tint: oklch(0.951 0.036 68);
+  --vital: oklch(0.52 0.12 152); /* Offer · have it */
+  --vital-tint: oklch(0.949 0.036 155);
+  --rose: oklch(0.52 0.12 18); /* Rejected · missing · closing */
+  --rose-tint: oklch(0.953 0.03 20);
+}
+
+/*
+ * The same table with paper and ink swapped and the four accents lifted to
+ * L 0.735 / C 0.145 — the same four hues, so no component has to know which
+ * theme it is in.
+ */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: oklch(0.183 0.018 288);
+    --paper-raised: oklch(0.228 0.02 288);
+    --paper-sunk: oklch(0.268 0.02 288);
+    --line: oklch(0.318 0.018 288);
+    --line-strong: oklch(0.382 0.02 288);
+    --ink: oklch(0.958 0.005 288);
+    --ink-muted: oklch(0.755 0.014 288);
+    --ink-faint: oklch(0.62 0.016 288);
+
+    --spectre: oklch(0.735 0.145 298);
+    --spectre-tint: oklch(0.315 0.058 298);
+    --ember: oklch(0.735 0.145 62);
+    --ember-tint: oklch(0.3 0.052 62);
+    --vital: oklch(0.735 0.145 152);
+    --vital-tint: oklch(0.292 0.052 152);
+    --rose: oklch(0.735 0.145 18);
+    --rose-tint: oklch(0.308 0.058 18);
+  }
+}
+
+/*
+ * `inline` so that `bg-paper` compiles to `background-color: var(--paper)`
+ * rather than to a prefixed variable of Tailwind's own — which is what lets
+ * the dark table above reach both builds.
+ */
+@theme inline {
+  --color-paper: var(--paper);
+  --color-paper-raised: var(--paper-raised);
+  --color-paper-sunk: var(--paper-sunk);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+
+  --color-spectre: var(--spectre);
+  --color-spectre-tint: var(--spectre-tint);
+  --color-ember: var(--ember);
+  --color-ember-tint: var(--ember-tint);
+  --color-vital: var(--vital);
+  --color-vital-tint: var(--vital-tint);
+  --color-rose: var(--rose);
+  --color-rose-tint: var(--rose-tint);
+}
+
 @theme {
-  --color-blue-1000: #2a8af6;
-  --color-purple-1000: #a853ba;
-  --color-red-1000: #e92a67;
+  --font-display:
+    "Instrument Serif", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+
+  --radius-tag: 4px;
+  --radius-control: 5px;
+  --radius-card: 9px;
+  --radius-panel: 11px;
 }

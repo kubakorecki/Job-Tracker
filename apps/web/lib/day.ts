@@ -13,3 +13,35 @@ const DAY = new Intl.DateTimeFormat("en-GB", {
 export function dayOf(iso: string): string {
   return DAY.format(new Date(iso));
 }
+
+/**
+ * Today, as the app counts days: a UTC calendar day. Read from the clock here
+ * and nowhere else, so every function that reasons about a date takes the day
+ * as an argument and can be tested at any point in the year.
+ *
+ * UTC rather than the reader's zone for the reason `dayOf` formats in it: the
+ * board renders on the server and again in the browser, and a "today" that
+ * differed between the two would count a different number of days in each.
+ */
+export function todayInUtc(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+/** Any of the contract's instants, as the UTC calendar day it falls on. */
+export function dayIn(iso: string): string {
+  return new Date(iso).toISOString().slice(0, 10);
+}
+
+/**
+ * Whole days from one calendar day to another, positive where the second is
+ * later. Both are `YYYY-MM-DD`, and both are read as UTC midnight, so no hour
+ * of daylight saving can make a month come out a day short.
+ */
+export function daysBetween(from: string, to: string): number {
+  const DAY_IN_MS = 24 * 60 * 60 * 1000;
+  return (midnightUtc(to) - midnightUtc(from)) / DAY_IN_MS;
+}
+
+function midnightUtc(day: string): number {
+  return Date.parse(`${day}T00:00:00.000Z`);
+}

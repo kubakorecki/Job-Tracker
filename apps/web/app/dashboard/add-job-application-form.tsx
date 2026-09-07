@@ -7,7 +7,14 @@ import { useState, type FormEvent } from "react";
 import { describeIssues } from "../../lib/zod-issues";
 import { describeFailure } from "../../lib/api/client";
 import { postJobApplication } from "../../lib/job-applications/client";
-import { FIELD, Field, PRIMARY_BUTTON, Problems, Row } from "../form";
+import {
+  FIELD_ON_RAISED,
+  Field,
+  PRIMARY_BUTTON,
+  Problems,
+  Row,
+  SELECT_ON_RAISED,
+} from "../form";
 import { JOB_APPLICATIONS_KEY } from "./use-job-applications";
 
 /**
@@ -16,7 +23,16 @@ import { JOB_APPLICATIONS_KEY } from "./use-job-applications";
  * round trip — and the endpoint validates again with the same schema, because
  * the extension will post to it too.
  */
-export function AddJobApplicationForm() {
+export function AddJobApplicationForm({
+  onSaved,
+}: {
+  /**
+   * Told when one has been recorded, so the panel the form was opened in can
+   * close itself. The form has no opinion about where it is standing, which is
+   * why it reports rather than closes.
+   */
+  onSaved?: () => void;
+}) {
   const queryClient = useQueryClient();
   const [problems, setProblems] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
@@ -54,6 +70,7 @@ export function AddJobApplicationForm() {
       form.reset();
       // The board reads one cached list; this is what re-reads it.
       await queryClient.invalidateQueries({ queryKey: JOB_APPLICATIONS_KEY });
+      onSaved?.();
     } catch (error) {
       setProblems(describeFailure(error));
     } finally {
@@ -65,19 +82,23 @@ export function AddJobApplicationForm() {
     <form className="flex flex-col gap-3" onSubmit={onSubmit}>
       <Row>
         <Field label="Company">
-          <input className={FIELD} name="company" />
+          <input className={FIELD_ON_RAISED} name="company" />
         </Field>
         <Field label="Job title">
-          <input className={FIELD} name="jobTitle" />
+          <input className={FIELD_ON_RAISED} name="jobTitle" />
         </Field>
       </Row>
 
       <Row>
         <Field label="Posting URL (optional)">
-          <input className={FIELD} name="jobUrl" />
+          <input className={FIELD_ON_RAISED} name="jobUrl" />
         </Field>
         <Field label="Status">
-          <select className={FIELD} defaultValue="bookmarked" name="status">
+          <select
+            className={SELECT_ON_RAISED}
+            defaultValue="bookmarked"
+            name="status"
+          >
             {JobStatus.options.map((status) => (
               <option key={status} value={status}>
                 {JOB_STATUS_LABELS[status]}
@@ -91,7 +112,7 @@ export function AddJobApplicationForm() {
             Closing Date, and one recorded later is a Closing Date the user had
             to come back for (ADR-0007). */}
         <Field label="Closes on (optional)">
-          <input className={FIELD} name="closesOn" type="date" />
+          <input className={FIELD_ON_RAISED} name="closesOn" type="date" />
         </Field>
       </Row>
 

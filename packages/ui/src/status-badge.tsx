@@ -11,25 +11,35 @@ export const JOB_STATUS_LABELS: Record<JobStatus, string> = {
   withdrawn: "Withdrawn",
 };
 
-const COLORS: Record<JobStatus, string> = {
-  bookmarked:
-    "ui:bg-neutral-100 ui:text-neutral-700 dark:ui:bg-neutral-800 dark:ui:text-neutral-300",
-  applied:
-    "ui:bg-blue-100 ui:text-blue-700 dark:ui:bg-blue-900/40 dark:ui:text-blue-300",
-  interviewing:
-    "ui:bg-amber-100 ui:text-amber-700 dark:ui:bg-amber-900/40 dark:ui:text-amber-300",
-  offer:
-    "ui:bg-green-100 ui:text-green-700 dark:ui:bg-green-900/40 dark:ui:text-green-300",
-  rejected:
-    "ui:bg-red-100 ui:text-red-700 dark:ui:bg-red-900/40 dark:ui:text-red-300",
+/**
+ * A tint fill under the accent itself, one per Status. The four accents share
+ * a lightness and a chroma and differ only in hue, so no Status wins an
+ * argument by being brighter than its neighbours.
+ *
+ * The two that are not on the accent wheel say so by their shape as much as
+ * their colour: Bookmarked is the page's own grey because nothing has happened
+ * to it yet, and Withdrawn is an outline with nothing inside it.
+ */
+const TONES: Record<JobStatus, string> = {
+  bookmarked: "ui:bg-paper-sunk ui:text-ink-muted",
+  applied: "ui:bg-spectre-tint ui:text-spectre",
+  interviewing: "ui:bg-ember-tint ui:text-ember",
+  offer: "ui:bg-vital-tint ui:text-vital",
+  rejected: "ui:bg-rose-tint ui:text-rose",
   withdrawn:
-    "ui:bg-neutral-100 ui:text-neutral-500 dark:ui:bg-neutral-800 dark:ui:text-neutral-400",
+    "ui:bg-transparent ui:text-ink-faint ui:shadow-[inset_0_0_0_1px_var(--line-strong)]",
 };
 
+/**
+ * Where a Job Application sits, and the only thing in the app that carries
+ * Status colour. Silence is the other axis and is drawn as a rectangle
+ * (`app/dashboard/silence-tag.tsx`) precisely so the two never read as one:
+ * Status is what the user set, and silence is what happened to them.
+ */
 export function StatusBadge({ status }: { status: JobStatus }) {
   return (
     <span
-      className={`ui:inline-flex ui:items-center ui:rounded-full ui:px-2.5 ui:py-0.5 ui:text-xs ui:font-medium ${COLORS[status]}`}
+      className={`ui:inline-flex ui:h-[22px] ui:shrink-0 ui:items-center ui:rounded-full ui:px-2.5 ui:text-[10.5px] ui:font-semibold ui:tracking-[0.02em] ui:whitespace-nowrap ${TONES[status]}`}
     >
       {JOB_STATUS_LABELS[status]}
     </span>

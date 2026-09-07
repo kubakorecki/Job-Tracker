@@ -46,6 +46,16 @@ export function fitLabel({ covered, required }: FitFraction): string {
 }
 
 /**
+ * The same fraction as a mark rather than a phrase — "6/8" — for the compact
+ * ring on a board card and a table row, where the words would take a line the
+ * card does not have. Read out loud it is still `fitDescription` that speaks;
+ * this is only what the eye gets.
+ */
+export function fitTally({ covered, required }: FitFraction): string {
+  return `${covered}/${required}`;
+}
+
+/**
  * How much of what the Posting insists on is covered, between nothing and all
  * of it. The arc and the colour are both drawn from this one number so they
  * cannot describe different fractions.
@@ -55,22 +65,32 @@ export function fitRatio({ covered, required }: FitFraction): number {
 }
 
 /**
- * The colour the arc runs at: red at nothing covered, through amber, to green
- * at all of it, moving with the ratio rather than in steps — a fit that
- * improves by half a Requirement should look slightly better, not identical
- * until it crosses a threshold somebody chose.
+ * How much of the Posting has to be covered before the arc reads as a good
+ * fit, and before it reads as a bad one. Most of it, and half of it — the two
+ * places a person's opinion of a fit actually changes.
+ */
+export const GOOD_FIT_RATIO = 0.8;
+export const PARTIAL_FIT_RATIO = 0.5;
+
+/**
+ * The colour the arc runs at: the system's three semantic accents, at the two
+ * thresholds above. They share a lightness and a chroma and differ only in
+ * hue, so a green arc and a red arc carry exactly the same weight and the ring
+ * cannot shout by being brighter.
  *
  * It is the arc's colour and nothing else's. The fraction beside it is written
  * in the page's own text colour, so nothing on the ring is said in colour
  * alone (story 45); this is reinforcement for a number that is already there
  * to be read.
  *
- * Hue is the whole of what moves. Holding saturation and lightness still is
- * what keeps the arc legible on both the light and the dark background without
- * a second palette to keep in step with the first.
+ * It answers with the token rather than a value, so the light and the dark
+ * palettes are the one table in `packages/tailwind-config` and this has no
+ * second copy of either to keep in step.
  */
 export function fitColour(ratio: number): string {
-  return `hsl(${Math.round(120 * ratio)}deg 65% 45%)`;
+  if (ratio >= GOOD_FIT_RATIO) return "var(--vital)";
+  if (ratio >= PARTIAL_FIT_RATIO) return "var(--ember)";
+  return "var(--rose)";
 }
 
 /**
