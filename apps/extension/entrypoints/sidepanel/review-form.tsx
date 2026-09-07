@@ -58,6 +58,20 @@ export function ReviewForm({
   const set = (field: keyof DraftTextFields) => (value: string) =>
     setFields((current) => ({ ...current, [field]: value }));
 
+  /**
+   * Whether a box still holds what the extension read off the Posting, which
+   * is what earns it the rule down its left (`docs/design-system.md`).
+   *
+   * It is a comparison against what the form opened with rather than a flag
+   * carried alongside the value, because the question is about now rather than
+   * about the extraction: a field the user has typed over is theirs, and a
+   * field they have typed back to what was read is the model's again. Manual
+   * entry opens with every box empty, so nothing there is ever marked — which
+   * is right, because nothing there was read.
+   */
+  const read = (field: keyof DraftTextFields): boolean =>
+    initial[field] !== "" && fields[field] === initial[field];
+
   const submit = async (event: FormEvent) => {
     event.preventDefault();
 
@@ -99,15 +113,15 @@ export function ReviewForm({
       )}
 
       <form onSubmit={submit}>
-        <Field label="Company">
+        <Field label="Company" read={read("company")}>
           <input onChange={changes(set("company"))} value={fields.company} />
         </Field>
 
-        <Field label="Job title">
+        <Field label="Job title" read={read("jobTitle")}>
           <input onChange={changes(set("jobTitle"))} value={fields.jobTitle} />
         </Field>
 
-        <Field label="Posting URL">
+        <Field label="Posting URL" read={read("jobUrl")}>
           <input
             onChange={changes(set("jobUrl"))}
             spellCheck={false}
@@ -115,12 +129,12 @@ export function ReviewForm({
           />
         </Field>
 
-        <Field label="Location">
+        <Field label="Location" read={read("location")}>
           <input onChange={changes(set("location"))} value={fields.location} />
         </Field>
 
         <div className="row">
-          <Field label="Working pattern">
+          <Field label="Working pattern" read={read("remoteType")}>
             <select
               onChange={changes(set("remoteType"))}
               value={fields.remoteType}
@@ -134,6 +148,10 @@ export function ReviewForm({
             </select>
           </Field>
 
+          {/* Never marked as read. The panel does not set a Status on the
+              user's behalf and the extraction is never asked for one, so a
+              rule down this box would be claiming a page said something it
+              was not asked about. */}
           <Field label="Status">
             <select onChange={changes(set("status"))} value={fields.status}>
               {JobStatus.options.map((status) => (
@@ -148,7 +166,7 @@ export function ReviewForm({
               is worth making before the user has decided: it is read off the
               page where the page states one, and typed in here where it does
               not (ADR-0007). */}
-          <Field label="Closes on">
+          <Field label="Closes on" read={read("closesOn")}>
             <input
               onChange={changes(set("closesOn"))}
               type="date"
@@ -158,7 +176,7 @@ export function ReviewForm({
         </div>
 
         <div className="row">
-          <Field label="Salary from">
+          <Field label="Salary from" read={read("salaryMin")}>
             <input
               inputMode="numeric"
               onChange={changes(set("salaryMin"))}
@@ -166,7 +184,7 @@ export function ReviewForm({
             />
           </Field>
 
-          <Field label="Salary to">
+          <Field label="Salary to" read={read("salaryMax")}>
             <input
               inputMode="numeric"
               onChange={changes(set("salaryMax"))}
@@ -174,14 +192,14 @@ export function ReviewForm({
             />
           </Field>
 
-          <Field label="Currency">
+          <Field label="Currency" read={read("currency")}>
             <input
               onChange={changes(set("currency"))}
               value={fields.currency}
             />
           </Field>
 
-          <Field label="Per">
+          <Field label="Per" read={read("salaryPeriod")}>
             <select
               onChange={changes(set("salaryPeriod"))}
               value={fields.salaryPeriod}
@@ -196,7 +214,7 @@ export function ReviewForm({
           </Field>
         </div>
 
-        <Field label="Description">
+        <Field label="Description" read={read("description")}>
           <textarea
             onChange={changes(set("description"))}
             rows={5}
@@ -240,9 +258,18 @@ function nearDuplicateHint(alreadyHave: JobApplication[]): string | null {
 }
 
 /** One labelled box. The label is the element, so the whole line is a target. */
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({
+  label,
+  read = false,
+  children,
+}: {
+  label: string;
+  /** Whether the box below still holds what was read off the Posting. */
+  read?: boolean;
+  children: ReactNode;
+}) {
   return (
-    <label className="field">
+    <label className="field" data-read={read}>
       <span>{label}</span>
       {children}
     </label>

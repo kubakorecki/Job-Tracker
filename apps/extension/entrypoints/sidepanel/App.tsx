@@ -6,6 +6,7 @@ import { RecentJobApplications } from "./recent-job-applications";
 import { ReviewForm } from "./review-form";
 import { SavedPosting } from "./saved-posting";
 import { SetupForm } from "./setup-form";
+import { Wordmark } from "./wordmark";
 import { useCapture } from "./use-capture";
 import { listed, useJobApplications } from "./use-job-applications";
 import { useSavedPosting } from "./use-saved-posting";
@@ -69,7 +70,7 @@ function App() {
   return (
     <main className="panel">
       <header className="panel-header">
-        <h1>Job Tracker</h1>
+        <Wordmark />
         <nav>
           <a
             className="link"
@@ -91,92 +92,94 @@ function App() {
         </nav>
       </header>
 
-      {reviewing ? (
-        <ReviewForm
-          existing={listed(jobApplications)}
-          explanation={capture.explanation}
-          initial={capture.fields}
-          onCancel={cancel}
-          onSave={saveReview}
-        />
-      ) : (
-        <>
-          {setupOpen && (
-            <SetupForm
-              // Nothing to go back to: on a first run there is no panel behind
-              // this form, and after a refusal the panel behind it could do
-              // nothing but discover the same refusal again. Manual entry is
-              // the way past it, and stands below.
-              onCancel={
-                settings === null || tokenRejected
-                  ? undefined
-                  : () => setEditing(false)
-              }
-              onSave={async (next) => {
-                await save(next);
-                setEditing(false);
-                // Everything that was refused is asked again with what was
-                // just typed. `cancel` is what clears a capture that ended in
-                // a refusal; the list and the lookup are re-read by the count.
-                cancel();
-                refresh();
-              }}
-              refused={tokenRejected}
-              settings={settings}
-            />
-          )}
-
-          {/*
-            The one place the panel decides for the user. A Posting they have
-            already saved is answered with the Job Application they saved, and
-            "Save this job" is not offered — reading the page again could only
-            produce a Draft the API would refuse as a duplicate (ADR-0002).
-            Every other answer, including a lookup that could not be made,
-            leaves the ordinary path in place: a Posting the panel cannot rule
-            out being new is one the user may still want to save.
-          */}
-          {!setupOpen &&
-            settings !== null &&
-            (lookup.kind === "saved" ? (
-              <SavedPosting
-                apiBaseUrl={settings.apiBaseUrl}
-                jobApplication={lookup.jobApplication}
-                onAddManually={addManually}
-                onSetStatus={setStatus}
+      <div className="panel-body">
+        {reviewing ? (
+          <ReviewForm
+            existing={listed(jobApplications)}
+            explanation={capture.explanation}
+            initial={capture.fields}
+            onCancel={cancel}
+            onSave={saveReview}
+          />
+        ) : (
+          <>
+            {setupOpen && (
+              <SetupForm
+                // Nothing to go back to: on a first run there is no panel behind
+                // this form, and after a refusal the panel behind it could do
+                // nothing but discover the same refusal again. Manual entry is
+                // the way past it, and stands below.
+                onCancel={
+                  settings === null || tokenRejected
+                    ? undefined
+                    : () => setEditing(false)
+                }
+                onSave={async (next) => {
+                  await save(next);
+                  setEditing(false);
+                  // Everything that was refused is asked again with what was
+                  // just typed. `cancel` is what clears a capture that ended in
+                  // a refusal; the list and the lookup are re-read by the count.
+                  cancel();
+                  refresh();
+                }}
+                refused={tokenRejected}
+                settings={settings}
               />
-            ) : (
-              <SaveThisJob
-                capture={capture}
-                looking={lookup.kind === "looking"}
-                onAddManually={addManually}
-                onSave={extract}
+            )}
+
+            {/*
+              The one place the panel decides for the user. A Posting they have
+              already saved is answered with the Job Application they saved, and
+              "Save this job" is not offered — reading the page again could only
+              produce a Draft the API would refuse as a duplicate (ADR-0002).
+              Every other answer, including a lookup that could not be made,
+              leaves the ordinary path in place: a Posting the panel cannot rule
+              out being new is one the user may still want to save.
+            */}
+            {!setupOpen &&
+              settings !== null &&
+              (lookup.kind === "saved" ? (
+                <SavedPosting
+                  apiBaseUrl={settings.apiBaseUrl}
+                  jobApplication={lookup.jobApplication}
+                  onAddManually={addManually}
+                  onSetStatus={setStatus}
+                />
+              ) : (
+                <SaveThisJob
+                  capture={capture}
+                  looking={lookup.kind === "looking"}
+                  onAddManually={addManually}
+                  onSave={extract}
+                />
+              ))}
+
+            {/*
+              Manual entry is the secondary action in every state the panel could
+              save from, so where the primary action area is not already carrying
+              it — the settings form — it stands on its own. The one state
+              without it is a first run: there is no Job Tracker configured yet,
+              and a form that could not be saved would be a worse answer than the
+              setup form already in front of the user. A refused token is not
+              that state — the Job Tracker is known, and the save may well be
+              what puts the token right.
+            */}
+            {setupOpen && settings !== null && (
+              <section className="actions">
+                <AddManually onClick={addManually} />
+              </section>
+            )}
+
+            {settings !== null && (
+              <RecentJobApplications
+                jobApplications={jobApplications}
+                onRetry={refresh}
               />
-            ))}
-
-          {/*
-            Manual entry is the secondary action in every state the panel could
-            save from, so where the primary action area is not already carrying
-            it — the settings form — it stands on its own. The one state
-            without it is a first run: there is no Job Tracker configured yet,
-            and a form that could not be saved would be a worse answer than the
-            setup form already in front of the user. A refused token is not
-            that state — the Job Tracker is known, and the save may well be
-            what puts the token right.
-          */}
-          {setupOpen && settings !== null && (
-            <section className="actions">
-              <AddManually onClick={addManually} />
-            </section>
-          )}
-
-          {settings !== null && (
-            <RecentJobApplications
-              jobApplications={jobApplications}
-              onRetry={refresh}
-            />
-          )}
-        </>
-      )}
+            )}
+          </>
+        )}
+      </div>
     </main>
   );
 }

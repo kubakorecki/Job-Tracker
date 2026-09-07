@@ -1,51 +1,131 @@
+/*
+ * The panel, in the same visual language as the dashboard and one step down
+ * from it: a 48px bar, 14px of padding, 32px controls and 12.5px body, in 400
+ * points of width (`docs/design-system.md`).
+ *
+ * The table below is the design system's own, stated here under the same names
+ * because this app has no Tailwind and cannot import
+ * `packages/tailwind-config`. It is the one place in the repo where these
+ * numbers are written twice, and they are written identically on purpose: a
+ * panel whose greys were a different hue from the board's would look like a
+ * different product docked beside it.
+ *
+ * Everything is a class on an element rather than a utility, because that is
+ * what this app already was and a second styling idiom for one panel would
+ * cost more than it bought.
+ */
 :root {
   color-scheme: light dark;
 
-  --border: #e5e5e5;
-  --link: #2563eb;
-  --problem: #dc2626;
-  --button-background: #171717;
-  --button-foreground: #ffffff;
+  --paper: oklch(0.972 0.006 285);
+  --paper-raised: oklch(0.998 0.002 285);
+  --paper-sunk: oklch(0.951 0.008 285);
+  --line: oklch(0.905 0.008 285);
+  --line-strong: oklch(0.858 0.01 285);
+  --ink: oklch(0.215 0.022 285);
+  --ink-muted: oklch(0.42 0.018 285);
+  --ink-faint: oklch(0.53 0.014 285);
+
+  --spectre: oklch(0.52 0.12 298);
+  --spectre-tint: oklch(0.945 0.032 298);
+  --ember: oklch(0.52 0.12 62);
+  --ember-tint: oklch(0.951 0.036 68);
+  --vital: oklch(0.52 0.12 152);
+  --vital-tint: oklch(0.949 0.036 155);
+  --rose: oklch(0.52 0.12 18);
+  --rose-tint: oklch(0.953 0.03 20);
+
+  --serif:
+    "Instrument Serif", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  --sans:
+    "Public Sans", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --border: #333333;
-    --link: #60a5fa;
-    --problem: #f87171;
-    --button-background: #ffffff;
-    --button-foreground: #171717;
+    --paper: oklch(0.183 0.018 288);
+    --paper-raised: oklch(0.228 0.02 288);
+    --paper-sunk: oklch(0.268 0.02 288);
+    --line: oklch(0.318 0.018 288);
+    --line-strong: oklch(0.382 0.02 288);
+    --ink: oklch(0.958 0.005 288);
+    --ink-muted: oklch(0.755 0.014 288);
+    --ink-faint: oklch(0.62 0.016 288);
+
+    --spectre: oklch(0.735 0.145 298);
+    --spectre-tint: oklch(0.315 0.058 298);
+    --ember: oklch(0.735 0.145 62);
+    --ember-tint: oklch(0.3 0.052 62);
+    --vital: oklch(0.735 0.145 152);
+    --vital-tint: oklch(0.292 0.052 152);
+    --rose: oklch(0.735 0.145 18);
+    --rose-tint: oklch(0.308 0.058 18);
   }
+}
+
+* {
+  box-sizing: border-box;
 }
 
 body {
   margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  -webkit-font-smoothing: antialiased;
+  /* Counts must not shuffle as they change. */
+  font-variant-numeric: tabular-nums;
 }
 
+/* Never removed, only restyled. */
+:focus-visible {
+  outline: 2px solid var(--spectre);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--spectre-tint);
+  color: var(--spectre);
+}
+
+/*
+ * The shell. The bar is fixed at the top of the panel and the body scrolls
+ * under it, so the way back to the dashboard never scrolls off — it is the one
+ * thing the panel never takes away.
+ */
 .panel {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  padding: 16px;
-  font-family:
-    system-ui,
-    -apple-system,
-    sans-serif;
-  font-size: 13px;
-  line-height: 1.4;
+  height: 100vh;
+  font-size: 12.5px;
+  line-height: 1.5;
 }
 
 .panel-header {
   display: flex;
-  align-items: baseline;
+  flex-shrink: 0;
+  align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 10px;
+  height: 48px;
+  padding: 0 14px;
+  background: var(--paper-raised);
+  border-bottom: 1px solid var(--line);
 }
 
-.panel-header h1 {
-  font-size: 15px;
-  font-weight: 600;
-  margin: 0;
+/* The mark and the name, at the bar's own size. */
+.wordmark {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--serif);
+  font-size: 18px;
+  line-height: 1;
+  color: var(--ink);
+}
+
+.wordmark .tld {
+  color: var(--ink-faint);
 }
 
 .panel-header nav {
@@ -53,24 +133,43 @@ body {
   gap: 12px;
 }
 
+.panel-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 13px;
+  padding: 14px;
+  overflow-y: auto;
+}
+
+/*
+ * A section heading, which is an eyebrow rather than a title: the panel is one
+ * column of short things and a stack of headings at heading weight would
+ * outweigh what is under them.
+ */
 .panel h2,
-.requirements h3 {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  opacity: 0.6;
+.requirements h3,
+.requirements-label {
+  display: block;
   margin: 0 0 8px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
 }
 
 .hint {
   margin: 0 0 12px;
-  opacity: 0.7;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--ink-faint);
 }
 
 .muted {
   margin: 0;
-  opacity: 0.7;
+  color: var(--ink-muted);
 }
 
 .field {
@@ -81,34 +180,83 @@ body {
 /* What a control is, over the control. The read-only Requirements are labelled
    the same way, because they sit in the same column and are read in the same
    pass — they simply have no box under them. */
-.field span,
-.requirements-label {
+.field span {
   display: block;
   margin-bottom: 4px;
-  opacity: 0.7;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
 }
 
 .field input,
 .field select,
 .field textarea {
   width: 100%;
-  box-sizing: border-box;
-  padding: 6px 8px;
-  font: inherit;
-  color: inherit;
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  height: 32px;
+  padding: 0 9px;
+  font-family: var(--sans);
+  font-size: 12.5px;
+  color: var(--ink);
+  background: var(--paper-raised);
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  outline: none;
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  border-color: var(--spectre);
+  box-shadow: 0 0 0 3px var(--spectre-tint);
+}
+
+.field input::placeholder,
+.field textarea::placeholder {
+  color: var(--ink-faint);
 }
 
 .field textarea {
+  height: auto;
+  padding: 8px 9px;
+  line-height: 1.55;
   resize: vertical;
 }
 
+/* A select draws its own caret out of two gradients: no icon font, no SVG. */
+.field select {
+  cursor: pointer;
+  appearance: none;
+  padding-right: 24px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position:
+    calc(100% - 13px) center,
+    calc(100% - 8px) center;
+  background-size:
+    5px 5px,
+    5px 5px;
+  background-repeat: no-repeat;
+}
+
 /*
- * What the Posting asks for, shown and not edited. It sits among the boxes and
- * deliberately does not look like one: no border, no field background, so that
- * a user scanning the form for what they can still correct passes over it.
+ * A field holding what the extension read off the Posting, still as it read
+ * it. The rule down its left is the whole of how the panel distinguishes what
+ * was read from what was typed — and it goes the moment the user changes the
+ * value, because from then on it is theirs.
+ */
+.field[data-read="true"] input,
+.field[data-read="true"] select {
+  border-left: 2.5px solid var(--spectre);
+}
+
+/*
+ * What the Posting asks for, shown and not edited — as chips rather than as a
+ * list, because a panel this narrow fits three of them to a line and a column
+ * of seven bullet points would be the tallest thing on the screen.
  */
 .requirements {
   margin-bottom: 12px;
@@ -117,23 +265,41 @@ body {
 /* Sits closer to the skills under it than a section heading does, and keeps
    its distance from the group above. */
 .requirements h3 {
-  margin: 8px 0 4px;
+  margin: 10px 0 6px;
 }
 
-/* Skills wrap along the line: a panel this narrow has room for two or three. */
 .requirements ul {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 6px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .requirements li {
-  padding: 2px 8px;
-  border: 1px solid var(--border);
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 9px;
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--ink-muted);
+  background: var(--paper-raised);
+  border: 1px solid var(--line-strong);
   border-radius: 999px;
+}
+
+/*
+ * What the Posting insists on, in the brand hue. Only the required ones are
+ * marked: the two groups are already under their own headings, and colouring
+ * both would say the difference twice and mean it once.
+ */
+.requirements li[data-necessity="required"] {
+  color: var(--spectre);
+  background: var(--spectre-tint);
+  border-color: var(--spectre);
 }
 
 .requirements .hint {
@@ -154,14 +320,14 @@ body {
 .actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 .problem {
   margin: 0 0 12px;
   padding-left: 0;
   list-style: none;
-  color: var(--problem);
+  color: var(--rose);
 }
 
 /*
@@ -171,33 +337,54 @@ body {
  */
 .explanation {
   margin: 0 0 12px;
-  padding-left: 10px;
-  border-left: 2px solid var(--border);
-  opacity: 0.8;
+  padding-left: 11px;
+  border-left: 2px solid var(--line-strong);
+  color: var(--ink-muted);
 }
 
+/*
+ * The primary button, and the one place colour is a reward: it fills with the
+ * page's own ink and hovers to the brand hue. There is no filled-accent button
+ * anywhere in this system.
+ */
 .button {
-  padding: 6px 14px;
-  font: inherit;
-  font-weight: 500;
-  color: var(--button-foreground);
-  background: var(--button-background);
-  border: 0;
-  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 13px;
+  font-family: var(--sans);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--paper-raised);
+  background: var(--ink);
+  border: 1px solid transparent;
+  border-radius: 5px;
   cursor: pointer;
+}
+
+.button:hover:enabled {
+  background: var(--spectre);
 }
 
 .button:disabled,
 .link:disabled {
-  opacity: 0.5;
-  cursor: default;
+  opacity: 0.42;
+  cursor: not-allowed;
 }
 
-/* A link and a button that opens something in place read the same way here. */
+/*
+ * The button beside the one that matters, and the links in the bar. Outlined
+ * where it stands among the actions, plain where it stands in the bar — both
+ * are the quiet thing next to the loud one.
+ */
 .link {
   padding: 0;
-  font: inherit;
-  color: var(--link);
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-muted);
   background: none;
   border: 0;
   text-decoration: none;
@@ -206,26 +393,48 @@ body {
 
 .link:hover:enabled,
 a.link:hover {
-  text-decoration: underline;
+  color: var(--ink);
+}
+
+.actions .link {
+  display: inline-flex;
+  align-items: center;
+  height: 34px;
+  padding: 0 13px;
+  background: var(--paper-raised);
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+}
+
+.actions .link:hover:enabled,
+.actions a.link:hover {
+  border-color: var(--ink-faint);
 }
 
 .job-applications {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 2px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
+/*
+ * One saved Job Application: ruled off from the next rather than boxed. A
+ * column of five bordered cards in 400 points is five boxes; a column of five
+ * rows is a list, which is what it is.
+ */
 .job-application {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 8px 10px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  padding: 7px 2px;
+}
+
+.job-applications .job-application + .job-application {
+  border-top: 1px solid var(--line);
 }
 
 /* The company and the title share what the badge leaves, and truncate. */
@@ -241,9 +450,13 @@ a.link:hover {
 }
 
 .company {
-  font-weight: 500;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.3;
 }
 
 .job-title {
-  opacity: 0.6;
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--ink-faint);
 }

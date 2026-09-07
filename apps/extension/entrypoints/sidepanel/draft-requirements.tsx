@@ -34,7 +34,9 @@ export function DraftRequirements({
       {groupedByNecessity(requirements).map(
         ({ necessity, requirements: asked }) => (
           <div key={necessity}>
-            <h3>{NECESSITY_LABELS[necessity]}</h3>
+            <h3>
+              {NECESSITY_LABELS[necessity]} · {asked.length}
+            </h3>
             <ul>
               {/*
                 Keyed by position: nothing here is added to, removed or
@@ -43,14 +45,23 @@ export function DraftRequirements({
                 places, which would make its wording a duplicate key.
               */}
               {asked.map((requirement, index) => (
-                <li key={index}>{requirement.skill}</li>
+                // Only the required ones are marked. The two groups are
+                // already under their own headings, and colouring both would
+                // say the difference twice and mean it once.
+                <li data-necessity={requirement.necessity} key={index}>
+                  {requirement.skill}
+                </li>
               ))}
             </ul>
           </div>
         ),
       )}
 
-      <p className="hint">Correct these in the dashboard after saving.</p>
+      <p className="hint">
+        Nothing is guessed upward — a Requirement the Posting listed without
+        saying how badly it wants it stays under Preferred. Correct these in the
+        dashboard after saving.
+      </p>
     </div>
   );
 }

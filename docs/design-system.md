@@ -74,6 +74,14 @@ tints                     spectre 0.315 0.058 298 · ember 0.300 0.052 62
                           vital   0.292 0.052 152 · rose  0.308 0.058 18
 ```
 
+The values are stated once, as `--night-*`, and mapped twice: onto `:root`
+under `prefers-color-scheme: dark`, and onto **`.night`** — a surface that is
+dark whichever theme the reader is in. There is one of those, the statement
+beside the sign-in form. It restates the table locally rather than being
+written in fixed colours, so everything inside goes on using the app's own
+names: `text-ink-muted` inside a `.night` is the dark theme's muted ink, and no
+component has to know where it is standing.
+
 ### The `@theme` block
 
 ```css
@@ -203,6 +211,32 @@ The card and table use a compact form of the same thing: a 15px donut
 (4px stroke, `line-strong` track) plus `n/m`, coloured `vital` at ≥0.8,
 `ember` at ≥0.5, `rose` below.
 
+### Fit banner
+
+The board's ring, on the page that has room for it: the fraction in the display
+face at 42px, the sentence beside it, and one 6px bar per required Requirement
+— `vital`, `ember`, faint `rose`, `line-strong` for unread. The sentence
+carries the whole reading; the meter is reinforcement under it. Both are absent
+in exactly the cases the ring is, so a card that draws no ring never sits under
+a page claiming a fit.
+
+### Silence thread
+
+The right column's first panel on a Job Application: what has happened, in
+order, ending in where it stands today. A dot and a rule per beat, the dot on
+the last one `ember` in a 3px `ember-tint` ring. A **gap** — a silence that has
+run on — breaks its rule into a dashed one and sets its words in the display
+face, italic, in `ember`. It is made only of what the record holds; there is no
+event log behind it.
+
+### Excitement
+
+Nought to five, in flames rather than stars — the app already speaks in
+temperature, so a heat rating belongs to the system instead of being borrowed
+from it. 36px targets, `line-strong` unlit and `ember` lit, filled only when
+lit. The rating is said in words beside the row: *Not fussed. · Worth a punt. ·
+Mildly keen. · Would be pleased. · Really want this one.*
+
 ### Buttons
 
 | Variant | Treatment |
@@ -253,6 +287,12 @@ card.
   the Posting text and your notes. Right is the record and the machinery — the
   silence thread, the Analysis panel, then the 14 fields. The fields did not
   get fewer; they stopped being the first thing you see.
+- **Sign-in** is two halves — the statement and the door — at
+  `minmax(0,1.18fr) minmax(0,1fr)`, folding to one column on a phone. The
+  statement is the app's only `.night` surface: the mark at 25px, a 57px serif
+  line with its second sentence in `spectre` italic, and three numbers over a
+  `line` rule. Every one of those numbers is read off the constant it
+  describes. Controls here are 40px and the button 42.
 - **Side panel** is 400px of the same system at one step down: 48px bar,
   14px padding, 32px fields, 12.5px body. A field the extension read off the
   Posting carries a 2.5px `spectre` left border, so what was read is
