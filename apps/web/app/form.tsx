@@ -50,6 +50,15 @@ export const TEXTAREA_ON_RAISED = `${FIELD_BASE} bg-paper py-2 leading-[1.55]`;
 const BUTTON_BASE =
   "inline-flex shrink-0 items-center justify-center gap-[7px] whitespace-nowrap rounded-control border border-transparent font-semibold disabled:cursor-not-allowed disabled:opacity-42";
 
+/**
+ * The sign-in page's own control height. It is the one page in the app with a
+ * single thing to do and no board behind it, so its two fields and its button
+ * stand at 40 and 42 rather than at 34 — a form of two boxes at the app's
+ * ordinary density reads as a fragment of a page rather than as the page.
+ */
+export const FIELD_TALL = `${FIELD_BASE} h-10 bg-paper-raised px-3 text-sm`;
+export const PRIMARY_BUTTON_TALL = `${BUTTON_BASE} h-[42px] w-full px-[18px] text-sm bg-ink text-paper-raised hover:bg-spectre`;
+
 /** The one thing on a form worth pressing. */
 export const PRIMARY_BUTTON = `${BUTTON_BASE} ${CONTROL_HEIGHT} px-3.5 text-[13px] bg-ink text-paper-raised hover:bg-spectre`;
 

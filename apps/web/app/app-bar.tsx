@@ -71,11 +71,7 @@ export function AppBar({
  * first thing on the page share an edge.
  */
 export function Page({ children }: { children: ReactNode }) {
-  return (
-    <div className="flex min-h-screen flex-col bg-paper">
-      {children}
-    </div>
-  );
+  return <div className="flex min-h-screen flex-col bg-paper">{children}</div>;
 }
 
 /** The page's own body, inside the gutters the bar sets. */

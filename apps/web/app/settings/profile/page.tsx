@@ -1,8 +1,8 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "../../../lib/auth/current-user";
-import { DASHBOARD_PATH, SIGN_IN_PATH } from "../../../lib/auth/route-access";
+import { SIGN_IN_PATH } from "../../../lib/auth/route-access";
 import { readProfile } from "../../../lib/profile/view";
+import { SettingsPage } from "../settings-page";
 import { YourProfile } from "./profile";
 
 export default async function ProfilePage() {
@@ -19,22 +19,12 @@ export default async function ProfilePage() {
   const profile = await readProfile(user.id);
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 p-12">
-      <header className="flex flex-col gap-2">
-        <Link
-          className="text-sm underline underline-offset-2 opacity-60"
-          href={DASHBOARD_PATH}
-        >
-          ← Back to the board
-        </Link>
-        <h1 className="text-2xl font-semibold">Your Profile</h1>
-        <p className="text-sm opacity-60">
-          One master CV, kept as the file you uploaded, and the skills read out
-          of it. This is what a Job Application gets measured against.
-        </p>
-      </header>
-
+    <SettingsPage
+      email={user.email ?? user.id}
+      lede="One master CV, kept as the file you uploaded, and the skills read out of it. This is what every Job Application is measured against."
+      title="Your Profile"
+    >
       <YourProfile profile={profile} />
-    </main>
+    </SettingsPage>
   );
 }

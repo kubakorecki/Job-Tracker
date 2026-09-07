@@ -4,7 +4,10 @@ import { useDraggable } from "@dnd-kit/core";
 import type { JobApplication } from "@repo/schema";
 import Link from "next/link";
 import { todayInUtc } from "../../lib/day";
-import { silenceOf, type SilenceKind } from "../../lib/job-applications/silence";
+import {
+  silenceOf,
+  type SilenceKind,
+} from "../../lib/job-applications/silence";
 import { Ghost } from "../ghost";
 import { ClosingBadge } from "./closing-badge";
 import { FitRing } from "./fit-ring";

@@ -71,16 +71,28 @@ export function Ghost({
 }
 
 /**
- * The name, set in the display face. `.boo` drops to `ink-faint` so the mark
- * reads as one word with a quiet tail rather than as two.
+ * The name, set in the display face. `.boo` drops out of the ink the rest of
+ * it is in, so the mark reads as one word with a quiet tail rather than as
+ * two.
+ *
+ * The tail's colour is a prop because the sign-in page's dark half puts the
+ * mark on a surface with nothing else on it, and there the tail is the one
+ * place the brand hue appears at all — everywhere else it is a bar with a
+ * board under it, and the quieter reading is the right one.
  */
-export function Wordmark({ size = 23 }: { size?: number }) {
+export function Wordmark({
+  size = 23,
+  tail = "text-ink-faint",
+}: {
+  size?: number;
+  tail?: string;
+}) {
   return (
     <span
       className="font-display leading-none"
       style={{ fontSize: `${size}px` }}
     >
-      ghosted<span className="text-ink-faint">.boo</span>
+      ghosted<span className={tail}>.boo</span>
     </span>
   );
 }

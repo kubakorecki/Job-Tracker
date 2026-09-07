@@ -103,10 +103,13 @@ export function Board({
         </div>
       </div>
 
-      {/* What follows the cursor, so the card stays legible in flight. */}
+      {/* What follows the cursor, so the card stays legible in flight. It is
+          lifted with a ring rather than a shadow: there is no shadow anywhere
+          in this system, and the one place a card has to look picked up is the
+          one place a border is not enough. */}
       <DragOverlay>
         {dragging === undefined ? null : (
-          <div className="w-64 cursor-grabbing shadow-lg">
+          <div className="w-64 cursor-grabbing rounded-card ring-2 ring-spectre">
             <JobApplicationCard jobApplication={dragging} />
           </div>
         )}

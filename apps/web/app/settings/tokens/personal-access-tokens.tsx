@@ -14,7 +14,17 @@ import {
   type PersonalAccessToken,
 } from "../../../lib/personal-access-tokens/contract";
 import { describeIssues } from "../../../lib/zod-issues";
-import { FIELD, Field, PRIMARY_BUTTON, Problems, Row } from "../../form";
+import {
+  DANGER_BUTTON,
+  FIELD_ON_RAISED,
+  Field,
+  PRIMARY_BUTTON,
+  Problems,
+  Row,
+  SECONDARY_BUTTON_SMALL,
+} from "../../form";
+import { Panel } from "../../panel";
+import { Empty } from "../../states";
 
 /**
  * Issuing, reading and revoking Personal Access Tokens. The list is rendered
@@ -64,12 +74,15 @@ export function PersonalAccessTokens({
 
   return (
     <>
-      <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold">Issue a token</h2>
+      <Panel title="Issue a token">
         <form className="flex flex-col gap-3" onSubmit={onSubmit}>
           <Row>
             <Field label="What is it for?">
-              <input className={FIELD} name="name" placeholder="Work laptop" />
+              <input
+                className={FIELD_ON_RAISED}
+                name="name"
+                placeholder="Work laptop"
+              />
             </Field>
           </Row>
 
@@ -83,7 +96,7 @@ export function PersonalAccessTokens({
             {saving ? "Issuing…" : "Issue a token"}
           </button>
         </form>
-      </section>
+      </Panel>
 
       {issued !== null && (
         <IssuedToken issued={issued} onDismiss={() => setIssued(null)} />
@@ -124,34 +137,41 @@ function IssuedToken({
   }
 
   return (
+    // The one panel in the app carrying a secret, and it is drawn in `spectre`
+    // rather than in `rose`: nothing has gone wrong, but this is the only time
+    // the value exists anywhere the user can reach it.
     <section
       aria-live="polite"
-      className="flex flex-col gap-3 rounded-lg border border-neutral-300 p-4 dark:border-neutral-700"
+      className="overflow-hidden rounded-panel border border-spectre bg-paper-raised"
     >
-      <div>
-        <h2 className="text-lg font-semibold">Copy “{issued.name}” now</h2>
-        <p className="text-sm opacity-60">
+      <div className="border-b border-spectre/40 bg-spectre-tint px-[18px] py-[13px]">
+        <h2 className="text-[13.5px] leading-[1.4] font-semibold text-spectre">
+          Copy “{issued.name}” now
+        </h2>
+        <p className="mt-1 text-[12.5px] leading-[1.55] text-ink-muted">
           This is the only time this token is shown. Paste it into the
           extension; if you lose it, revoke it and issue another.
         </p>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <code className="flex-1 overflow-x-auto rounded-md bg-neutral-100 px-3 py-2 font-mono text-sm dark:bg-neutral-900">
-          {issued.token}
-        </code>
-        <button className={PRIMARY_BUTTON} onClick={copy} type="button">
-          {copied ? "Copied" : "Copy"}
+      <div className="flex flex-col gap-3 p-[18px]">
+        <div className="flex flex-wrap items-center gap-3">
+          <code className="flex-1 overflow-x-auto rounded-control border border-line bg-paper px-3 py-2 font-mono text-[12.5px] text-ink">
+            {issued.token}
+          </code>
+          <button className={PRIMARY_BUTTON} onClick={copy} type="button">
+            {copied ? "Copied" : "Copy"}
+          </button>
+        </div>
+
+        <button
+          className={`self-start ${SECONDARY_BUTTON_SMALL}`}
+          onClick={onDismiss}
+          type="button"
+        >
+          I have copied it
         </button>
       </div>
-
-      <button
-        className="self-start text-sm underline underline-offset-2 opacity-60"
-        onClick={onDismiss}
-        type="button"
-      >
-        I have copied it
-      </button>
     </section>
   );
 }
@@ -167,42 +187,46 @@ function TokenList({
 }) {
   if (tokens.length === 0) {
     return (
-      <p className="text-sm opacity-60">
-        You have no tokens yet. Issue one to connect the extension.
-      </p>
+      <Empty drawing="solid" title="No tokens yet.">
+        <p>
+          A token is how the extension proves it is you. Issue one above, paste
+          it into the extension, and the panel can save a Posting straight off
+          the page you are reading.
+        </p>
+      </Empty>
     );
   }
 
   return (
-    <section className="flex flex-col gap-3">
-      <h2 className="text-lg font-semibold">Your tokens</h2>
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-sm">
-          <thead className="opacity-60">
-            <tr>
-              <th className="py-2 pr-4 font-medium">Name</th>
-              <th className="py-2 pr-4 font-medium">Created</th>
-              <th className="py-2 pr-4 font-medium">Last used</th>
-              <th className="py-2 font-medium">
-                <span className="sr-only">Revoke</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {tokens.map((token) => (
-              <TokenRow
-                key={token.id}
-                onFailure={onFailure}
-                onRevoked={onRevoked}
-                token={token}
-              />
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </section>
+    <div className="overflow-x-auto rounded-panel border border-line bg-paper-raised">
+      <table className="w-full border-collapse text-[13px]">
+        <thead>
+          <tr className="border-b border-line bg-paper-sunk text-left">
+            <th className={`${CELL} type-eyebrow text-ink-faint`}>Name</th>
+            <th className={`${CELL} type-eyebrow text-ink-faint`}>Created</th>
+            <th className={`${CELL} type-eyebrow text-ink-faint`}>Last used</th>
+            <th className={`${CELL} type-eyebrow text-ink-faint`}>
+              <span className="sr-only">Revoke</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {tokens.map((token) => (
+            <TokenRow
+              key={token.id}
+              onFailure={onFailure}
+              onRevoked={onRevoked}
+              token={token}
+            />
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
+
+/** One cell of the table, at the padding every other table in the app uses. */
+const CELL = "px-3.5 py-2.5";
 
 /**
  * One token. A revoked one keeps its row — that is what makes revocation soft
@@ -236,21 +260,28 @@ function TokenRow({
   }
 
   return (
-    <tr className="border-t border-neutral-200 dark:border-neutral-800">
-      <td className={`py-2 pr-4 ${revokedAt === null ? "" : "opacity-50"}`}>
+    <tr className="border-b border-line last:border-0">
+      <td
+        className={`${CELL} font-semibold ${
+          // A revoked token keeps its row and its name, in the page's faint
+          // ink: it is a record of a machine that used to have a key, which is
+          // the whole point of revoking softly.
+          revokedAt === null ? "text-ink" : "text-ink-faint"
+        }`}
+      >
         {token.name}
       </td>
-      <td className="py-2 pr-4 opacity-60">{dayOf(token.createdAt)}</td>
-      <td className="py-2 pr-4 opacity-60">
+      <td className={`${CELL} text-ink-muted`}>{dayOf(token.createdAt)}</td>
+      <td className={`${CELL} text-ink-muted`}>
         {token.lastUsedAt === null ? "Never" : dayOf(token.lastUsedAt)}
       </td>
-      <td className="py-2 text-right">
+      <td className={`${CELL} text-right`}>
         {revokedAt !== null ? (
-          <span className="opacity-60">Revoked {dayOf(revokedAt)}</span>
+          <span className="text-ink-faint">Revoked {dayOf(revokedAt)}</span>
         ) : confirming ? (
-          <span className="flex flex-wrap items-center justify-end gap-3">
+          <span className="flex flex-wrap items-center justify-end gap-2.5">
             <button
-              className="rounded-md bg-red-600 px-3 py-1.5 font-medium text-white disabled:opacity-50"
+              className={DANGER_BUTTON}
               disabled={revoking}
               onClick={revoke}
               type="button"
@@ -258,7 +289,7 @@ function TokenRow({
               {revoking ? "Revoking…" : "Yes, revoke it"}
             </button>
             <button
-              className="underline underline-offset-2 opacity-60"
+              className={SECONDARY_BUTTON_SMALL}
               disabled={revoking}
               onClick={() => setConfirming(false)}
               type="button"
@@ -268,7 +299,7 @@ function TokenRow({
           </span>
         ) : (
           <button
-            className="text-red-600 underline underline-offset-2 dark:text-red-400"
+            className={DANGER_BUTTON}
             onClick={() => setConfirming(true)}
             type="button"
           >

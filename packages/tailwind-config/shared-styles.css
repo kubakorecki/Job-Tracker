@@ -48,27 +48,84 @@
  * The same table with paper and ink swapped and the four accents lifted to
  * L 0.735 / C 0.145 — the same four hues, so no component has to know which
  * theme it is in.
+ *
+ * The values are named once, here, and mapped twice below: onto the root under
+ * a reader who prefers dark, and onto `.night` wherever a surface is dark
+ * whichever theme the reader is in. Two mappings of one table rather than two
+ * tables — a second copy of these numbers is how a palette comes to have a
+ * colour that only exists on one of the two.
  */
+:root {
+  --night-paper: oklch(0.183 0.018 288);
+  --night-paper-raised: oklch(0.228 0.02 288);
+  --night-paper-sunk: oklch(0.268 0.02 288);
+  --night-line: oklch(0.318 0.018 288);
+  --night-line-strong: oklch(0.382 0.02 288);
+  --night-ink: oklch(0.958 0.005 288);
+  --night-ink-muted: oklch(0.755 0.014 288);
+  --night-ink-faint: oklch(0.62 0.016 288);
+
+  --night-spectre: oklch(0.735 0.145 298);
+  --night-spectre-tint: oklch(0.315 0.058 298);
+  --night-ember: oklch(0.735 0.145 62);
+  --night-ember-tint: oklch(0.3 0.052 62);
+  --night-vital: oklch(0.735 0.145 152);
+  --night-vital-tint: oklch(0.292 0.052 152);
+  --night-rose: oklch(0.735 0.145 18);
+  --night-rose-tint: oklch(0.308 0.058 18);
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
-    --paper: oklch(0.183 0.018 288);
-    --paper-raised: oklch(0.228 0.02 288);
-    --paper-sunk: oklch(0.268 0.02 288);
-    --line: oklch(0.318 0.018 288);
-    --line-strong: oklch(0.382 0.02 288);
-    --ink: oklch(0.958 0.005 288);
-    --ink-muted: oklch(0.755 0.014 288);
-    --ink-faint: oklch(0.62 0.016 288);
+    --paper: var(--night-paper);
+    --paper-raised: var(--night-paper-raised);
+    --paper-sunk: var(--night-paper-sunk);
+    --line: var(--night-line);
+    --line-strong: var(--night-line-strong);
+    --ink: var(--night-ink);
+    --ink-muted: var(--night-ink-muted);
+    --ink-faint: var(--night-ink-faint);
 
-    --spectre: oklch(0.735 0.145 298);
-    --spectre-tint: oklch(0.315 0.058 298);
-    --ember: oklch(0.735 0.145 62);
-    --ember-tint: oklch(0.3 0.052 62);
-    --vital: oklch(0.735 0.145 152);
-    --vital-tint: oklch(0.292 0.052 152);
-    --rose: oklch(0.735 0.145 18);
-    --rose-tint: oklch(0.308 0.058 18);
+    --spectre: var(--night-spectre);
+    --spectre-tint: var(--night-spectre-tint);
+    --ember: var(--night-ember);
+    --ember-tint: var(--night-ember-tint);
+    --vital: var(--night-vital);
+    --vital-tint: var(--night-vital-tint);
+    --rose: var(--night-rose);
+    --rose-tint: var(--night-rose-tint);
   }
+}
+
+/*
+ * A surface that is dark whichever theme the reader is in — the statement
+ * beside the sign-in form, and nothing else so far.
+ *
+ * It restates the table rather than being written in fixed colours, so
+ * everything inside it goes on using the app's own names: `text-ink-muted`
+ * inside one of these is the dark theme's muted ink without the component
+ * having to know where it is standing.
+ */
+.night {
+  color-scheme: dark;
+
+  --paper: var(--night-paper);
+  --paper-raised: var(--night-paper-raised);
+  --paper-sunk: var(--night-paper-sunk);
+  --line: var(--night-line);
+  --line-strong: var(--night-line-strong);
+  --ink: var(--night-ink);
+  --ink-muted: var(--night-ink-muted);
+  --ink-faint: var(--night-ink-faint);
+
+  --spectre: var(--night-spectre);
+  --spectre-tint: var(--night-spectre-tint);
+  --ember: var(--night-ember);
+  --ember-tint: var(--night-ember-tint);
+  --vital: var(--night-vital);
+  --vital-tint: var(--night-vital-tint);
+  --rose: var(--night-rose);
+  --rose-tint: var(--night-rose-tint);
 }
 
 /*
