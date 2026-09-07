@@ -1,0 +1,623 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ghosted.boo — Design System</title>
+<!--
+  Print source for docs/design-system.pdf and docs/design-system.png.
+  The document is built out of the system's own tokens, so it is a specimen
+  of the thing it documents. Fonts are inlined (fonts-inline.css is pasted in
+  at build time) so the PDF renders correctly with no network.
+  Re-render: see the note at the foot of docs/design-system.md.
+-->
+<style>/*FONTS*/</style>
+<style>
+:root{
+  --paper:oklch(0.972 0.006 285); --paper-2:oklch(0.998 0.002 285); --paper-3:oklch(0.951 0.008 285);
+  --ink:oklch(0.215 0.022 285); --ink-2:oklch(0.420 0.018 285); --ink-3:oklch(0.530 0.014 285);
+  --line:oklch(0.905 0.008 285); --line-2:oklch(0.858 0.010 285);
+  --spectre:oklch(0.520 0.120 298); --spectre-t:oklch(0.945 0.032 298);
+  --ember:oklch(0.520 0.120 62);   --ember-t:oklch(0.951 0.036 68);
+  --vital:oklch(0.520 0.120 152);  --vital-t:oklch(0.949 0.036 155);
+  --rose:oklch(0.520 0.120 18);    --rose-t:oklch(0.953 0.030 20);
+  --serif:"Instrument Serif","Iowan Old Style","Palatino Linotype",Georgia,serif;
+  --sans:"Public Sans",-apple-system,"Helvetica Neue",Arial,sans-serif;
+  --mono:"JetBrains Mono","SF Mono",Menlo,Consolas,monospace;
+}
+@page{ size:A4; margin:15mm 14mm 16mm; }
+*{box-sizing:border-box}
+html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{margin:0;font-family:var(--sans);background:var(--paper);color:var(--ink);
+  font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased;font-size:9.6px}
+
+/* ---------- page furniture ---------- */
+.sheet{max-width:186mm;margin:0 auto}
+h1{font-family:var(--serif);font-weight:400;margin:0}
+h2{font-family:var(--serif);font-size:23px;font-weight:400;line-height:1.15;margin:0}
+p{margin:0}
+.sec{break-inside:avoid;margin-top:26px}
+.sec-head{display:flex;align-items:center;gap:11px;margin-bottom:11px}
+.sec-head .n{font:600 9px/1 var(--sans);letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3)}
+.sec-head .rule{flex:1;height:1px;background:var(--line)}
+.note{font:400 9.2px/1.62 var(--sans);color:var(--ink-2);max-width:150mm;margin-top:9px}
+.note b{color:var(--ink);font-weight:600}
+.note + .note{margin-top:6px}
+.lede{font:400 10.6px/1.6 var(--sans);color:var(--ink-2);max-width:150mm}
+code,.m{font-family:var(--mono);font-size:8.6px;color:var(--ink-2)}
+.break{break-before:page}
+
+/* ---------- cover ---------- */
+.cover{height:252mm;display:flex;flex-direction:column;justify-content:space-between;break-after:page}
+.cover .mark{display:flex;align-items:center;gap:10px}
+.cover .wordmark{font-family:var(--serif);font-size:26px;line-height:1}
+.cover .wordmark .tld{color:var(--ink-3)}
+.cover h1{font-size:66px;line-height:1.0;letter-spacing:-0.018em;max-width:150mm;text-wrap:balance}
+.cover .say{max-width:128mm}
+.cover .say p{font:400 12px/1.65 var(--sans);color:var(--ink-2);margin-top:20px}
+.cover .say p em{font-style:normal;color:var(--ink);font-weight:600}
+.coverfoot{display:flex;gap:34px;padding-top:18px;border-top:1px solid var(--line)}
+.coverfoot .b{max-width:52mm}
+.coverfoot .k{font:600 8.6px/1 var(--sans);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3)}
+.coverfoot .v{font:400 9.4px/1.5 var(--sans);color:var(--ink-2);margin-top:5px}
+.coverghost{position:relative}
+.coverghost svg{position:absolute;right:-26mm;bottom:-34mm;color:var(--ink);opacity:.045}
+
+/* ---------- swatches ---------- */
+.swatches{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
+.sw{display:flex;flex-direction:column;gap:5px;break-inside:avoid}
+.chip{height:42px;border-radius:7px;border:1px solid var(--line)}
+.sw .name{font:600 9.4px/1 var(--sans)}
+.sw .val{font:400 8.2px/1.35 var(--mono);color:var(--ink-3)}
+.sw .use{font:400 8.4px/1.4 var(--sans);color:var(--ink-2)}
+
+/* ---------- tables ---------- */
+table{width:100%;border-collapse:collapse;font-size:9.2px;margin-top:4px}
+th{text-align:left;font:600 8.4px/1 var(--sans);letter-spacing:.09em;text-transform:uppercase;
+  color:var(--ink-3);padding:8px 10px;background:var(--paper-3);border-bottom:1px solid var(--line)}
+td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:middle;color:var(--ink-2)}
+td:first-child{color:var(--ink);font-weight:600}
+tr:last-child td{border-bottom:0}
+.tablewrap{border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--paper-2);break-inside:avoid}
+
+/* ---------- code ---------- */
+pre{margin:0;padding:14px 16px;border:1px solid var(--line);border-radius:9px;background:var(--paper-2);
+  font:400 8.4px/1.72 var(--mono);color:var(--ink-2);overflow:hidden;break-inside:avoid}
+pre b{color:var(--ink);font-weight:500}
+pre i{color:var(--ink-3);font-style:normal}
+
+/* ---------- type ramp ---------- */
+.rrow{display:grid;grid-template-columns:112px minmax(0,1fr);gap:18px;align-items:baseline;
+  padding:9px 0;border-bottom:1px solid var(--line);break-inside:avoid}
+.rrow:last-child{border-bottom:0}
+.rmeta{font:400 8.2px/1.5 var(--mono);color:var(--ink-3)}
+.rmeta b{display:block;font:600 9px/1.4 var(--sans);color:var(--ink-2);letter-spacing:.05em;text-transform:uppercase}
+
+/* ---------- specimen rows ---------- */
+.spec{display:grid;grid-template-columns:104px minmax(0,1fr);gap:18px;align-items:center;
+  padding:10px 0;border-bottom:1px solid var(--line);break-inside:avoid}
+.spec:last-child{border-bottom:0}
+.spec > .lab{font:600 8.6px/1.35 var(--sans);letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3)}
+.bin{display:flex;flex-wrap:wrap;align-items:center;gap:7px}
+
+.pill{display:inline-flex;align-items:center;height:17px;padding:0 8px;border-radius:999px;
+  font:600 8.6px/1 var(--sans);letter-spacing:.02em}
+.pill-bookmarked{background:var(--paper-3);color:var(--ink-2)}
+.pill-applied{background:var(--spectre-t);color:var(--spectre)}
+.pill-interviewing{background:var(--ember-t);color:var(--ember)}
+.pill-offer{background:var(--vital-t);color:var(--vital)}
+.pill-rejected{background:var(--rose-t);color:var(--rose)}
+.pill-withdrawn{background:transparent;color:var(--ink-3);box-shadow:inset 0 0 0 1px var(--line-2)}
+
+.tag{display:inline-flex;align-items:center;height:16px;padding:0 7px;border-radius:4px;
+  font:500 8.4px/1 var(--sans);border:1px solid;white-space:nowrap}
+.tag-quiet{border-color:var(--line-2);color:var(--ink-2)}
+.tag-cold{border-color:var(--ember);background:var(--ember-t);color:var(--ember);font-weight:600}
+.tag-gone{border-color:var(--ink-3);border-style:dashed;color:var(--ink-2);font-weight:600}
+.tag-closing{border-color:var(--rose);background:var(--rose-t);color:var(--rose);font-weight:600}
+
+.cov{display:inline-flex;align-items:center;gap:5px;height:19px;padding:0 8px;border-radius:5px;
+  font:600 9px/1 var(--sans);border:1px solid;white-space:nowrap}
+.cov-have{border-color:var(--vital);background:var(--vital-t);color:var(--vital)}
+.cov-partial{border-color:var(--ember);background:var(--ember-t);color:var(--ember)}
+.cov-missing{border-color:var(--rose);background:var(--rose-t);color:var(--rose)}
+.cov .src{font-weight:400;opacity:.75;font-size:8.2px}
+.fit{display:inline-flex;align-items:center;gap:4px;font:500 8.8px/1 var(--sans);color:var(--ink-2)}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:26px;padding:0 11px;
+  border-radius:5px;font:600 9.6px/1 var(--sans);border:1px solid transparent}
+.btn-primary{background:var(--ink);color:var(--paper-2)}
+.btn-quiet{background:var(--paper-2);color:var(--ink-2);border-color:var(--line-2)}
+.btn-danger{background:transparent;color:var(--rose);border-color:var(--rose)}
+.btn-dim{opacity:.42}
+.btn-sm{height:22px;padding:0 9px;font-size:9px}
+
+.field{display:inline-flex;align-items:center;height:26px;border:1px solid var(--line-2);border-radius:5px;
+  background:var(--paper-2);color:var(--ink);font:400 9.6px/1 var(--sans);padding:0 9px;width:132px}
+.field.ph{color:var(--ink-3)}
+.field.focus{border-color:var(--spectre);box-shadow:0 0 0 2.5px var(--spectre-t)}
+.field.bad{border-color:var(--rose);box-shadow:0 0 0 2.5px var(--rose-t)}
+.icons{display:flex;flex-wrap:wrap;gap:13px;align-items:center;color:var(--ink-2)}
+
+/* ---------- cards / ladder ---------- */
+.ladder{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.rungwrap{display:flex;flex-direction:column;gap:7px;break-inside:avoid}
+.rungmeta{font:600 8.4px/1 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.rungmeta em{font-style:normal;font-weight:400;letter-spacing:0;text-transform:none;opacity:.8}
+.card{position:relative;overflow:hidden;display:flex;flex-direction:column;gap:2px;
+  padding:9px 10px 10px;border:1px solid var(--line);border-radius:9px;background:var(--paper-2)}
+.card .co{font:600 10px/1.3 var(--sans)}
+.card .ti{font:400 8.8px/1.35 var(--sans);color:var(--ink-2)}
+.card .marks{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin-top:6px}
+.card[data-tone="cold"]{border-color:var(--ember);border-style:dashed}
+.card[data-tone="gone"]{border-style:dashed;border-color:var(--line-2);background:transparent}
+.card[data-tone="gone"] .co{color:var(--ink-2)} .card[data-tone="gone"] .ti{color:var(--ink-3)}
+.haunt{position:absolute;right:-11px;bottom:-15px;color:var(--ink);opacity:.055}
+
+/* ---------- metrics ---------- */
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:start}
+.scale{display:flex;align-items:flex-end;gap:7px}
+.scale div{background:var(--spectre-t);border:1px solid var(--spectre);border-radius:3px;width:21px;
+  display:flex;align-items:flex-end;justify-content:center;padding-bottom:2px;
+  font:500 7.6px/1 var(--mono);color:var(--spectre)}
+.radii{display:flex;align-items:center;gap:10px}
+.radii div{width:60px;height:42px;white-space:nowrap;background:var(--paper-3);border:1px solid var(--line-2);
+  display:flex;align-items:center;justify-content:center;font:500 7.4px/1 var(--mono);color:var(--ink-3)}
+
+/* ---------- voice ---------- */
+.voice{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:start}
+.vcol{border:1px solid var(--line);border-radius:10px;background:var(--paper-2);padding:14px 15px;break-inside:avoid}
+.vcol[data-kind="cold"]{border-color:var(--line-2);border-style:dashed;background:transparent}
+.vhead{font:600 8.6px/1 var(--sans);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);margin-bottom:9px}
+.quote{padding:8px 0;border-top:1px solid var(--line)}
+.quote:first-of-type{border-top:0;padding-top:0}
+.quote .t{font-family:var(--serif);font-size:15px;line-height:1.2}
+.quote .b{font:400 8.8px/1.55 var(--sans);color:var(--ink-2);margin-top:4px}
+.quote .b b{color:var(--ink);font-weight:600}
+
+/* ---------- states ---------- */
+.states{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}
+.frame{border:1px solid var(--line);border-radius:10px;background:var(--paper-2);padding:7px;break-inside:avoid}
+.empty{display:flex;flex-direction:column;align-items:center;gap:7px;padding:26px 20px;text-align:center;
+  border:1px dashed var(--line-2);border-radius:8px}
+.empty h3{font-family:var(--serif);font-size:19px;font-weight:400;margin:0;line-height:1.1}
+.empty p{font:400 9px/1.55 var(--sans);color:var(--ink-2);max-width:64mm}
+.empty .ghost{color:var(--ink-3);opacity:.5}
+.failure{display:flex;gap:10px;align-items:flex-start;padding:12px 13px;border:1px solid var(--rose);
+  background:var(--rose-t);border-radius:8px}
+.failure h4{margin:0;font:600 10px/1.4 var(--sans);color:var(--rose)}
+.failure p{font:400 8.8px/1.55 var(--sans);color:var(--ink-2);margin-top:4px}
+.failure .acts{margin-top:9px;display:flex;gap:7px}
+.skelwrap{display:flex;flex-direction:column;gap:6px;padding:12px}
+.skel{background:var(--line);border-radius:4px}
+.loadline{font:400 8.8px/1 var(--sans);color:var(--ink-3);margin-bottom:4px}
+
+/* ---------- layout diagram ---------- */
+.wire{border:1px solid var(--line);border-radius:9px;background:var(--paper-2);overflow:hidden;break-inside:avoid}
+.wire .wbar{height:16px;background:var(--paper-3);border-bottom:1px solid var(--line);display:flex;
+  align-items:center;padding:0 8px;font:600 7.4px/1 var(--sans);color:var(--ink-3);letter-spacing:.08em}
+.wire .wbody{padding:9px;display:flex;flex-direction:column;gap:7px}
+.wtally{height:15px;width:62%;background:var(--paper-3);border-radius:3px}
+.wtools{display:flex;gap:5px}
+.wtools div{height:11px;background:var(--paper-3);border-radius:3px}
+.wcols{display:grid;grid-template-columns:repeat(6,1fr);gap:5px}
+.wcol{display:flex;flex-direction:column;gap:4px}
+.wch{height:1.5px;background:var(--line-2)}
+.wcard{height:22px;border:1px solid var(--line);border-radius:5px;background:var(--paper)}
+.wcard[data-tone="cold"]{border-color:var(--ember);border-style:dashed}
+.wcard[data-tone="gone"]{border-style:dashed;border-color:var(--line-2);background:transparent}
+.wsplit{display:grid;grid-template-columns:minmax(0,1fr) 96px;gap:7px}
+.wpanel{border:1px solid var(--line);border-radius:6px;background:var(--paper);height:100%;padding:6px;
+  display:flex;flex-direction:column;gap:4px}
+.wline{height:5px;background:var(--paper-3);border-radius:2px}
+.wlabel{font:600 7.2px/1 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.figcap{font:400 8.4px/1.5 var(--sans);color:var(--ink-3);margin-top:6px}
+</style>
+</head>
+<body>
+<div class="sheet">
+
+<!-- ============================ COVER ============================ -->
+<section class="cover">
+  <div class="mark">
+    <svg width="23" height="23" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M4 21V10a8 8 0 0 1 16 0v11 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"></path>
+      <circle cx="9.2" cy="10.8" r="1.15" fill="currentColor"></circle>
+      <circle cx="14.8" cy="10.8" r="1.15" fill="currentColor"></circle>
+    </svg>
+    <span class="wordmark">ghosted<span class="tld">.boo</span></span>
+  </div>
+
+  <div class="say coverghost">
+    <h1>Silence is the subject.</h1>
+    <p>Status is what the user sets. Silence is what happened to them. This system gives silence its own scale, its own colour and its own way of fading a card toward the page — and keeps it visually separate from Status, so the two never argue.</p>
+    <p>One accent hue for the brand and three for meaning, all at the same lightness and chroma, so <em>no status can win an argument by being brighter</em>. Two faces: a high-contrast serif for numbers and headlines, a plain grotesque for everything you actually read.</p>
+    <svg width="290" height="290" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M4 21V10a8 8 0 0 1 16 0v11 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 Z"></path>
+    </svg>
+  </div>
+
+  <div class="coverfoot">
+    <div class="b"><div class="k">Document</div><div class="v">Design system for the job tracker web app, extension side panel and shared UI package.</div></div>
+    <div class="b"><div class="k">Source of truth</div><div class="v">docs/design-system.md, and one @theme block in packages/tailwind-config.</div></div>
+    <div class="b"><div class="k">Drawn version</div><div class="v">The canvas in .scratch/design-ghosted-boo — board, detail, states, sign-in, side panel, parts list.</div></div>
+    <div class="b"><div class="k">Date</div><div class="v">7 September 2026</div></div>
+  </div>
+</section>
+
+<!-- ============================ TOKENS ============================ -->
+<section class="sec" style="margin-top:0">
+  <h2>Tokens</h2>
+  <p class="lede" style="margin-top:7px">All of it comes out of one <code>@theme</code> block in <code>packages/tailwind-config/shared-styles.css</code>, which both <code>apps/web</code> and <code>packages/ui</code> import — so <code>StatusBadge</code> and the web app cannot drift.</p>
+</section>
+
+<section class="sec">
+  <div class="sec-head"><span class="n">Ground and ink</span><div class="rule"></div></div>
+  <div class="swatches">
+    <div class="sw"><div class="chip" style="background:var(--paper)"></div><span class="name">paper</span><span class="val">oklch(.972 .006 285)</span><span class="use">Page ground</span></div>
+    <div class="sw"><div class="chip" style="background:var(--paper-2)"></div><span class="name">paper-raised</span><span class="val">oklch(.998 .002 285)</span><span class="use">Cards, panels, fields, app bar</span></div>
+    <div class="sw"><div class="chip" style="background:var(--paper-3)"></div><span class="name">paper-sunk</span><span class="val">oklch(.951 .008 285)</span><span class="use">Panel and table headers, row hover</span></div>
+    <div class="sw"><div class="chip" style="background:var(--line)"></div><span class="name">line</span><span class="val">oklch(.905 .008 285)</span><span class="use">Borders, dividers</span></div>
+    <div class="sw"><div class="chip" style="background:var(--line-2)"></div><span class="name">line-strong</span><span class="val">oklch(.858 .010 285)</span><span class="use">Control borders, column rules</span></div>
+    <div class="sw"><div class="chip" style="background:var(--ink-3)"></div><span class="name">ink-faint</span><span class="val">oklch(.530 .014 285)</span><span class="use">Meta, placeholders</span></div>
+    <div class="sw"><div class="chip" style="background:var(--ink-2)"></div><span class="name">ink-muted</span><span class="val">oklch(.420 .018 285)</span><span class="use">Secondary text, body prose</span></div>
+    <div class="sw"><div class="chip" style="background:var(--ink)"></div><span class="name">ink</span><span class="val">oklch(.215 .022 285)</span><span class="use">Primary text, primary button fill</span></div>
+  </div>
+  <p class="note">Every neutral carries the same <b>285° hue</b> at very low chroma, so the greys read as a cool bone-white paper rather than as switched-off colour.</p>
+  <p class="note"><b>Never use opacity to dim text.</b> It double-dims over a tinted background and cannot be tuned per surface — that is why the badges and the failure banner currently look muddier than they should. Use <code>ink-muted</code> / <code>ink-faint</code>.</p>
+</section>
+
+<section class="sec">
+  <div class="sec-head"><span class="n">Accents — one brand hue, three semantics</span><div class="rule"></div></div>
+  <div class="swatches">
+    <div class="sw"><div class="chip" style="background:var(--spectre)"></div><span class="name">spectre · 298°</span><span class="val">oklch(.520 .120 298)</span><span class="use">Brand, Applied, links, focus ring</span></div>
+    <div class="sw"><div class="chip" style="background:var(--ember)"></div><span class="name">ember · 62°</span><span class="val">oklch(.520 .120 62)</span><span class="use">Interviewing, going cold, partial, excitement</span></div>
+    <div class="sw"><div class="chip" style="background:var(--vital)"></div><span class="name">vital · 152°</span><span class="val">oklch(.520 .120 152)</span><span class="use">Offer, Coverage you have</span></div>
+    <div class="sw"><div class="chip" style="background:var(--rose)"></div><span class="name">rose · 18°</span><span class="val">oklch(.520 .120 18)</span><span class="use">Rejected, missing, closing, destructive</span></div>
+    <div class="sw"><div class="chip" style="background:var(--spectre-t)"></div><span class="name">spectre-tint</span><span class="val">oklch(.945 .032 298)</span><span class="use">The same hue as a fill</span></div>
+    <div class="sw"><div class="chip" style="background:var(--ember-t)"></div><span class="name">ember-tint</span><span class="val">oklch(.951 .036 68)</span><span class="use">The same hue as a fill</span></div>
+    <div class="sw"><div class="chip" style="background:var(--vital-t)"></div><span class="name">vital-tint</span><span class="val">oklch(.949 .036 155)</span><span class="use">The same hue as a fill</span></div>
+    <div class="sw"><div class="chip" style="background:var(--rose-t)"></div><span class="name">rose-tint</span><span class="val">oklch(.953 .030 20)</span><span class="use">The same hue as a fill</span></div>
+  </div>
+  <p class="note">All four accents sit at <b>L 0.52 / C 0.12</b> and differ only in hue, so a green badge and a red badge carry exactly the same visual weight and no Status can win an argument by being brighter.</p>
+  <p class="note"><b>0.12 is the ceiling, not a preference.</b> It is the most these four hues can hold at that lightness and stay inside sRGB. Push it and the browser silently clips ember and vital, shifting their hue without telling you. Each accent reads at <b>4.5:1 or better on its own tint</b>.</p>
+</section>
+
+<section class="sec">
+  <div class="sec-head"><span class="n">Dark</span><div class="rule"></div></div>
+  <p class="note" style="margin-top:0">The same table with paper and ink swapped and the accents lifted to <b>L 0.735 / C 0.145</b> — same four hues, so no component has to know which theme it is in.</p>
+  <pre style="margin-top:9px"><b>--paper</b> 0.183 0.018 288   <b>--paper-raised</b> 0.228 0.020 288  <b>--paper-sunk</b> 0.268 0.020 288
+<b>--ink</b>   0.958 0.005 288   <b>--ink-muted</b>    0.755 0.014 288  <b>--ink-faint</b>  0.620 0.016 288
+<b>--line</b>  0.318 0.018 288   <b>--line-strong</b>  0.382 0.020 288
+<b>accents</b>  spectre / ember / vital / rose      oklch(0.735 0.145 &lt;hue&gt;)
+<b>tints</b>    spectre 0.315 0.058 298 · ember 0.300 0.052 62
+         vital   0.292 0.052 152 · rose  0.308 0.058 18</pre>
+</section>
+
+<section class="sec break">
+  <div class="sec-head"><span class="n">The @theme block</span><div class="rule"></div></div>
+  <pre><i>/* packages/tailwind-config/shared-styles.css — replaces the three orphan</i>
+<i>   --color-*-1000 values left over from the create-turbo starter */</i>
+@import "tailwindcss";
+
+@theme {
+  <b>--color-paper</b>:        oklch(0.972 0.006 285);
+  <b>--color-paper-raised</b>: oklch(0.998 0.002 285);
+  <b>--color-paper-sunk</b>:   oklch(0.951 0.008 285);
+  <b>--color-line</b>:         oklch(0.905 0.008 285);
+  <b>--color-line-strong</b>:  oklch(0.858 0.010 285);
+  <b>--color-ink</b>:          oklch(0.215 0.022 285);
+  <b>--color-ink-muted</b>:    oklch(0.420 0.018 285);
+  <b>--color-ink-faint</b>:    oklch(0.530 0.014 285);
+
+  <b>--color-spectre</b>:      oklch(0.520 0.120 298);   <i>/* brand · Applied */</i>
+  <b>--color-spectre-tint</b>: oklch(0.945 0.032 298);
+  <b>--color-ember</b>:        oklch(0.520 0.120 62);    <i>/* Interviewing · going cold */</i>
+  <b>--color-ember-tint</b>:   oklch(0.951 0.036 68);
+  <b>--color-vital</b>:        oklch(0.520 0.120 152);   <i>/* Offer · have it */</i>
+  <b>--color-vital-tint</b>:   oklch(0.949 0.036 155);
+  <b>--color-rose</b>:         oklch(0.520 0.120 18);    <i>/* Rejected · missing */</i>
+  <b>--color-rose-tint</b>:    oklch(0.953 0.030 20);
+
+  <b>--font-display</b>: "Instrument Serif", "Iowan Old Style", Georgia, serif;
+  <b>--radius-tag</b>: 4px;  <b>--radius-control</b>: 5px;
+  <b>--radius-card</b>: 9px; <b>--radius-panel</b>: 11px;
+}</pre>
+  <p class="note">The starter body gradient in <code>apps/web/app/globals.css</code> goes with it.</p>
+</section>
+
+<!-- ============================ TYPE ============================ -->
+<section class="sec">
+  <h2>Type</h2>
+  <div class="sec-head" style="margin-top:11px"><span class="n">The ramp</span><div class="rule"></div></div>
+  <div>
+    <div class="rrow"><div class="rmeta"><b>Display</b>Instrument Serif · 48/1.02</div><div style="font-family:var(--serif);font-size:38px;line-height:1.02;letter-spacing:-.015em">Stripe</div></div>
+    <div class="rrow"><div class="rmeta"><b>Statement</b>Instrument Serif · 37/1.12</div><div style="font-family:var(--serif);font-size:29px;line-height:1.12">14 tracked. 3 have gone quiet.</div></div>
+    <div class="rrow"><div class="rmeta"><b>Section</b>Instrument Serif · 26/1.15</div><div style="font-family:var(--serif);font-size:20px;line-height:1.15">Nothing out there yet.</div></div>
+    <div class="rrow"><div class="rmeta"><b>Title</b>Public Sans 600 · 14/1.3</div><div style="font:600 11px/1.3 var(--sans)">Senior Product Engineer</div></div>
+    <div class="rrow"><div class="rmeta"><b>Body</b>Public Sans 400 · 13.5/1.55</div><div style="font:400 10.5px/1.55 var(--sans);max-width:118mm">The Posting asks for services that survive a region going down. Your CV describes queue-backed workers and a read replica.</div></div>
+    <div class="rrow"><div class="rmeta"><b>Meta</b>Public Sans 400 · 12/1.4</div><div style="font:400 9.4px/1.4 var(--sans);color:var(--ink-3)">Saved 14 Aug · applied 15 Aug · last changed 3 Sep</div></div>
+    <div class="rrow"><div class="rmeta"><b>Eyebrow</b>Public Sans 600 · 10.5, .09em caps</div><div style="font:600 8.4px/1 var(--sans);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-2)">Requirements</div></div>
+  </div>
+  <p class="note"><b>Instrument Serif has one weight.</b> Never let a browser synthesise bold on it — headline emphasis comes from colour and size, never a heavier cut. Public Sans is the workhorse and is metric-compatible enough with the <b>Geist</b> already installed in <code>apps/web/app/layout.tsx</code> that Geist can stay for UI if you would rather ship only the one new font. <code>font-variant-numeric: tabular-nums</code> on <code>body</code>, everywhere — counts must not shuffle as they change.</p>
+</section>
+
+<!-- ============================ METRICS ============================ -->
+<section class="sec">
+  <h2>Metrics</h2>
+  <div class="two" style="margin-top:11px">
+    <div>
+      <div class="sec-head"><span class="n">Spacing · 4px base</span><div class="rule"></div></div>
+      <div class="scale">
+        <div style="height:5px">4</div><div style="height:9px">8</div><div style="height:13px">12</div>
+        <div style="height:17px">16</div><div style="height:23px">22</div><div style="height:34px">34</div>
+        <div style="height:47px">48</div><div style="height:62px">64</div>
+      </div>
+      <p class="note">Card padding 12, panel padding 18, page gutter 64, section gap 20–34.</p>
+    </div>
+    <div>
+      <div class="sec-head"><span class="n">Radii</span><div class="rule"></div></div>
+      <div class="radii">
+        <div style="border-radius:4px">4 · tag</div>
+        <div style="border-radius:5px">5 · control</div>
+        <div style="border-radius:9px">9 · card</div>
+        <div style="border-radius:11px">11 · panel</div>
+        <div style="border-radius:999px">999 · pill</div>
+      </div>
+      <p class="note">Tighter than the <code>rounded-md</code> used today. Controls 34px tall (28 small, 40–42 on sign-in); <b>every hit target on a phone stays at 44px</b>.</p>
+    </div>
+  </div>
+  <p class="note"><b>Focus</b> is <code>border-color: spectre</code> plus <code>box-shadow: 0 0 0 3px spectre-tint</code> on fields, and <code>outline: 2px solid spectre; outline-offset: 2px</code> on cards and icon buttons. Never remove it.</p>
+</section>
+
+<!-- ============================ COMPONENTS ============================ -->
+<section class="sec break">
+  <h2>Components</h2>
+  <p class="lede" style="margin-top:7px">The Status pill and the silence tag are deliberately different shapes — round versus rectangular — so the two axes never read as one thing.</p>
+</section>
+
+<section class="sec">
+  <div class="sec-head"><span class="n">The parts</span><div class="rule"></div></div>
+  <div>
+    <div class="spec"><span class="lab">Status</span><div class="bin">
+      <span class="pill pill-bookmarked">Bookmarked</span><span class="pill pill-applied">Applied</span>
+      <span class="pill pill-interviewing">Interviewing</span><span class="pill pill-offer">Offer</span>
+      <span class="pill pill-rejected">Rejected</span><span class="pill pill-withdrawn">Withdrawn</span>
+    </div></div>
+    <div class="spec"><span class="lab">Silence</span><div class="bin">
+      <span class="tag tag-quiet">Quiet · 12d</span><span class="tag tag-cold">Going cold · 34d</span>
+      <span class="tag tag-gone">Ghosted · 61d</span><span class="tag tag-closing">Closes in 3d</span>
+    </div></div>
+    <div class="spec"><span class="lab">Coverage</span><div class="bin">
+      <span class="cov cov-have">Have it</span>
+      <span class="cov cov-partial">Partly<span class="src">· analysed</span></span>
+      <span class="cov cov-missing">Missing</span>
+      <span class="cov cov-have">Have it<span class="src">· yours</span></span>
+      <span class="fit" style="margin-left:4px">
+        <svg width="13" height="13" viewBox="0 0 20 20" aria-hidden="true">
+          <circle cx="10" cy="10" r="8" fill="none" stroke="var(--line-2)" stroke-width="4"></circle>
+          <circle cx="10" cy="10" r="8" fill="none" stroke="var(--vital)" stroke-width="4"
+            stroke-dasharray="50.27" stroke-dashoffset="11.2" stroke-linecap="butt" transform="rotate(-90 10 10)"></circle>
+        </svg>7/9</span>
+      <span class="fit">
+        <svg width="13" height="13" viewBox="0 0 20 20" aria-hidden="true">
+          <circle cx="10" cy="10" r="8" fill="none" stroke="var(--line-2)" stroke-width="4"></circle>
+          <circle cx="10" cy="10" r="8" fill="none" stroke="var(--ember)" stroke-width="4"
+            stroke-dasharray="50.27" stroke-dashoffset="18.9" stroke-linecap="butt" transform="rotate(-90 10 10)"></circle>
+        </svg>5/8</span>
+      <span class="fit">
+        <svg width="13" height="13" viewBox="0 0 20 20" aria-hidden="true">
+          <circle cx="10" cy="10" r="8" fill="none" stroke="var(--line-2)" stroke-width="4"></circle>
+          <circle cx="10" cy="10" r="8" fill="none" stroke="var(--rose)" stroke-width="4"
+            stroke-dasharray="50.27" stroke-dashoffset="27.9" stroke-linecap="butt" transform="rotate(-90 10 10)"></circle>
+        </svg>4/9</span>
+    </div></div>
+    <div class="spec"><span class="lab">Buttons</span><div class="bin">
+      <span class="btn btn-primary">Save changes</span>
+      <span class="btn btn-quiet">Run it again</span>
+      <span class="btn btn-danger btn-sm">Delete</span>
+      <span class="btn btn-primary btn-dim">Saving…</span>
+    </div></div>
+    <div class="spec"><span class="lab">Fields</span><div class="bin">
+      <span class="field ph">Company or job title</span>
+      <span class="field focus">Stripe</span>
+      <span class="field bad"></span>
+      <span style="font:400 9px/1.4 var(--sans);color:var(--rose)">Company is required.</span>
+    </div></div>
+    <div class="spec"><span class="lab">Icons · 24 grid</span><div class="icons">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 21V10a8 8 0 0 1 16 0v11 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"></path><circle cx="9.2" cy="10.8" r="1.15" fill="currentColor"></circle><circle cx="14.8" cy="10.8" r="1.15" fill="currentColor"></circle></svg>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v5H4z"></path><path d="M4 13h9v7H4z"></path><path d="M17 13h3v7h-3z"></path></svg>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6"></path><path d="M20 4l-9 9"></path><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"></path></svg>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M12 8v5"></path><path d="M12 16.5v.01"></path><circle cx="12" cy="12" r="9"></circle></svg>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7.5V12l3 2"></path></svg>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8.2 12.3 2.6 2.6 5-5.4"></path><circle cx="12" cy="12" r="9"></circle></svg>
+      <span class="note" style="margin:0 0 0 3px">1.7px stroke, round caps, <code>currentColor</code>, no fills except the ghost's eyes. Never emoji.</span>
+    </div></div>
+  </div>
+</section>
+
+<section class="sec">
+  <div class="sec-head"><span class="n">Status pill — the only thing carrying Status colour</span><div class="rule"></div></div>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Status</th><th>Fill</th><th>Text</th></tr></thead>
+      <tbody>
+        <tr><td>Bookmarked</td><td>paper-sunk</td><td>ink-muted</td></tr>
+        <tr><td>Applied</td><td>spectre-tint</td><td>spectre</td></tr>
+        <tr><td>Interviewing</td><td>ember-tint</td><td>ember</td></tr>
+        <tr><td>Offer</td><td>vital-tint</td><td>vital</td></tr>
+        <tr><td>Rejected</td><td>rose-tint</td><td>rose</td></tr>
+        <tr><td>Withdrawn</td><td>transparent, 1px line-strong inset ring</td><td>ink-faint</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="sec break">
+  <div class="sec-head"><span class="n">The silence ladder</span><div class="rule"></div></div>
+  <div class="ladder">
+    <div class="rungwrap">
+      <div class="rungmeta">Fresh <em>· 0–7 days</em></div>
+      <div class="card"><span class="co">Anthropic</span><span class="ti">Research Engineer</span>
+        <div class="marks"><span class="fit"><svg width="13" height="13" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="none" stroke="var(--line-2)" stroke-width="4"></circle><circle cx="10" cy="10" r="8" fill="none" stroke="var(--vital)" stroke-width="4" stroke-dasharray="50.27" stroke-dashoffset="11.2" stroke-linecap="butt" transform="rotate(-90 10 10)"></circle></svg>7/9</span></div>
+      </div>
+      <div class="rungmeta" style="font-weight:400;letter-spacing:0;text-transform:none;color:var(--ink-3)">No tag at all.</div>
+    </div>
+    <div class="rungwrap">
+      <div class="rungmeta">Quiet <em>· 8–20 days</em></div>
+      <div class="card"><span class="co">Vercel</span><span class="ti">Developer Experience Engineer</span>
+        <div class="marks"><span class="fit"><svg width="13" height="13" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="none" stroke="var(--line-2)" stroke-width="4"></circle><circle cx="10" cy="10" r="8" fill="none" stroke="var(--vital)" stroke-width="4" stroke-dasharray="50.27" stroke-dashoffset="5.6" stroke-linecap="butt" transform="rotate(-90 10 10)"></circle></svg>8/9</span><span class="tag tag-quiet">Quiet · 12d</span></div>
+      </div>
+      <div class="rungmeta" style="font-weight:400;letter-spacing:0;text-transform:none;color:var(--ink-3)">Bordered tag, no colour yet.</div>
+    </div>
+    <div class="rungwrap">
+      <div class="rungmeta">Going cold <em>· 21–44 days</em></div>
+      <div class="card" data-tone="cold"><span class="co">Stripe</span><span class="ti">Senior Product Engineer</span>
+        <div class="marks"><span class="fit"><svg width="13" height="13" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="none" stroke="var(--line-2)" stroke-width="4"></circle><circle cx="10" cy="10" r="8" fill="none" stroke="var(--ember)" stroke-width="4" stroke-dasharray="50.27" stroke-dashoffset="18.9" stroke-linecap="butt" transform="rotate(-90 10 10)"></circle></svg>5/8</span><span class="tag tag-cold">Going cold · 34d</span></div>
+      </div>
+      <div class="rungmeta" style="font-weight:400;letter-spacing:0;text-transform:none;color:var(--ink-3)">Dashed ember border on the card.</div>
+    </div>
+    <div class="rungwrap">
+      <div class="rungmeta">Ghosted <em>· 45 days and up</em></div>
+      <div class="card" data-tone="gone">
+        <svg class="haunt" width="62" height="62" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 21V10a8 8 0 0 1 16 0v11 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 Z"></path></svg>
+        <span class="co">Figma</span><span class="ti">Product Designer</span>
+        <div class="marks"><span class="fit"><svg width="13" height="13" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="none" stroke="var(--line-2)" stroke-width="4"></circle><circle cx="10" cy="10" r="8" fill="none" stroke="var(--rose)" stroke-width="4" stroke-dasharray="50.27" stroke-dashoffset="27.9" stroke-linecap="butt" transform="rotate(-90 10 10)"></circle></svg>4/9</span><span class="tag tag-gone">Ghosted · 61d</span></div>
+      </div>
+      <div class="rungmeta" style="font-weight:400;letter-spacing:0;text-transform:none;color:var(--ink-3)">Card fades toward the page; ghost at 5%.</div>
+    </div>
+  </div>
+  <p class="note">Silence is counted from the last thing that actually happened, and applies only where the user is waiting on somebody — an <b>Applied</b> or <b>Interviewing</b> Job Application. A Bookmarked one has nobody to hear from; an Offer, a Rejection or a Withdrawal has already been answered. A closing date takes the tag slot when there is no silence to report.</p>
+  <p class="note">The card fades toward the page as silence grows — <b>it never turns red. Ghosting is an absence, not an error.</b></p>
+</section>
+
+<!-- ============================ LAYOUT ============================ -->
+<section class="sec">
+  <h2>Layout</h2>
+  <div class="two" style="margin-top:11px">
+    <div>
+      <div class="wire">
+        <div class="wbar">GHOSTED.BOO</div>
+        <div class="wbody">
+          <div class="wtally"></div>
+          <div class="wtools"><div style="flex:0 0 60px"></div><div style="flex:0 0 34px"></div><div style="flex:0 0 52px"></div><div style="flex:1"></div><div style="flex:0 0 40px"></div></div>
+          <div class="wcols">
+            <div class="wcol"><div class="wch"></div><div class="wcard"></div><div class="wcard"></div></div>
+            <div class="wcol"><div class="wch"></div><div class="wcard"></div><div class="wcard" data-tone="cold"></div><div class="wcard" data-tone="gone"></div></div>
+            <div class="wcol"><div class="wch"></div><div class="wcard"></div><div class="wcard" data-tone="cold"></div></div>
+            <div class="wcol"><div class="wch"></div><div class="wcard"></div></div>
+            <div class="wcol"><div class="wch"></div><div class="wcard"></div></div>
+            <div class="wcol"><div class="wch"></div><div class="wcard"></div></div>
+          </div>
+        </div>
+      </div>
+      <p class="figcap">Board — tally, toolbar, count line, six columns at <code>minmax(0,1fr)</code>, 14px gap, 8px between cards.</p>
+    </div>
+    <div>
+      <div class="wire">
+        <div class="wbar">JOB APPLICATION</div>
+        <div class="wbody">
+          <div class="wtally" style="width:44%"></div>
+          <div class="wsplit">
+            <div class="wpanel">
+              <span class="wlabel">Fit &amp; requirements</span>
+              <div class="wline" style="width:80%"></div><div class="wline"></div><div class="wline" style="width:66%"></div>
+              <div class="wline"></div><div class="wline" style="width:74%"></div><div class="wline" style="width:52%"></div>
+            </div>
+            <div class="wpanel">
+              <span class="wlabel">Record</span>
+              <div class="wline"></div><div class="wline"></div><div class="wline" style="width:70%"></div>
+              <div class="wline"></div><div class="wline" style="width:60%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="figcap">Job Application — <code>minmax(0,1fr) 396px</code>. Left is what you came to read; right is the record and the machinery.</p>
+    </div>
+  </div>
+  <p class="note"><b>App bar</b> 60px, paper-raised, 1px line bottom, 64px gutters. Wordmark left (<code>ghosted</code> in ink, <code>.boo</code> in ink-faint), Your Profile / Track a job / avatar right.</p>
+  <p class="note"><b>The tally</b> is the statement serif and the app's only piece of first-person arithmetic — <i>"14 tracked. 6 still in the air. 3 have gone quiet on you."</i> The quiet number is spectre; the words around the numbers are ink-faint.</p>
+  <p class="note"><b>Table view</b> is the same data in a radius-10 wrap with a paper-sunk header. It exists because six columns stop working around fifty Job Applications. <b>The side panel</b> is 400px of the same system one step down: 48px bar, 14px padding, 32px fields — and a field the extension read off the Posting carries a 2.5px spectre left border, so what was read is distinguishable from what was typed.</p>
+</section>
+
+<!-- ============================ VOICE ============================ -->
+<section class="sec break">
+  <h2>Voice</h2>
+  <p class="lede" style="margin-top:7px">Dry, never chirpy — and it stops being funny the moment the user has a problem to solve.</p>
+  <div class="voice" style="margin-top:13px">
+    <div class="vcol">
+      <div class="vhead">The wit lives here</div>
+      <div class="quote"><div class="t">Nothing out there yet.</div><div class="b">Track your first job and the board fills itself in. Or open the extension on a Posting you are already reading and save it from the page.</div></div>
+      <div class="quote"><div class="t">No sign of it.</div><div class="b">No Job Application at that Status carries what you searched for. The filters are doing more work than you meant them to.</div></div>
+      <div class="quote"><div class="t">Nobody is ignoring you.</div><div class="b">Every job you are waiting on has been heard from in the last week. Enjoy it — this is not the usual state of affairs.</div></div>
+    </div>
+    <div class="vcol" data-kind="cold">
+      <div class="vhead">And nowhere near here</div>
+      <div class="quote"><div class="b" style="margin-top:0"><b>Could not load the latest Job Applications.</b> The board below is the last good copy, from four minutes ago. Anything you change now may not save.</div></div>
+      <div class="quote"><div class="b"><b>Deleting this Job Application</b> removes its Requirements, its Coverage and its Analysis. It cannot be undone.</div></div>
+      <div class="quote"><div class="b"><b>Analysing costs one credit</b> and takes about ten seconds.</div></div>
+      <div class="quote"><div class="b" style="color:var(--ink-3)">Errors, destructive confirmations and anything about money or data say plainly what happened, what state things are in now, and what to press.</div></div>
+    </div>
+  </div>
+  <p class="note">Use the domain words from <code>CONTEXT.md</code> in the UI, capitalised as it capitalises them: Posting, Job Application, Status, Profile, Requirement, Coverage, Analysis.</p>
+  <p class="note">Never imply the user is owed a reply — <i>"Nobody owes you a reply — but it helps to know who is not sending one."</i> The app speaks first at most once a week, in the nudge above the board, and only ever offers to take the user somewhere. <b>It never sets a Status on their behalf</b> — Status is set by the user and never inferred.</p>
+</section>
+
+<!-- ============================ STATES ============================ -->
+<section class="sec">
+  <h2>States</h2>
+  <div class="states" style="margin-top:11px">
+    <div class="frame">
+      <div class="empty">
+        <svg class="ghost" width="31" height="31" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 21V10a8 8 0 0 1 16 0v11 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-dasharray="3 3"></path></svg>
+        <h3>Nothing out there yet.</h3>
+        <p>Track your first job and the board fills itself in.</p>
+        <div class="bin" style="margin-top:2px"><span class="btn btn-primary btn-sm">Track a job</span><span class="btn btn-quiet btn-sm">Get the extension</span></div>
+      </div>
+    </div>
+    <div class="frame">
+      <div class="failure">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--rose)" stroke-width="1.7" stroke-linecap="round" style="flex-shrink:0" aria-hidden="true"><path d="M12 8v5"></path><path d="M12 16.5v.01"></path><circle cx="12" cy="12" r="9"></circle></svg>
+        <div>
+          <h4>Could not load the latest Job Applications.</h4>
+          <p>The board below is the last good copy, from four minutes ago. Anything you change now may not save.</p>
+          <div class="acts"><span class="btn btn-quiet btn-sm">Try again</span><span class="btn btn-quiet btn-sm">Dismiss</span></div>
+        </div>
+      </div>
+      <div class="skelwrap">
+        <p class="loadline">Loading your Job Applications…</p>
+        <div class="skel" style="height:9px;width:62%"></div>
+        <div class="skel" style="height:9px;width:88%;opacity:.72"></div>
+        <div class="skel" style="height:9px;width:44%;opacity:.5"></div>
+      </div>
+    </div>
+  </div>
+  <p class="note"><b>Loading</b> is a skeleton (line fill, 1.8s opacity pulse 1 → 0.45) <i>plus</i> a written line, because a skeleton is furniture to a screen reader. <b>Failure</b> is a rose border on rose-tint with a 13.5/600 rose heading, the plain explanation in ink-muted, and two buttons. <b>Empty</b> is a dashed line-strong frame, the dashed ghost, a serif line at 26px, one sentence of body and at most two quiet buttons. The count line under the toolbar is <code>aria-live="polite"</code>.</p>
+</section>
+
+<!-- ============================ A11Y ============================ -->
+<section class="sec">
+  <h2>Accessibility</h2>
+  <div class="tablewrap" style="margin-top:11px">
+    <table>
+      <tbody>
+        <tr><td style="width:36%">Contrast</td><td>Each accent reads at 4.5:1 or better on its own tint.</td></tr>
+        <tr><td>Colour is never alone</td><td>Every badge says its reading in words as well — "Going cold · 34d", not an amber dot.</td></tr>
+        <tr><td>Silence, three ways</td><td>The tag's words, the tag's colour, and the card's fade. Any one alone is enough to sort by.</td></tr>
+        <tr><td>Everything is reachable</td><td>Every card and row is a real link or button, focusable, with a visible focus ring.</td></tr>
+        <tr><td>Drag is an enhancement</td><td>Drag-to-move on the board sits over a Status select — never the only way to change a Status.</td></tr>
+        <tr><td>Never opacity for text</td><td>Dimming is a token choice (ink-muted / ink-faint), so it can be tuned per surface.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="sec" style="margin-top:30px">
+  <div class="sec-head"><span class="n">End</span><div class="rule"></div></div>
+  <p class="note" style="margin-top:0">Written from the canvas in <code>.scratch/design-ghosted-boo</code>. The prose version, which is the one to edit, is <code>docs/design-system.md</code>.</p>
+</section>
+
+</div>
+</body>
+</html>

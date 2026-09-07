@@ -1,0 +1,21 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html",   "x": 0,    "y": 0,    "w": 1440, "h": 1060, "title": "Board", "is_interactive": true },
+    { "file": "Detail.dc.html", "x": 0,    "y": 1540, "w": 1440, "h": 1640, "title": "Job Application", "is_interactive": true },
+    { "file": "SignIn.dc.html", "x": 0,    "y": 3380, "w": 1440, "h": 900,  "title": "Sign in" },
+    { "file": "States.dc.html", "x": 1560, "y": 0,    "w": 1180, "h": 1620, "title": "Empty & silence states" },
+    { "file": "Panel.dc.html",  "x": 1560, "y": 1900, "w": 400,  "h": 900,  "title": "Extension side panel" },
+    { "file": "System.dc.html", "x": 2860, "y": 0,    "w": 1180, "h": 2560, "title": "Parts list" }
+  ],
+  "annotations": [
+    { "id": "board", "x": 0, "y": -290, "w": 460,
+      "text": "THE BOARD — the direction, kept as it was\n\nThe pipeline as six columns, silence as a badge and a fade on the card. Reads the way a job tracker is expected to read, so nothing has to be learned.\n\nKnown trade-off, accepted: six columns is a picture of a process, not a queue. At fifty applications you scroll sideways to find the one thing that needs you today. The Table view is the release valve.\n\nEverything else on this canvas is built for it." },
+    { "id": "restructure", "x": 0, "y": 1310, "w": 440,
+      "text": "What changed on the detail page\n\nToday it is one long form: 14 fields, then Requirements, then Analysis, all in a single column.\n\nSplit in two. The left is what you came to read — how well you fit, and why. The right is the record and the machinery. The fields did not get fewer, they stopped being the first thing you see.\n\nExcitement is rated in flames rather than stars: the app already speaks in temperature — ember is a token, \"going cold\" is a label — so heat belongs to the system. Hover to preview, click the lit one to put it out." },
+    { "id": "voice", "x": 1560, "y": -290, "w": 420,
+      "text": "The voice rule\n\nDry, never chirpy — and it stops being funny the moment you have a problem to solve. Errors, delete confirmations and anything about money say plainly what happened and what to press.\n\nThe wit lives in empty states, silence labels and the tally. Nowhere near an error." },
+    { "id": "tokens", "x": 2860, "y": -290, "w": 420,
+      "text": "The parts list is the buildable half\n\nEverything on this canvas comes out of one @theme block. It replaces the three orphan --color-*-1000 values still sitting in packages/tailwind-config/shared-styles.css from the create-turbo starter, and the starter body gradient in globals.css.\n\nAccents are L 0.52 / C 0.12 — 0.12 is the ceiling, the most these four hues can hold at that lightness and stay inside sRGB. Push it and the browser clips ember and vital and shifts their hue silently.\n\nWritten up for reference in docs/design-system.md." }
+  ],
+  "launch": { "view": "canvas" }
+}

@@ -1,0 +1,459 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Public+Sans:ital,wght@0,300..800;1,400&display=swap">
+  <style>
+    :root{
+      --paper:oklch(0.972 0.006 285); --paper-2:oklch(0.998 0.002 285); --paper-3:oklch(0.951 0.008 285);
+      --ink:oklch(0.215 0.022 285); --ink-2:oklch(0.420 0.018 285); --ink-3:oklch(0.530 0.014 285);
+      --line:oklch(0.905 0.008 285); --line-2:oklch(0.858 0.010 285);
+      --spectre:oklch(0.520 0.120 298); --spectre-t:oklch(0.945 0.032 298);
+      --ember:oklch(0.520 0.120 62);   --ember-t:oklch(0.951 0.036 68);
+      --vital:oklch(0.520 0.120 152);  --vital-t:oklch(0.949 0.036 155);
+      --rose:oklch(0.520 0.120 18);    --rose-t:oklch(0.953 0.030 20);
+      --serif:"Instrument Serif","Iowan Old Style","Palatino Linotype",Georgia,serif;
+      --sans:"Public Sans","Geist",-apple-system,"Helvetica Neue",Arial,sans-serif;
+    }
+    .dark{
+      --paper:oklch(0.183 0.018 288); --paper-2:oklch(0.228 0.020 288); --paper-3:oklch(0.268 0.020 288);
+      --ink:oklch(0.958 0.005 288); --ink-2:oklch(0.755 0.014 288); --ink-3:oklch(0.620 0.016 288);
+      --line:oklch(0.318 0.018 288); --line-2:oklch(0.382 0.020 288);
+      --spectre:oklch(0.735 0.145 298); --spectre-t:oklch(0.315 0.058 298);
+      --ember:oklch(0.735 0.145 62);   --ember-t:oklch(0.300 0.052 62);
+      --vital:oklch(0.735 0.145 152);  --vital-t:oklch(0.292 0.052 152);
+      --rose:oklch(0.735 0.145 18);    --rose-t:oklch(0.308 0.058 18);
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:var(--sans);background:var(--paper);color:var(--ink);
+      -webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+    a{color:var(--spectre);text-decoration:none} a:hover{color:var(--ink)}
+    .root{min-height:1060px;background:var(--paper);display:flex;flex-direction:column}
+
+    /* ---- app bar ---- */
+    .bar{display:flex;align-items:center;justify-content:space-between;gap:24px;
+      height:60px;padding:0 64px;border-bottom:1px solid var(--line);background:var(--paper-2)}
+    .mark{display:flex;align-items:center;gap:9px;color:var(--ink)}
+    .wordmark{font-family:var(--serif);font-size:23px;letter-spacing:-0.005em;line-height:1}
+    .wordmark .tld{color:var(--ink-3)}
+    .bar-right{display:flex;align-items:center;gap:10px}
+
+    /* ---- buttons ---- */
+    .btn{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 14px;border-radius:5px;
+      font:600 13px/1 var(--sans);border:1px solid transparent;cursor:pointer;white-space:nowrap}
+    .btn-primary{background:var(--ink);color:var(--paper-2)}
+    .btn-primary:hover{background:var(--spectre)}
+    .btn-quiet{background:transparent;color:var(--ink-2);border-color:var(--line-2)}
+    .btn-quiet:hover{color:var(--ink);border-color:var(--ink-3)}
+    .avatar{width:30px;height:30px;border-radius:999px;background:var(--spectre-t);color:var(--spectre);
+      display:flex;align-items:center;justify-content:center;font:600 11px/1 var(--sans);
+      border:1px solid var(--line);cursor:pointer;padding:0}
+
+    /* ---- page ---- */
+    .page{flex:1;padding:30px 64px 44px;display:flex;flex-direction:column;gap:18px}
+    .tally{font-family:var(--serif);font-size:37px;line-height:1.12;letter-spacing:-0.012em;margin:0;
+      max-width:900px;text-wrap:pretty}
+    .tally strong{font-weight:400;color:var(--ink)}
+    .tally .w{color:var(--ink-3)}
+    .tally .hot{color:var(--spectre)}
+    .subline{margin:6px 0 0;font-size:13.5px;line-height:1.5;color:var(--ink-2);max-width:620px}
+
+    /* ---- toolbar ---- */
+    .toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+    .search{position:relative;flex:0 0 268px}
+    .search svg{position:absolute;left:10px;top:9px;color:var(--ink-3);pointer-events:none}
+    .field{width:100%;height:34px;border:1px solid var(--line-2);border-radius:5px;background:var(--paper-2);
+      color:var(--ink);font:400 13px/1 var(--sans);padding:0 10px;outline:none}
+    .field:focus{border-color:var(--spectre);box-shadow:0 0 0 3px var(--spectre-t)}
+    .search .field{padding-left:31px}
+    select.field{height:34px;padding-right:26px;cursor:pointer;
+      appearance:none;background-image:linear-gradient(45deg,transparent 50%,currentColor 50%),linear-gradient(135deg,currentColor 50%,transparent 50%);
+      background-position:calc(100% - 14px) 15px,calc(100% - 9px) 15px;background-size:5px 5px,5px 5px;background-repeat:no-repeat}
+    .seg{display:inline-flex;border:1px solid var(--line-2);border-radius:5px;overflow:hidden;background:var(--paper-2)}
+    .seg button{height:32px;padding:0 12px;border:0;background:transparent;cursor:pointer;
+      font:500 12.5px/1 var(--sans);color:var(--ink-2);border-right:1px solid var(--line-2)}
+    .seg button:last-child{border-right:0}
+    .seg button:hover{color:var(--ink)}
+    .seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper-2)}
+    .seg .n{opacity:.55;margin-left:5px;font-weight:400}
+    .spacer{flex:1}
+    .countline{margin:0;font-size:12.5px;color:var(--ink-3);letter-spacing:.005em}
+
+    /* ---- board ---- */
+    .board{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:14px;align-items:start}
+    .col{display:flex;flex-direction:column;gap:9px;min-width:0}
+    .col-head{display:flex;align-items:baseline;justify-content:space-between;gap:6px;
+      padding-bottom:7px;border-bottom:1.5px solid var(--line-2)}
+    .col-name{font:600 10.5px/1 var(--sans);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-2)}
+    .col-n{font:500 11px/1 var(--sans);color:var(--ink-3)}
+    .col[data-terminal="true"] .col-name{color:var(--ink-3)}
+    .stack{display:flex;flex-direction:column;gap:8px;min-height:60px}
+
+    /* ---- card ---- */
+    .card{position:relative;overflow:hidden;display:flex;flex-direction:column;gap:3px;
+      padding:11px 12px 12px;border:1px solid var(--line);border-radius:9px;background:var(--paper-2);
+      cursor:grab;text-align:left;color:inherit;text-decoration:none}
+    .card:focus-visible{outline:2px solid var(--spectre);outline-offset:2px}
+    .card:hover{border-color:var(--ink-3)}
+    .card .co{font:600 13.5px/1.3 var(--sans);color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .card .ti{font:400 12px/1.35 var(--sans);color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .card .marks{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:7px}
+    .card .marks:empty{display:none}
+    .card[data-tone="cold"]{border-color:var(--ember);border-style:dashed}
+    .card[data-tone="gone"]{border-style:dashed;border-color:var(--line-2);background:transparent}
+    .card[data-tone="gone"] .co{color:var(--ink-2)}
+    .card[data-tone="gone"] .ti{color:var(--ink-3)}
+    .haunt{position:absolute;right:-14px;bottom:-20px;color:var(--ink);opacity:.05;pointer-events:none}
+
+    /* ---- badges ---- */
+    .pill{display:inline-flex;align-items:center;gap:5px;height:20px;padding:0 8px;border-radius:999px;
+      font:600 10.5px/1 var(--sans);letter-spacing:.02em;white-space:nowrap}
+    .pill-bookmarked{background:var(--paper-3);color:var(--ink-2)}
+    .pill-applied{background:var(--spectre-t);color:var(--spectre)}
+    .pill-interviewing{background:var(--ember-t);color:var(--ember)}
+    .pill-offer{background:var(--vital-t);color:var(--vital)}
+    .pill-rejected{background:var(--rose-t);color:var(--rose)}
+    .pill-withdrawn{background:transparent;color:var(--ink-3);box-shadow:inset 0 0 0 1px var(--line-2)}
+    .tag{display:inline-flex;align-items:center;gap:4px;height:19px;padding:0 7px;border-radius:4px;
+      font:500 10.5px/1 var(--sans);border:1px solid;white-space:nowrap}
+    .tag-quiet{border-color:var(--line-2);color:var(--ink-2)}
+    .tag-cold{border-color:var(--ember);background:var(--ember-t);color:var(--ember);font-weight:600}
+    .tag-gone{border-color:var(--ink-3);border-style:dashed;color:var(--ink-2);font-weight:600}
+    .tag-closing{border-color:var(--rose);background:var(--rose-t);color:var(--rose);font-weight:600}
+    .fit{display:inline-flex;align-items:center;gap:5px;font:500 11px/1 var(--sans);color:var(--ink-2);white-space:nowrap}
+
+    /* ---- table ---- */
+    .tablewrap{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--paper-2)}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    th{text-align:left;font:600 10.5px/1 var(--sans);letter-spacing:.09em;text-transform:uppercase;
+      color:var(--ink-3);padding:11px 14px;background:var(--paper-3);border-bottom:1px solid var(--line)}
+    td{padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:middle}
+    tr:last-child td{border-bottom:0}
+    tbody tr:hover td{background:var(--paper-3)}
+    .t-co{font-weight:600}
+    .t-mute{color:var(--ink-3)}
+    .empty{display:flex;flex-direction:column;align-items:center;gap:8px;padding:64px 24px;text-align:center;
+      border:1px dashed var(--line-2);border-radius:12px}
+    .empty h3{font-family:var(--serif);font-size:26px;font-weight:400;margin:0;color:var(--ink)}
+    .empty p{margin:0;font-size:13px;color:var(--ink-2);max-width:400px;line-height:1.55}
+  </style>
+</helmet>
+
+<div class="root {{themeClass}}">
+
+  <!-- ============ app bar ============ -->
+  <header class="bar">
+    <div class="mark">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M4 21V10a8 8 0 0 1 16 0v11 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"></path>
+        <circle cx="9.2" cy="10.8" r="1.15" fill="currentColor"></circle>
+        <circle cx="14.8" cy="10.8" r="1.15" fill="currentColor"></circle>
+      </svg>
+      <span class="wordmark">ghosted<span class="tld">.boo</span></span>
+    </div>
+    <div class="bar-right">
+      <button class="btn btn-quiet" type="button">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v5H4z"></path><path d="M4 13h9v7H4z"></path><path d="M17 13h3v7h-3z"></path></svg>
+        Your Profile
+      </button>
+      <button class="btn btn-primary" type="button">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+        Track a job
+      </button>
+      <button class="avatar" type="button" aria-label="Account — kuba@ghosted.boo">KK</button>
+    </div>
+  </header>
+
+  <div class="page">
+
+    <!-- ============ the tally ============ -->
+    <div>
+      <p class="tally">
+        <strong>{{nTracked}}</strong> <span class="w">tracked.</span>
+        <strong>{{nAir}}</strong> <span class="w">still in the air.</span>
+        <strong class="hot">{{nGone}}</strong> <span class="w">have gone quiet on you.</span>
+        <strong>{{nOffer}}</strong> <span class="w">{{offerWord}}</span>
+      </p>
+      <p class="subline">Silence is measured from the day you last heard anything. Nobody owes you a reply — but it helps to know who is not sending one.</p>
+    </div>
+
+    <!-- ============ toolbar ============ -->
+    <div class="toolbar">
+      <div class="search">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+        <input class="field" type="search" aria-label="Search by company or job title" placeholder="Company or job title" value="{{search}}" onChange="{{onSearch}}">
+      </div>
+
+      <select class="field" aria-label="Filter by Status" style="flex:0 0 148px" value="{{status}}" onChange="{{onStatus}}">
+        <option value="">Any Status</option>
+        <option value="bookmarked">Bookmarked</option>
+        <option value="applied">Applied</option>
+        <option value="interviewing">Interviewing</option>
+        <option value="offer">Offer</option>
+        <option value="rejected">Rejected</option>
+        <option value="withdrawn">Withdrawn</option>
+      </select>
+
+      <div class="seg" role="group" aria-label="Silence">
+        <button type="button" aria-pressed="{{silAll}}" onClick="{{setSilAll}}">Everything</button>
+        <button type="button" aria-pressed="{{silCold}}" onClick="{{setSilCold}}">Going cold<span class="n">{{nCold}}</span></button>
+        <button type="button" aria-pressed="{{silGone}}" onClick="{{setSilGone}}">Ghosted<span class="n">{{nGone}}</span></button>
+      </div>
+
+      <div class="spacer"></div>
+
+      <div class="seg" role="group" aria-label="View">
+        <button type="button" aria-pressed="{{isBoard}}" onClick="{{setBoard}}">Board</button>
+        <button type="button" aria-pressed="{{isTable}}" onClick="{{setTable}}">Table</button>
+      </div>
+    </div>
+
+    <p class="countline" aria-live="polite">{{countline}}</p>
+
+    <!-- ============ nothing to show ============ -->
+    <sc-if value="{{isEmpty}}" hint-placeholder-val="{{false}}">
+      <div class="empty">
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" style="color:var(--ink-3);opacity:.6" aria-hidden="true">
+          <path d="M4 21V10a8 8 0 0 1 16 0v11 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-dasharray="3 3"></path>
+        </svg>
+        <h3>No sign of it.</h3>
+        <p>Nothing here matches what you are looking for. Widen the search, or put the filters back.</p>
+        <button class="btn btn-quiet" type="button" onClick="{{clearFilters}}" style="margin-top:4px">Show everything</button>
+      </div>
+    </sc-if>
+
+    <!-- ============ board ============ -->
+    <sc-if value="{{showBoard}}" hint-placeholder-val="{{true}}">
+      <div class="board">
+        <sc-for list="{{columns}}" as="col" hint-placeholder-count="6">
+          <section class="col" data-terminal="{{col.terminal}}">
+            <div class="col-head">
+              <span class="col-name">{{col.name}}</span>
+              <span class="col-n">{{col.count}}</span>
+            </div>
+            <div class="stack">
+              <sc-for list="{{col.cards}}" as="c" hint-placeholder-count="2">
+                <a class="card" href="#" data-tone="{{c.tone}}">
+                  <sc-if value="{{c.haunted}}" hint-placeholder-val="{{false}}">
+                    <svg class="haunt" width="86" height="86" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                      <path d="M4 21V10a8 8 0 0 1 16 0v11 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 Z"></path>
+                    </svg>
+                  </sc-if>
+                  <span class="co">{{c.company}}</span>
+                  <span class="ti">{{c.title}}</span>
+                  <div class="marks">
+                    <sc-if value="{{c.hasFit}}" hint-placeholder-val="{{true}}">
+                      <span class="fit" title="{{c.fitTitle}}">
+                        <svg width="15" height="15" viewBox="0 0 20 20" aria-hidden="true">
+                          <circle cx="10" cy="10" r="8" fill="none" stroke="var(--line-2)" stroke-width="4"></circle>
+                          <circle cx="10" cy="10" r="8" fill="none" stroke="{{c.fitColor}}" stroke-width="4"
+                            stroke-dasharray="50.27" stroke-dashoffset="{{c.dash}}" stroke-linecap="butt" transform="rotate(-90 10 10)"></circle>
+                        </svg>
+                        {{c.fitLabel}}
+                      </span>
+                    </sc-if>
+                    <sc-if value="{{c.hasTag}}" hint-placeholder-val="{{true}}">
+                      <span class="tag {{c.tagClass}}" title="{{c.tagTitle}}">{{c.tagLabel}}</span>
+                    </sc-if>
+                  </div>
+                </a>
+              </sc-for>
+            </div>
+          </section>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <!-- ============ table ============ -->
+    <sc-if value="{{showTable}}" hint-placeholder-val="{{false}}">
+      <div class="tablewrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Company</th><th>Job title</th><th>Location</th><th>Fit</th>
+              <th>Status</th><th>Silence</th><th>Closes</th>
+            </tr>
+          </thead>
+          <tbody>
+            <sc-for list="{{rows}}" as="r" hint-placeholder-count="6">
+              <tr>
+                <td class="t-co">{{r.company}}</td>
+                <td>{{r.title}}</td>
+                <td class="t-mute">{{r.location}}</td>
+                <td>
+                  <sc-if value="{{r.hasFit}}" hint-placeholder-val="{{true}}">
+                    <span class="fit" title="{{r.fitTitle}}">
+                      <svg width="15" height="15" viewBox="0 0 20 20" aria-hidden="true">
+                        <circle cx="10" cy="10" r="8" fill="none" stroke="var(--line-2)" stroke-width="4"></circle>
+                        <circle cx="10" cy="10" r="8" fill="none" stroke="{{r.fitColor}}" stroke-width="4"
+                          stroke-dasharray="50.27" stroke-dashoffset="{{r.dash}}" stroke-linecap="butt" transform="rotate(-90 10 10)"></circle>
+                      </svg>
+                      {{r.fitLabel}}
+                    </span>
+                  </sc-if>
+                </td>
+                <td><span class="pill {{r.pillClass}}">{{r.statusLabel}}</span></td>
+                <td>
+                  <sc-if value="{{r.hasTag}}" hint-placeholder-val="{{true}}">
+                    <span class="tag {{r.tagClass}}">{{r.tagLabel}}</span>
+                  </sc-if>
+                </td>
+                <td class="t-mute">{{r.closes}}</td>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+      </div>
+    </sc-if>
+
+  </div>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","section":"Theme"},"$preview":{"width":1440,"height":1060}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { view: 'board', search: '', status: '', silence: 'all' };
+  }
+
+  data() {
+    // company, title, location, status, silent (days since last word, null when it does not apply),
+    // fit [have, of], closes (days away, null when unrecorded)
+    return [
+      ['Anthropic','Research Engineer','London','applied',4,[7,9],null],
+      ['Stripe','Senior Product Engineer','Remote','applied',34,[6,8],null],
+      ['Figma','Product Designer','London','applied',61,[4,9],null],
+      ['Vercel','Developer Experience Engineer','Remote','applied',12,[8,9],null],
+      ['Notion','Software Engineer, Growth','Remote','applied',48,[5,7],null],
+      ['Wise','Platform Engineer','London','applied',52,[6,10],null],
+      ['Linear','Software Engineer','Remote','interviewing',6,[8,9],null],
+      ['Cloudflare','Systems Engineer','London','interviewing',19,[5,8],null],
+      ['Supabase','Developer Experience Engineer','Remote','offer',null,[9,10],null],
+      ['Monzo','Backend Engineer','London','rejected',null,[4,9],null],
+      ['Deliveroo','Senior Engineer','London','withdrawn',null,[6,9],null],
+      ['Duolingo','Frontend Engineer','Berlin','bookmarked',null,[7,8],3],
+      ['Raycast','macOS Engineer','Remote','bookmarked',null,[6,7],null],
+      ['PostHog','Product Engineer','Remote','bookmarked',null,[5,9],9],
+    ].map(function (row, i) {
+      return { id: i, company: row[0], title: row[1], location: row[2],
+        status: row[3], silent: row[4], fit: row[5], closes: row[6] };
+    });
+  }
+
+  // Silence is its own axis, orthogonal to Status: only a job you are waiting
+  // on can go quiet, and how long it has been is the whole reading.
+  silenceOf(job) {
+    // Only somebody you are waiting on can go quiet. A Bookmarked Job
+    // Application has nobody to hear from, and an Offer, a Rejection or a
+    // Withdrawal has already been answered.
+    if (job.status !== 'applied' && job.status !== 'interviewing') return null;
+    if (job.silent === null) return null;
+    if (job.silent < 8) return null;
+    if (job.silent < 21) return { kind: 'quiet', label: 'Quiet · ' + job.silent + 'd' };
+    if (job.silent < 45) return { kind: 'cold', label: 'Going cold · ' + job.silent + 'd' };
+    return { kind: 'gone', label: 'Ghosted · ' + job.silent + 'd' };
+  }
+
+  decorate(job) {
+    var s = this.silenceOf(job);
+    var ratio = job.fit[1] === 0 ? 0 : job.fit[0] / job.fit[1];
+    var colour = ratio >= 0.8 ? 'var(--vital)' : ratio >= 0.5 ? 'var(--ember)' : 'var(--rose)';
+    var tag = null;
+    if (s !== null) {
+      tag = { cls: 'tag-' + s.kind, label: s.label,
+        title: 'No word from ' + job.company + ' in ' + job.silent + ' days.' };
+    } else if (job.closes !== null) {
+      tag = { cls: 'tag-closing', label: 'Closes in ' + job.closes + 'd',
+        title: job.company + ' stops taking applications in ' + job.closes + ' days.' };
+    }
+    return {
+      id: job.id, company: job.company, title: job.title, location: job.location,
+      tone: s === null ? 'live' : s.kind,
+      haunted: s !== null && s.kind === 'gone',
+      hasFit: true, dash: 50.27 * (1 - ratio), fitColor: colour,
+      fitLabel: job.fit[0] + '/' + job.fit[1],
+      fitTitle: 'Your Profile answers ' + job.fit[0] + ' of the ' + job.fit[1] + ' things this Posting asks for.',
+      hasTag: tag !== null, tagClass: tag === null ? '' : tag.cls,
+      tagLabel: tag === null ? '' : tag.label, tagTitle: tag === null ? '' : tag.title,
+      statusLabel: this.labels()[job.status], pillClass: 'pill-' + job.status,
+      closes: job.closes === null ? '—' : 'in ' + job.closes + ' days',
+    };
+  }
+
+  labels() {
+    return { bookmarked:'Bookmarked', applied:'Applied', interviewing:'Interviewing',
+      offer:'Offer', rejected:'Rejected', withdrawn:'Withdrawn' };
+  }
+
+  shown() {
+    var self = this;
+    var q = this.state.search.trim().toLowerCase();
+    return this.data().filter(function (job) {
+      if (q !== '' && (job.company + ' ' + job.title).toLowerCase().indexOf(q) === -1) return false;
+      if (self.state.status !== '' && job.status !== self.state.status) return false;
+      var s = self.silenceOf(job);
+      if (self.state.silence === 'cold') return s !== null && s.kind === 'cold';
+      if (self.state.silence === 'gone') return s !== null && s.kind === 'gone';
+      return true;
+    });
+  }
+
+  renderVals() {
+    var self = this;
+    var all = this.data();
+    var shown = this.shown();
+    var order = ['bookmarked','applied','interviewing','offer','rejected','withdrawn'];
+    var labels = this.labels();
+
+    var columns = order.map(function (status) {
+      var cards = shown.filter(function (j) { return j.status === status; });
+      return { name: labels[status], count: cards.length,
+        terminal: status === 'rejected' || status === 'withdrawn',
+        cards: cards.map(function (j) { return self.decorate(j); }) };
+    });
+
+    var air = all.filter(function (j) { return j.status === 'applied' || j.status === 'interviewing'; });
+    var gone = all.filter(function (j) { var x = self.silenceOf(j); return x !== null && x.kind === 'gone'; });
+    var cold = all.filter(function (j) { var x = self.silenceOf(j); return x !== null && x.kind === 'cold'; });
+    var offers = all.filter(function (j) { return j.status === 'offer'; });
+
+    return {
+      nTracked: all.length, nAir: air.length, nGone: gone.length,
+      nCold: cold.length, nOffer: offers.length,
+      offerWord: offers.length === 1 ? 'offer.' : 'offers.',
+      themeClass: (this.props.theme ?? 'light') === 'dark' ? 'dark' : '',
+      search: this.state.search,
+      status: this.state.status,
+      onSearch: function (e) { self.setState({ search: e.target.value }); },
+      onStatus: function (e) { self.setState({ status: e.target.value }); },
+      silAll: this.state.silence === 'all',
+      silCold: this.state.silence === 'cold',
+      silGone: this.state.silence === 'gone',
+      setSilAll: function () { self.setState({ silence: 'all' }); },
+      setSilCold: function () { self.setState({ silence: 'cold' }); },
+      setSilGone: function () { self.setState({ silence: 'gone' }); },
+      isBoard: this.state.view === 'board',
+      isTable: this.state.view === 'table',
+      setBoard: function () { self.setState({ view: 'board' }); },
+      setTable: function () { self.setState({ view: 'table' }); },
+      clearFilters: function () { self.setState({ search: '', status: '', silence: 'all' }); },
+      isEmpty: shown.length === 0,
+      showBoard: shown.length > 0 && this.state.view === 'board',
+      showTable: shown.length > 0 && this.state.view === 'table',
+      countline: shown.length === all.length
+        ? all.length + ' Job Applications'
+        : 'Showing ' + shown.length + ' of ' + all.length + ' Job Applications',
+      columns: columns,
+      rows: shown.map(function (j) { return self.decorate(j); }),
+    };
+  }
+}
+</script>
+</body>
+</html>
