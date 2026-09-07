@@ -6,7 +6,11 @@ import {
   coverageSource,
   type CoverageSource,
 } from "../../../../lib/coverage/compare";
-import { Problems, SECONDARY_BUTTON_SMALL } from "../../../form";
+import {
+  CHOSEN_BUTTON_SMALL,
+  Problems,
+  SECONDARY_BUTTON_SMALL,
+} from "../../../form";
 
 /**
  * How one Requirement reads against the user's CV, why it reads that way, and
@@ -385,11 +389,7 @@ function VerdictButton({
   return (
     <button
       aria-pressed={chosen}
-      className={
-        chosen
-          ? `${SECONDARY_BUTTON_SMALL} border-ink bg-ink text-paper-raised hover:text-paper-raised`
-          : SECONDARY_BUTTON_SMALL
-      }
+      className={chosen ? CHOSEN_BUTTON_SMALL : SECONDARY_BUTTON_SMALL}
       disabled={disabled}
       onClick={onClick}
       type="button"

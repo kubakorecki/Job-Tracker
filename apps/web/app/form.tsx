@@ -18,8 +18,22 @@ import type { ReactNode } from "react";
 /** What a control that is a single line tall stands at. */
 export const CONTROL_HEIGHT = "h-[34px]";
 
-const FIELD_BASE =
-  "w-full rounded-control border border-line-strong px-2.5 text-[13px] text-ink placeholder:text-ink-faint focus:border-spectre focus:ring-3 focus:ring-spectre-tint focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-42";
+/**
+ * A box, less its size. Everything that varies between the 34px control, the
+ * 28px one and the sign-in page's 40px is left out of it, and each of the
+ * constants below states its own.
+ *
+ * They compose rather than override for a reason worth writing down: Tailwind
+ * emits `h-[34px]` after `h-7` and `text-[13px]` after `text-xs`, and
+ * utilities of equal specificity are settled by the order of the stylesheet
+ * rather than the order of the `class` attribute. So `${FIELD} h-7 text-xs`
+ * silently renders at 34px and 13px — the override loses, and it loses
+ * quietly.
+ */
+const FIELD_CORE =
+  "w-full rounded-control border border-line-strong text-ink placeholder:text-ink-faint focus:border-spectre focus:ring-3 focus:ring-spectre-tint focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-42";
+
+const FIELD_BASE = `${FIELD_CORE} px-2.5 text-[13px]`;
 
 /** A box the user types one line into. */
 export const FIELD = `${FIELD_BASE} ${CONTROL_HEIGHT} bg-paper-raised`;
@@ -36,12 +50,23 @@ export const FIELD_ON_RAISED = `${FIELD_BASE} ${CONTROL_HEIGHT} bg-paper`;
  * eight bordered boxes reads as a form rather than as a list of what a job
  * asks for. The border comes back on hover and on focus, so nothing is hidden
  * from anybody who goes looking for it.
+ *
+ * It states no text size: a quiet box takes the size of the line it is
+ * standing in, which is the whole point of it not looking like a box.
  */
-export const QUIET_FIELD = `${FIELD_BASE} ${CONTROL_HEIGHT} border-transparent bg-transparent px-2 hover:border-line-strong focus:bg-paper`;
+export const QUIET_FIELD = `${FIELD_CORE} ${CONTROL_HEIGHT} border-transparent bg-transparent px-2 hover:border-line-strong focus:bg-paper`;
+
+/**
+ * The 28px control, for a field or a select that stands on a panel's own
+ * header line — where a 34px one would make the header taller than the rule it
+ * is a header for.
+ */
+export const FIELD_SMALL_ON_RAISED = `${FIELD_CORE} h-7 bg-paper px-2 text-xs`;
 
 /** A select draws its own caret out of two gradients: no icon font, no SVG. */
 export const SELECT = `${FIELD} caret cursor-pointer`;
 export const SELECT_ON_RAISED = `${FIELD_ON_RAISED} caret cursor-pointer`;
+export const SELECT_SMALL_ON_RAISED = `${FIELD_SMALL_ON_RAISED} caret cursor-pointer`;
 
 /** A box that grows down the page rather than standing at one line. */
 export const TEXTAREA = `${FIELD_BASE} bg-paper-raised py-2 leading-[1.55]`;
@@ -56,7 +81,7 @@ const BUTTON_BASE =
  * stand at 40 and 42 rather than at 34 — a form of two boxes at the app's
  * ordinary density reads as a fragment of a page rather than as the page.
  */
-export const FIELD_TALL = `${FIELD_BASE} h-10 bg-paper-raised px-3 text-sm`;
+export const FIELD_TALL = `${FIELD_CORE} h-10 bg-paper-raised px-3 text-sm`;
 export const PRIMARY_BUTTON_TALL = `${BUTTON_BASE} h-[42px] w-full px-[18px] text-sm bg-ink text-paper-raised hover:bg-spectre`;
 
 /** The one thing on a form worth pressing. */
@@ -74,6 +99,18 @@ export const SECONDARY_BUTTON = `${BUTTON_BASE} ${CONTROL_HEIGHT} px-3.5 text-[1
 
 /** The same, for a control inside a message or beside a field. */
 export const SECONDARY_BUTTON_SMALL = `${BUTTON_BASE} h-[28px] px-2.5 text-xs bg-paper-raised text-ink-muted border-line-strong hover:text-ink hover:border-ink-faint`;
+
+/**
+ * The same button as the chosen one of a row of them, filled in the page's own
+ * ink rather than in an accent — a toggle that is on is not a reading, and
+ * colouring it `vital` or `rose` would make it look like one.
+ *
+ * Written out in full rather than as `${SECONDARY_BUTTON_SMALL} bg-ink …` for
+ * the reason `FIELD_CORE` is: Tailwind emits `bg-paper-raised` after `bg-ink`
+ * and `border-line-strong` after `border-ink`, so the override would lose and
+ * leave paper text on a paper button.
+ */
+export const CHOSEN_BUTTON_SMALL = `${BUTTON_BASE} h-[28px] px-2.5 text-xs bg-ink text-paper-raised border-ink`;
 
 /**
  * The one that cannot be undone by typing the field back. Outlined rather than

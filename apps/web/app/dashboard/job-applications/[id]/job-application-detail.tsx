@@ -58,6 +58,7 @@ import { SilenceThread } from "./silence-thread";
 import {
   DANGER_BUTTON,
   FIELD_ON_RAISED,
+  FIELD_SMALL_ON_RAISED,
   Field,
   ICON_BUTTON,
   PRIMARY_BUTTON,
@@ -67,6 +68,7 @@ import {
   SECONDARY_BUTTON,
   SECONDARY_BUTTON_SMALL,
   SELECT_ON_RAISED,
+  SELECT_SMALL_ON_RAISED,
   TEXTAREA_ON_RAISED,
 } from "../../../form";
 import { Panel } from "../../../panel";
@@ -786,7 +788,7 @@ function Requirements({
         <div className="flex items-center gap-2">
           <input
             aria-label="Add a Requirement"
-            className={`${FIELD_ON_RAISED} h-7 w-[190px] text-xs`}
+            className={`${FIELD_SMALL_ON_RAISED} w-[190px]`}
             onChange={(event) => setSkill(event.target.value)}
             // Enter in a box inside a form saves the form, which here would
             // save the page and leave the typed skill behind in the box.
@@ -1044,9 +1046,13 @@ function NecessitySelect({
   return (
     <select
       aria-label={label}
-      className={`${quiet ? QUIET_FIELD : SELECT_ON_RAISED} caret cursor-pointer ${
-        small ? "h-7 text-xs" : ""
-      }`}
+      className={
+        quiet
+          ? `${QUIET_FIELD} caret cursor-pointer text-[13px]`
+          : small
+            ? SELECT_SMALL_ON_RAISED
+            : SELECT_ON_RAISED
+      }
       onChange={(event) => onChange(event.target.value as Necessity)}
       value={value}
     >
