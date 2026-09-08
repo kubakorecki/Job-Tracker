@@ -30,3 +30,18 @@ The side panel's review form gained a date box beside the Status, and the
 dashboard's add form one too — a bookmark typed by hand is made at the moment
 the user knows the deadline, and one recorded later is one they had to come
 back for.
+
+**Bug, fixed after the fact:** every Posting stating "do 24 wrz" — pracuj.pl's
+own wording, a day and a month with no year — came back closing in 2024. The
+page states the date; the year is the one thing it leaves to the reader, and
+nothing in the request told the model what today was, so it used the year its
+training left it with. Two years wrong, in a date box that looked filled in
+correctly.
+
+The reading now carries `today` — read from the clock in the endpoint, not sent
+by the extension, whose clock is not ours to trust — and the prompt says a day
+and month with no year take the year that puts them on or after it. The
+countdown rule is untouched and was checked against the same page: "ważna
+jeszcze 16 dni" on its own still records nothing. `readDraft` drops a day
+further than a year either side of today as well, so a model that supplies its
+own year again costs the Draft the field rather than the user a deadline.

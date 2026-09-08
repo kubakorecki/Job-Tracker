@@ -6,6 +6,7 @@ import {
 import { jsonBody } from "../api/request";
 import { errorResponse } from "../api/response";
 import type { CurrentUser } from "../auth/current-user";
+import { todayInUtc } from "../day";
 import { MODEL_CALL_LIMIT_STATUS, spendModelCall } from "../model-calls/budget";
 import { describeIssues } from "../zod-issues";
 import { extractWithGemini, type ExtractJob } from "./provider";
@@ -66,6 +67,11 @@ export function extractJobResponse(extract: ExtractJob = extractWithGemini) {
       draft = await extract({
         url: input.data.url,
         pageText: input.data.pageText.slice(0, MAX_PAGE_TEXT_LENGTH),
+        // The day the reading is made on, read from the clock here rather than
+        // taken from the request: a page states a Closing Date the way a person
+        // reads one — "do 24 wrz" — and the year that completes it is the
+        // server's fact, not something a client's clock should get to decide.
+        today: todayInUtc(),
       });
     } catch {
       // Every way of failing to reach or understand the provider — an outage,

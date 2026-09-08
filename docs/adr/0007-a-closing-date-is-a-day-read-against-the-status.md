@@ -59,3 +59,27 @@ page never printed — the same objection as the salary multiplier. `readDraft` 
 anything that does not parse as a calendar day rather than passing it on, so a
 model that answers with a countdown costs the Draft its Closing Date and
 nothing else.
+
+**The year is the reader's, and now the extraction's.** A page states a Closing
+Date the way a person reads one, and pracuj.pl states it as "ważna jeszcze 16
+dni (do 24 wrz)" — a day and a month, with the year left to whoever is looking.
+That is a stated date with a piece missing, not a countdown, so extraction
+completes it: the reading is given today as a UTC calendar day, and the year is
+whichever one puts that day on or after today. Completing it is not the
+inference this ADR rejected. A countdown says nothing about the role at all,
+whereas "24 wrz" names the day the Posting closes and leaves out only the part
+no reader could get wrong.
+
+The day is the endpoint's, read from the clock there and passed down — a
+client's clock could be anything, and a browser two years slow would move every
+Closing Date read through it. Before it was passed down at all, a model with no
+notion of today reached for the year its training left it with: a Posting
+closing on the 24th of September 2026 was recorded as closing in 2024, in a date
+box where nothing looked wrong.
+
+So `readDraft` also drops a day further than a year either side of today. A
+Posting closing a year out does not exist and one that closed a year ago is
+past recording, which leaves the window wide enough for the archived Posting
+read months late and narrow enough to catch a year the model supplied itself.
+A dropped Closing Date is a field the user fills in; a wrong one is a deadline
+they act on.

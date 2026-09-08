@@ -5,6 +5,7 @@ import {
 } from "@repo/schema";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import type { CurrentUser } from "../auth/current-user";
+import { todayInUtc } from "../day";
 import {
   DAILY_MODEL_CALL_LIMIT,
   MODEL_CALL_LIMIT_STATUS,
@@ -12,7 +13,7 @@ import {
 import { forgetModelCalls, setModelCallCount } from "../model-calls/repository";
 import { OTHER_TEST_USER, TEST_USER } from "../test-support/users";
 import { MAX_PAGE_TEXT_LENGTH, extractJobResponse } from "./api";
-import type { ExtractJob } from "./provider";
+import type { ExtractJob, PostingToRead } from "./provider";
 
 /**
  * The extraction endpoint as its only caller sees it: what the panel gets back
@@ -68,10 +69,10 @@ async function clearCounters(): Promise<void> {
  * asked. An `Error` means the provider could not be reached or understood,
  * which is the only way the real one fails.
  */
-type FakeProvider = { extract: ExtractJob; asked: ExtractJobRequest[] };
+type FakeProvider = { extract: ExtractJob; asked: PostingToRead[] };
 
 function answering(reply: JobExtraction | Error): FakeProvider {
-  const asked: ExtractJobRequest[] = [];
+  const asked: PostingToRead[] = [];
 
   return {
     asked,
@@ -154,8 +155,19 @@ describe("POST /api/extract-job", () => {
     await extract(TEST_USER, POSTING, provider);
 
     expect(provider.asked).toEqual([
-      { url: POSTING.url, pageText: POSTING.pageText },
+      { url: POSTING.url, pageText: POSTING.pageText, today: todayInUtc() },
     ]);
+  });
+
+  it("tells the provider what day the reading is being made on", async () => {
+    // The day is the endpoint's to state, not the client's: a Posting names a
+    // Closing Date the way a person reads one — "do 24 wrz" — and without a
+    // day to complete it the model supplies a year of its own, which is how a
+    // Posting closing in a fortnight was once recorded as closing in 2024.
+    const provider = answering(DRAFT);
+    await extract(TEST_USER, { ...POSTING, today: "1999-01-01" }, provider);
+
+    expect(provider.asked[0]?.today).toBe(todayInUtc());
   });
 
   it("truncates a long page from the front before sending it", async () => {

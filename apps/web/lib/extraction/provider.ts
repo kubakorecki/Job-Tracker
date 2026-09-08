@@ -8,6 +8,7 @@ import {
   SalaryPeriod,
 } from "@repo/schema";
 import { z } from "zod";
+import { daysBetween } from "../day";
 import { geminiApiKey } from "../env";
 
 /**
@@ -42,7 +43,25 @@ export const EXTRACTION_MODEL = "gemini-2.5-pro";
  * Distinguishing an outage from a malformed reply would gain the caller
  * nothing: both mean fall back to manual entry.
  */
-export type ExtractJob = (request: ExtractJobRequest) => Promise<JobExtraction>;
+export type ExtractJob = (reading: PostingToRead) => Promise<JobExtraction>;
+
+/**
+ * What a provider is asked to read: the Posting, and the day the reading is
+ * made on as a UTC calendar day.
+ *
+ * `today` is not part of `ExtractJobRequest` because it is not the client's to
+ * state — a browser whose clock is wrong would silently move every Closing
+ * Date read through it — and it is an argument rather than a call to the clock
+ * for the reason `closingOf` takes one: it is what makes a reading testable at
+ * any point in the year.
+ *
+ * A model is told the day for one reason only: postings state a Closing Date
+ * the way a person reads one, and "do 24 wrz" is a date whose year the page
+ * leaves to the reader. Without today the model has no year to reach for but
+ * the one its training left it with, which is how a Posting closing on the
+ * 24th of September 2026 came back closing in 2024.
+ */
+export type PostingToRead = ExtractJobRequest & { today: string };
 
 /**
  * What the model is asked to fill in. It is deliberately flat — ten
@@ -122,7 +141,7 @@ const DRAFT_PROPERTIES = {
   closesOn: {
     type: "string",
     description:
-      "The last day applications are accepted, as the page states it, in YYYY-MM-DD form. Empty unless the page names a calendar date; never worked out from a countdown, a posting date or how long the advert has been up.",
+      "The last day applications are accepted, as the page states it, in YYYY-MM-DD form. Where the page names a day and month but no year, the year is the one that puts that day on or after the given today. Empty unless the page names a day and a month; never worked out from a countdown, a posting date or how long the advert has been up.",
   },
 } satisfies Record<Exclude<keyof JobExtraction, "requirements">, FlatProperty>;
 
@@ -207,6 +226,8 @@ Record a salary as the page states it, never converted to another period: plain 
 
 Record the day applications close only where the page states one as a date — "applications close on 30 September 2026", "apply by 30/09/2026" — and write it as YYYY-MM-DD. A page that says how long is left rather than when it ends, such as "closes in 5 days" or "posted 3 weeks ago", states nothing: that is a fact about when the page was rendered, not about the role, so leave closesOn empty. Never take the posting's own date, an interview date or a start date for the day applications close.
 
+The message gives you today's date. Use it for one thing: a page that names a day and a month but no year — "do 24 wrz", "closes 30 September", "ważna do 24.09" — has stated a date, and the year is whichever one puts that day on or after today. Never reach for a year from anywhere else, and never use today to turn a countdown into a date: "ważna jeszcze 16 dni" on its own is still a fact about when the page was rendered, and closesOn stays empty. Where the page states both a countdown and a day, such as "ważna jeszcze 16 dni (do 24 wrz)", record the day it names and ignore the countdown.
+
 Where the posting states several salaries for one role — an employment contract beside a B2B rate, gross beside net — take the widest span they cover together: salaryMin from the lowest figure stated and salaryMax from the highest, provided they are quoted over the same period. Where the periods differ, record the range for the contract of employment and ignore the rest.`;
 
 /**
@@ -216,10 +237,14 @@ Where the posting states several salaries for one role — an employment contrac
  * There is deliberately no retry on a cheaper model: a visible failure is how
  * the user learns the grant is spent.
  */
-export const extractWithGemini: ExtractJob = async ({ url, pageText }) => {
+export const extractWithGemini: ExtractJob = async ({
+  url,
+  pageText,
+  today,
+}) => {
   const response = await gemini().models.generateContent({
     model: EXTRACTION_MODEL,
-    contents: `URL: ${url}\n\nPage text:\n${pageText}`,
+    contents: `Today: ${today}\n\nURL: ${url}\n\nPage text:\n${pageText}`,
     config: {
       systemInstruction: INSTRUCTIONS,
       responseMimeType: "application/json",
@@ -232,7 +257,7 @@ export const extractWithGemini: ExtractJob = async ({ url, pageText }) => {
     throw new Error(`${EXTRACTION_MODEL} answered with no content.`);
   }
 
-  return readDraft(text);
+  return readDraft(text, today);
 };
 
 /**
@@ -241,7 +266,7 @@ export const extractWithGemini: ExtractJob = async ({ url, pageText }) => {
  * a Draft says the same thing by not carrying the field at all — so nothing
  * above this function has to know which of the two it is reading.
  */
-export function readDraft(json: string): JobExtraction {
+export function readDraft(json: string, today: string): JobExtraction {
   const raw = ProviderDraft.parse(JSON.parse(json));
 
   return {
@@ -254,24 +279,43 @@ export function readDraft(json: string): JobExtraction {
     salaryPeriod: raw.salaryPeriod === "" ? undefined : raw.salaryPeriod,
     currency: nonEmpty(raw.currency),
     description: nonEmpty(raw.description),
-    closesOn: calendarDay(raw.closesOn),
+    closesOn: calendarDay(raw.closesOn, today),
     requirements: requirementsOf(raw),
   };
 }
 
 /**
- * One Closing Date, or nothing. The flat schema can only ask for a string,
- * and a
- * model asked for a date in a particular shape will occasionally answer with
- * a countdown, a month, or a day that does not exist — so what does not parse as
- * the calendar day the contract states is dropped here, where the rest of the
- * Draft survives it. Letting one through would be worse than losing it: it
+ * How far either side of today a Closing Date is still believable. A Posting
+ * closing a year from now does not exist, and one that closed a year ago is
+ * long past being worth recording — so a year is wide enough to keep every
+ * date a page really states, including the archived Posting read months after
+ * it closed, and narrow enough to catch a year the model supplied itself.
+ */
+const CLOSING_WINDOW_DAYS = 365;
+
+/**
+ * One Closing Date, or nothing. The flat schema can only ask for a string, and
+ * a model asked for a date in a particular shape will occasionally answer with
+ * a countdown, a month, or a day that does not exist — so what does not parse
+ * as the calendar day the contract states is dropped here, where the rest of
+ * the Draft survives it. Letting one through would be worse than losing it: it
  * would travel to a date box that cannot hold it and stop the whole Draft
  * saving, over a field the page may never have named.
+ *
+ * A day the contract would accept but no Posting would state is dropped for a
+ * different reason. Pages name a Closing Date the way a person reads one —
+ * "do 24 wrz" — and a model left to supply the year reaches for the one its
+ * training left it with: a Posting closing in a fortnight was read as closing
+ * two years ago, in a date box that showed nothing wrong. The prompt gives the
+ * model today so it has a year to reach for; this is the half that does not
+ * depend on the model having listened.
  */
-function calendarDay(value: string): string | undefined {
+function calendarDay(value: string, today: string): string | undefined {
   const day = z.iso.date().safeParse(value.trim());
-  return day.success ? day.data : undefined;
+  if (!day.success) return undefined;
+
+  const away = Math.abs(daysBetween(today, day.data));
+  return away <= CLOSING_WINDOW_DAYS ? day.data : undefined;
 }
 
 /**

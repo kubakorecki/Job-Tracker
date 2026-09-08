@@ -73,8 +73,15 @@ const EMPTY = {
   unstatedSkills: [],
 };
 
-function read(reply: unknown) {
-  return readDraft(JSON.stringify(reply));
+/**
+ * The day every reading below is made on. A Closing Date is kept or dropped
+ * against it, so it is fixed here rather than read from the clock: a test that
+ * asked the calendar what year it was would start failing on its own.
+ */
+const TODAY = "2026-09-08";
+
+function read(reply: unknown, today = TODAY) {
+  return readDraft(JSON.stringify(reply), today);
 }
 
 describe("readDraft", () => {
@@ -185,12 +192,45 @@ describe("readDraft", () => {
     expect(read({ ...EMPTY, company: "Acme" })).toEqual({ company: "Acme" });
   });
 
+  it("drops a Closing Date whose year the model supplied rather than read", () => {
+    // The failure this guards against, as it happened: a Posting reading
+    // "ważna jeszcze 16 dni (do 24 wrz)" states a day and a month and leaves
+    // the year to the reader, and a model with no notion of today answered
+    // with the year its training left it with. Two years out is not a Closing
+    // Date any Posting states, and a date box showing one looks perfectly
+    // well.
+    expect(read({ ...COMPLETE, closesOn: "2024-09-24" })).toEqual({
+      ...COMPLETE_DRAFT,
+      closesOn: undefined,
+    });
+  });
+
+  it("drops a Closing Date further off than any Posting states", () => {
+    expect(read({ ...COMPLETE, closesOn: "2028-09-24" })).toEqual({
+      ...COMPLETE_DRAFT,
+      closesOn: undefined,
+    });
+  });
+
+  it("keeps the Closing Date of a Posting that has already closed", () => {
+    // An archived Posting read months late still says when it stopped taking
+    // applications, and that is a fact about the role rather than a mistake.
+    expect(read({ ...EMPTY, closesOn: "2026-06-30" })).toEqual({
+      closesOn: "2026-06-30",
+    });
+  });
+
   it("drops a Closing Date the model worded as anything but a calendar day", () => {
     // Anything the contract would refuse has to go here rather than travel to
     // a form that cannot save: the review form holds this in a date box, and a
     // box holding "in 5 days" would be a Draft the user could not correct
     // without knowing what the model had put there.
-    for (const worded of ["in 5 days", "30/09/2026", "September", "2026-13-40"]) {
+    for (const worded of [
+      "in 5 days",
+      "30/09/2026",
+      "September",
+      "2026-13-40",
+    ]) {
       expect(read({ ...COMPLETE, closesOn: worded })).toEqual({
         ...COMPLETE_DRAFT,
         closesOn: undefined,
@@ -223,6 +263,8 @@ describe("readDraft", () => {
   });
 
   it("refuses a reply that is not JSON", () => {
-    expect(() => readDraft("<html>429 Too Many Requests</html>")).toThrow();
+    expect(() =>
+      readDraft("<html>429 Too Many Requests</html>", TODAY),
+    ).toThrow();
   });
 });
