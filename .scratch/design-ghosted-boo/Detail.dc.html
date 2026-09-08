@@ -1,0 +1,464 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Public+Sans:ital,wght@0,300..800;1,400&display=swap">
+  <style>
+    :root{
+      --paper:oklch(0.972 0.006 285); --paper-2:oklch(0.998 0.002 285); --paper-3:oklch(0.951 0.008 285);
+      --ink:oklch(0.215 0.022 285); --ink-2:oklch(0.420 0.018 285); --ink-3:oklch(0.530 0.014 285);
+      --line:oklch(0.905 0.008 285); --line-2:oklch(0.858 0.010 285);
+      --spectre:oklch(0.520 0.120 298); --spectre-t:oklch(0.945 0.032 298);
+      --ember:oklch(0.520 0.120 62);   --ember-t:oklch(0.951 0.036 68);
+      --vital:oklch(0.520 0.120 152);  --vital-t:oklch(0.949 0.036 155);
+      --rose:oklch(0.520 0.120 18);    --rose-t:oklch(0.953 0.030 20);
+      --serif:"Instrument Serif","Iowan Old Style","Palatino Linotype",Georgia,serif;
+      --sans:"Public Sans","Geist",-apple-system,"Helvetica Neue",Arial,sans-serif;
+    }
+    .dark{
+      --paper:oklch(0.183 0.018 288); --paper-2:oklch(0.228 0.020 288); --paper-3:oklch(0.268 0.020 288);
+      --ink:oklch(0.958 0.005 288); --ink-2:oklch(0.755 0.014 288); --ink-3:oklch(0.620 0.016 288);
+      --line:oklch(0.318 0.018 288); --line-2:oklch(0.382 0.020 288);
+      --spectre:oklch(0.735 0.145 298); --spectre-t:oklch(0.315 0.058 298);
+      --ember:oklch(0.735 0.145 62);   --ember-t:oklch(0.300 0.052 62);
+      --vital:oklch(0.735 0.145 152);  --vital-t:oklch(0.292 0.052 152);
+      --rose:oklch(0.735 0.145 18);    --rose-t:oklch(0.308 0.058 18);
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:var(--sans);background:var(--paper);color:var(--ink);
+      -webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+    a{color:var(--spectre);text-decoration:none} a:hover{color:var(--ink)}
+    .root{min-height:1640px;background:var(--paper)}
+
+    .bar{display:flex;align-items:center;justify-content:space-between;gap:24px;
+      height:60px;padding:0 64px;border-bottom:1px solid var(--line);background:var(--paper-2)}
+    .mark{display:flex;align-items:center;gap:9px}
+    .wordmark{font-family:var(--serif);font-size:23px;line-height:1}
+    .wordmark .tld{color:var(--ink-3)}
+    .avatar{width:30px;height:30px;border-radius:999px;background:var(--spectre-t);color:var(--spectre);
+      display:flex;align-items:center;justify-content:center;font:600 11px/1 var(--sans);border:1px solid var(--line)}
+
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;height:34px;padding:0 14px;
+      border-radius:5px;font:600 13px/1 var(--sans);border:1px solid transparent;cursor:pointer;white-space:nowrap}
+    .btn-primary{background:var(--ink);color:var(--paper-2)}
+    .btn-primary:hover{background:var(--spectre)}
+    .btn-quiet{background:var(--paper-2);color:var(--ink-2);border-color:var(--line-2)}
+    .btn-quiet:hover{color:var(--ink);border-color:var(--ink-3)}
+    .btn-danger{background:transparent;color:var(--rose);border-color:var(--rose)}
+    .btn-sm{height:28px;padding:0 10px;font-size:12px}
+
+    .page{padding:26px 64px 56px;display:flex;flex-direction:column;gap:22px}
+    .back{display:inline-flex;align-items:center;gap:6px;font:500 13px/1 var(--sans);color:var(--ink-2)}
+    .back:hover{color:var(--ink)}
+
+    .head{display:flex;align-items:flex-end;justify-content:space-between;gap:32px;flex-wrap:wrap}
+    h1{font-family:var(--serif);font-size:48px;font-weight:400;line-height:1.02;letter-spacing:-0.015em;margin:0}
+    .role{margin:5px 0 0;font:400 15px/1.4 var(--sans);color:var(--ink-2)}
+    .stamp{margin:9px 0 0;font:400 11.5px/1 var(--sans);color:var(--ink-3)}
+    .headmarks{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+    .pill{display:inline-flex;align-items:center;height:23px;padding:0 10px;border-radius:999px;
+      font:600 11px/1 var(--sans);letter-spacing:.02em;white-space:nowrap}
+    .pill-applied{background:var(--spectre-t);color:var(--spectre)}
+    .tag{display:inline-flex;align-items:center;height:23px;padding:0 9px;border-radius:5px;
+      font:600 11px/1 var(--sans);border:1px solid;white-space:nowrap}
+    .tag-cold{border-color:var(--ember);background:var(--ember-t);color:var(--ember)}
+
+    .cols{display:grid;grid-template-columns:minmax(0,1fr) 396px;gap:24px;align-items:start}
+    .stack{display:flex;flex-direction:column;gap:20px;min-width:0}
+
+    .panel{border:1px solid var(--line);border-radius:11px;background:var(--paper-2);overflow:hidden}
+    .panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;
+      padding:13px 18px;border-bottom:1px solid var(--line);background:var(--paper-3)}
+    .panel-title{font:600 11px/1 var(--sans);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-2)}
+    .panel-body{padding:18px}
+
+    /* ---- fit banner ---- */
+    .fitbar{display:flex;align-items:center;gap:20px;padding:18px 20px;border:1px solid var(--line);
+      border-radius:11px;background:var(--paper-2)}
+    .fitnum{font-family:var(--serif);font-size:42px;line-height:1;letter-spacing:-0.01em}
+    .fitnum .of{color:var(--ink-3);font-size:26px}
+    .fitcopy{flex:1;min-width:0}
+    .fitcopy p{margin:0;font:400 13px/1.5 var(--sans);color:var(--ink-2)}
+    .fitcopy strong{color:var(--ink);font-weight:600}
+    .meter{display:flex;gap:3px;margin-top:9px}
+    .seg-m{height:6px;flex:1;border-radius:2px;background:var(--line-2)}
+    .seg-m.have{background:var(--vital)} .seg-m.part{background:var(--ember)} .seg-m.miss{background:var(--rose);opacity:.35}
+
+    /* ---- requirements ---- */
+    .reqgroup + .reqgroup{margin-top:20px}
+    .reqhead{display:flex;align-items:center;gap:9px;margin-bottom:9px}
+    .reqhead span{font:600 10.5px/1 var(--sans);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3)}
+    .reqhead .rule{flex:1;height:1px;background:var(--line)}
+    .req{border-top:1px solid var(--line)}
+    .req:first-child{border-top:0}
+    .reqrow{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:10px 2px;
+      width:100%;background:transparent;border:0;cursor:pointer;text-align:left;font-family:var(--sans)}
+    .reqrow:hover{background:var(--paper-3)}
+    .skill{font:500 13.5px/1.35 var(--sans);color:var(--ink)}
+    .cov{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 9px;border-radius:5px;
+      font:600 11.5px/1 var(--sans);border:1px solid;white-space:nowrap}
+    .cov-have{border-color:var(--vital);background:var(--vital-t);color:var(--vital)}
+    .cov-partial{border-color:var(--ember);background:var(--ember-t);color:var(--ember)}
+    .cov-missing{border-color:var(--rose);background:var(--rose-t);color:var(--rose)}
+    /* Excitement is rated in flames rather than stars: the app already speaks in
+       temperature — ember is a token and "going cold" is a silence label — so a
+       heat rating belongs to the system instead of being borrowed from it. */
+    .flames{display:flex;align-items:center;gap:2px}
+    .flame{width:36px;height:36px;padding:0;border:0;background:transparent;cursor:pointer;
+      display:flex;align-items:center;justify-content:center;border-radius:7px;color:var(--line-2)}
+    .flame svg path{fill:none;stroke:currentColor;stroke-width:1.5;stroke-linejoin:round}
+    .flame:hover{background:var(--paper-3)}
+    .flame:focus-visible{outline:2px solid var(--spectre);outline-offset:-2px}
+    .flame.lit{color:var(--ember)}
+    .flame.lit svg path{fill:currentColor}
+    .flamenote{font:400 12.5px/1.4 var(--sans);color:var(--ink-2);margin-left:11px}
+    .cov .src{font-weight:400;opacity:.75;font-size:10.5px}
+    .readings{padding:2px 2px 16px;display:flex;flex-direction:column;gap:11px}
+    .reason{margin:0;font:400 12.5px/1.55 var(--sans);color:var(--ink-2);
+      border-left:2px solid var(--line-2);padding-left:11px;max-width:620px}
+    .ladder{display:flex;flex-direction:column;gap:5px}
+    .rung{display:flex;align-items:center;gap:9px;font:400 12px/1 var(--sans);color:var(--ink-3)}
+    .rung b{font-weight:600;color:var(--ink-2);width:74px;flex:0 0 74px}
+    .rung .val{color:var(--ink-2)}
+    .rung[data-wins="true"] .val{color:var(--ink);font-weight:600}
+    .override{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+    .override span{font:400 12px/1 var(--sans);color:var(--ink-3);margin-right:2px}
+
+    /* ---- fields ---- */
+    .grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+    .f{display:flex;flex-direction:column;gap:5px;min-width:0}
+    .f > span{font:500 11px/1 var(--sans);letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3)}
+    .field{width:100%;height:34px;border:1px solid var(--line-2);border-radius:5px;background:var(--paper);
+      color:var(--ink);font:400 13px/1 var(--sans);padding:0 10px;outline:none;font-family:var(--sans)}
+    .field:focus{border-color:var(--spectre);box-shadow:0 0 0 3px var(--spectre-t)}
+    textarea.field{height:auto;padding:9px 10px;line-height:1.55;resize:vertical}
+    select.field{cursor:pointer;appearance:none;padding-right:26px;
+      background-image:linear-gradient(45deg,transparent 50%,currentColor 50%),linear-gradient(135deg,currentColor 50%,transparent 50%);
+      background-position:calc(100% - 14px) 15px,calc(100% - 9px) 15px;background-size:5px 5px,5px 5px;background-repeat:no-repeat}
+
+    /* ---- silence thread ---- */
+    .thread{display:flex;flex-direction:column;gap:0}
+    .beat{display:grid;grid-template-columns:14px minmax(0,1fr);gap:12px;padding-bottom:16px;position:relative}
+    .beat:last-child{padding-bottom:0}
+    .beat .rail{display:flex;flex-direction:column;align-items:center}
+    .dot{width:8px;height:8px;border-radius:999px;background:var(--ink-3);margin-top:4px;flex:0 0 8px}
+    .dot.now{background:var(--ember);box-shadow:0 0 0 3px var(--ember-t)}
+    .beat .line{flex:1;width:1.5px;background:var(--line-2);margin-top:4px}
+    .beat.gap .line{background:repeating-linear-gradient(to bottom,var(--line-2) 0 3px,transparent 3px 7px)}
+    .beat .what{font:500 13px/1.35 var(--sans);color:var(--ink)}
+    .beat .when{font:400 11.5px/1.4 var(--sans);color:var(--ink-3);margin-top:2px}
+    .beat.gap .what{color:var(--ember);font-style:italic;font-family:var(--serif);font-size:17px;font-weight:400}
+
+    .analysis-note{margin:0;font:400 12.5px/1.55 var(--sans);color:var(--ink-2)}
+    .stale{display:flex;gap:9px;align-items:flex-start;padding:10px 12px;border:1px solid var(--ember);
+      background:var(--ember-t);border-radius:7px;font:400 12px/1.5 var(--sans);color:var(--ember)}
+    .danger{display:flex;align-items:center;justify-content:space-between;gap:14px;
+      padding:14px 18px;border:1px dashed var(--line-2);border-radius:11px}
+    .danger p{margin:0;font:400 12.5px/1.5 var(--sans);color:var(--ink-3)}
+  </style>
+</helmet>
+
+<div class="root {{themeClass}}">
+  <header class="bar">
+    <div class="mark">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M4 21V10a8 8 0 0 1 16 0v11 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"></path>
+        <circle cx="9.2" cy="10.8" r="1.15" fill="currentColor"></circle>
+        <circle cx="14.8" cy="10.8" r="1.15" fill="currentColor"></circle>
+      </svg>
+      <span class="wordmark">ghosted<span class="tld">.boo</span></span>
+    </div>
+    <div class="avatar">KK</div>
+  </header>
+
+  <div class="page">
+    <a class="back" href="#">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg>
+      Back to the board
+    </a>
+
+    <div class="head">
+      <div>
+        <h1>Stripe</h1>
+        <p class="role">Senior Product Engineer · Remote (UK)</p>
+        <p class="stamp">Saved 14 Aug · applied 15 Aug · last changed 3 Sep</p>
+      </div>
+      <div class="headmarks">
+        <span class="tag tag-cold">Going cold · 34d</span>
+        <span class="pill pill-applied">Applied</span>
+        <button class="btn btn-quiet" type="button">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6"></path><path d="M20 4l-9 9"></path><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"></path></svg>
+          Open the Posting
+        </button>
+        <button class="btn btn-primary" type="button">Save changes</button>
+      </div>
+    </div>
+
+    <div class="cols">
+
+      <!-- ============ main column ============ -->
+      <div class="stack">
+
+        <div class="fitbar">
+          <span class="fitnum">5<span class="of">/8</span></span>
+          <div class="fitcopy">
+            <p>Your Profile answers <strong>five of the eight things</strong> this Posting asks for — four outright, two in part. Of the two it misses outright, only Payments infrastructure is something Stripe called required.</p>
+            <div class="meter">
+              <span class="seg-m have"></span><span class="seg-m have"></span><span class="seg-m have"></span>
+              <span class="seg-m have"></span><span class="seg-m part"></span><span class="seg-m part"></span>
+              <span class="seg-m miss"></span><span class="seg-m miss"></span>
+            </div>
+          </div>
+          <button class="btn btn-quiet" type="button">Tailor a CV</button>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <span class="panel-title">Requirements</span>
+            <button class="btn btn-quiet btn-sm" type="button">Add a Requirement</button>
+          </div>
+          <div class="panel-body">
+            <sc-for list="{{groups}}" as="g" hint-placeholder-count="2">
+              <div class="reqgroup">
+                <div class="reqhead"><span>{{g.name}}</span><div class="rule"></div><span>{{g.count}}</span></div>
+                <sc-for list="{{g.items}}" as="r" hint-placeholder-count="4">
+                  <div class="req">
+                    <button class="reqrow" type="button" onClick="{{r.toggle}}" aria-expanded="{{r.open}}">
+                      <span class="skill">{{r.skill}}</span>
+                      <span class="cov {{r.covClass}}">{{r.covLabel}}<sc-if value="{{r.hasSrc}}" hint-placeholder-val="{{true}}"><span class="src">{{r.src}}</span></sc-if></span>
+                    </button>
+                    <sc-if value="{{r.open}}" hint-placeholder-val="{{false}}">
+                      <div class="readings">
+                        <sc-if value="{{r.hasReason}}" hint-placeholder-val="{{true}}">
+                          <p class="reason">{{r.reason}}</p>
+                        </sc-if>
+                        <div class="ladder">
+                          <div class="rung" data-wins="{{r.autoWins}}"><b>Compared</b><span class="val">{{r.autoVal}}</span></div>
+                          <div class="rung" data-wins="{{r.aiWins}}"><b>Analysed</b><span class="val">{{r.aiVal}}</span></div>
+                          <div class="rung" data-wins="{{r.mineWins}}"><b>Yours</b><span class="val">{{r.mineVal}}</span></div>
+                        </div>
+                        <div class="override">
+                          <span>Set your own:</span>
+                          <button class="btn btn-quiet btn-sm" type="button">Have it</button>
+                          <button class="btn btn-quiet btn-sm" type="button">Partly</button>
+                          <button class="btn btn-quiet btn-sm" type="button">Missing</button>
+                          <button class="btn btn-quiet btn-sm" type="button">Clear</button>
+                        </div>
+                      </div>
+                    </sc-if>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><span class="panel-title">The Posting, and what you thought</span></div>
+          <div class="panel-body" style="display:flex;flex-direction:column;gap:14px">
+            <label class="f">
+              <span>Description</span>
+              <textarea class="field" rows="5">We are looking for a Senior Product Engineer to work across the Billing surface — the dashboard merchants use every day and the APIs behind it. You will own features end to end, from the schema up.</textarea>
+            </label>
+            <label class="f">
+              <span>Your notes</span>
+              <textarea class="field" rows="3" placeholder="What you want to remember about this one.">Referred by Priya. Recruiter said the loop is four rounds. Second follow-up sent 2 Sep — nothing back.</textarea>
+            </label>
+          </div>
+        </div>
+
+        <div class="danger">
+          <p>Deleting this Job Application removes its Requirements, its Coverage and its Analysis. It cannot be undone.</p>
+          <button class="btn btn-danger btn-sm" type="button">Delete</button>
+        </div>
+      </div>
+
+      <!-- ============ rail ============ -->
+      <div class="stack">
+
+        <div class="panel">
+          <div class="panel-head"><span class="panel-title">Since you applied</span></div>
+          <div class="panel-body">
+            <div class="thread">
+              <div class="beat">
+                <div class="rail"><span class="dot"></span><span class="line"></span></div>
+                <div><div class="what">You applied</div><div class="when">15 August · through the Posting</div></div>
+              </div>
+              <div class="beat">
+                <div class="rail"><span class="dot"></span><span class="line"></span></div>
+                <div><div class="what">Recruiter screen</div><div class="when">22 August · 30 minutes, went well</div></div>
+              </div>
+              <div class="beat gap">
+                <div class="rail"><span class="dot"></span><span class="line"></span></div>
+                <div><div class="what">Then nothing.</div><div class="when">Two follow-ups, 27 August and 2 September</div></div>
+              </div>
+              <div class="beat">
+                <div class="rail"><span class="dot now"></span></div>
+                <div><div class="what">34 days of quiet</div><div class="when">Long enough to stop waiting on it. Not long enough to call it.</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <span class="panel-title">Analysis</span>
+            <button class="btn btn-quiet btn-sm" type="button" onClick="{{rerun}}">{{runLabel}}</button>
+          </div>
+          <div class="panel-body" style="display:flex;flex-direction:column;gap:11px">
+            <sc-if value="{{stale}}" hint-placeholder-val="{{true}}">
+              <div class="stale">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" style="flex:0 0 15px;margin-top:1px" aria-hidden="true"><path d="M12 8v5"></path><path d="M12 16.5v.01"></path><circle cx="12" cy="12" r="9"></circle></svg>
+                <span>The Requirements have changed since this ran, so two of the readings below are older than the list they belong to.</span>
+              </div>
+            </sc-if>
+            <p class="analysis-note">Ran 28 August against your Profile. The model read the Posting and said what it thought each Requirement asks for, and whether your CV answers it.</p>
+            <p class="analysis-note" style="color:var(--ink-3)">Analysing costs one credit and takes about ten seconds.</p>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><span class="panel-title">The record</span></div>
+          <div class="panel-body" style="display:flex;flex-direction:column;gap:13px">
+            <div class="grid2">
+              <label class="f"><span>Status</span>
+                <select class="field"><option>Applied</option><option>Bookmarked</option><option>Interviewing</option><option>Offer</option><option>Rejected</option><option>Withdrawn</option></select>
+              </label>
+              <label class="f"><span>Applied on</span><input class="field" type="date" value="2025-08-15"></label>
+            </div>
+            <div class="grid2">
+              <label class="f"><span>Closes on</span><input class="field" type="date" value=""></label>
+              <label class="f"><span>Remote type</span>
+                <select class="field"><option>Remote</option><option>Hybrid</option><option>On site</option></select>
+              </label>
+            </div>
+            <label class="f"><span>Location</span><input class="field" value="Remote (UK)"></label>
+            <div class="grid2">
+              <label class="f"><span>Salary from</span><input class="field" value="95,000"></label>
+              <label class="f"><span>Salary to</span><input class="field" value="125,000"></label>
+            </div>
+            <div class="grid2">
+              <label class="f"><span>Currency</span><input class="field" value="GBP"></label>
+              <label class="f"><span>Per</span>
+                <select class="field"><option>year</option><option>month</option><option>day</option><option>hour</option></select>
+              </label>
+            </div>
+            <label class="f"><span>Source</span><input class="field" value="Referral — Priya" placeholder="Referral, LinkedIn, recruiter email…"></label>
+            <label class="f"><span>Posting URL</span><input class="field" value="stripe.com/jobs/listing/senior-product-engineer" placeholder="No Posting"></label>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><span class="panel-title">Excitement</span></div>
+          <div class="panel-body">
+            <div class="flames" role="group" aria-label="How much you want this one, nought to five" onMouseLeave="{{unhover}}">
+              <sc-for list="{{excitement}}" as="e" hint-placeholder-count="5">
+                <button class="flame {{e.cls}}" type="button" aria-label="{{e.label}}" aria-pressed="{{e.picked}}" onClick="{{e.pick}}" onMouseEnter="{{e.hover}}" onFocus="{{e.hover}}">
+                  <svg width="25" height="25" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 2.6c3.5 3.6 5.6 6.4 5.6 9.8a5.6 5.6 0 1 1-11.2 0c0-2.1.8-3.9 2.1-5.4.3 1.4 1 2.3 1.9 2.8C9.7 7.2 10.4 4.8 12 2.6Z"></path>
+                  </svg>
+                </button>
+              </sc-for>
+              <span class="flamenote">{{excitementNote}}</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","section":"Theme"},"$preview":{"width":1440,"height":1640}}'>
+// What each rating means in words, so the flames are never the only carrier.
+const EXCITEMENT = ['Not fussed.', 'Worth a punt.', 'Mildly keen.',
+  'Would be pleased.', 'Really want this one.', 'This is the one.'];
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    // Which Requirement has its readings open. One at a time: the panel is a
+    // digression from the list, and two of them open is two digressions.
+    this.state = { open: 'Distributed systems', ran: false, excitement: 4, hovering: null };
+  }
+
+  requirements() {
+    // skill, necessity, automatic, analysis, override, reason
+    return [
+      ['TypeScript','required','have',null,null,null],
+      ['React','required','have',null,null,null],
+      ['Distributed systems','required','missing','partial',null,
+        'The Posting asks for services that survive a region going down. Your CV describes queue-backed workers and a read replica, which is the same instinct at a smaller blast radius — but nothing in it says you have run something across regions.'],
+      ['Payments infrastructure','required','missing','missing',null,
+        'Nothing in your CV touches ledgers, settlement or card rails. This is the one gap the Posting is least likely to forgive.'],
+      ['5+ years commercial experience','required','partial',null,'have',
+        'Counted from your first commercial role rather than your first line of code.'],
+      ['Go','preferred','missing',null,null,null],
+      ['Ruby','preferred','missing','partial',null,
+        'One Rails service, maintained rather than built. Enough to read the codebase, probably not enough to be handed it.'],
+      ['Design systems','preferred','have',null,null,null],
+    ];
+  }
+
+  renderVals() {
+    var self = this;
+    var labels = { have: 'Have it', partial: 'Partly', missing: 'Missing' };
+    var names = { required: 'Required', preferred: 'Preferred', unstated: 'Not stated' };
+
+    function shape(row) {
+      var skill = row[0], auto = row[2], ai = row[3], mine = row[4], reason = row[5];
+      // Ascending precedence: comparison, then the model, then the user.
+      var winning = mine !== null ? 'mine' : ai !== null ? 'ai' : 'auto';
+      var coverage = mine !== null ? mine : ai !== null ? ai : auto;
+      var src = winning === 'mine' ? 'yours' : winning === 'ai' ? 'analysed' : null;
+      return {
+        skill: skill,
+        open: self.state.open === skill,
+        toggle: function () { self.setState({ open: self.state.open === skill ? null : skill }); },
+        covClass: 'cov-' + coverage, covLabel: labels[coverage],
+        hasSrc: src !== null, src: src === null ? '' : '· ' + src,
+        hasReason: reason !== null, reason: reason === null ? '' : reason,
+        autoWins: winning === 'auto', aiWins: winning === 'ai', mineWins: winning === 'mine',
+        autoVal: labels[auto] + ' — word-for-word against your skill list',
+        aiVal: ai === null ? 'The model has not read this one' : labels[ai] + ' — the model, 28 August',
+        mineVal: mine === null ? 'You have not said' : labels[mine] + ' — your call, and it wins',
+      };
+    }
+
+    var all = this.requirements();
+    var groups = ['required','preferred'].map(function (necessity) {
+      var items = all.filter(function (r) { return r[1] === necessity; });
+      return { name: names[necessity], count: items.length, items: items.map(shape) };
+    });
+
+    return {
+      themeClass: (this.props.theme ?? 'light') === 'dark' ? 'dark' : '',
+      groups: groups,
+      stale: !this.state.ran,
+      runLabel: this.state.ran ? 'Ran just now' : 'Run it again',
+      rerun: function () { self.setState({ ran: !self.state.ran }); },
+      excitement: [1,2,3,4,5].map(function (n) {
+        // Hovering previews the rating without committing it, the way any star
+        // control does; the committed value comes back on mouse-out.
+        var showing = self.state.hovering === null ? self.state.excitement : self.state.hovering;
+        return { n: n, picked: n === self.state.excitement, cls: n <= showing ? 'lit' : '',
+          label: n === 1 ? 'One flame' : n + ' flames',
+          hover: function () { self.setState({ hovering: n }); },
+          // Pressing the flame you already chose puts it out again.
+          pick: function () { self.setState({ excitement: self.state.excitement === n ? 0 : n }); } };
+      }),
+      unhover: function () { self.setState({ hovering: null }); },
+      excitementNote: EXCITEMENT[this.state.hovering === null ? this.state.excitement : this.state.hovering],
+    };
+  }
+}
+</script>
+</body>
+</html>

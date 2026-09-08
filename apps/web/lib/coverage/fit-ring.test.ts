@@ -6,6 +6,9 @@ import {
   fitDescription,
   fitLabel,
   fitRatio,
+  fitTally,
+  GOOD_FIT_RATIO,
+  PARTIAL_FIT_RATIO,
   RING_BASIS,
 } from "./fit-ring";
 
@@ -45,19 +48,25 @@ describe("fitRatio", () => {
   });
 });
 
+describe("fitTally", () => {
+  it("is the two numbers with nothing between them but the stroke", () => {
+    expect(fitTally(fraction(6, 8))).toBe("6/8");
+    expect(fitTally(fraction(5.5, 8))).toBe("5.5/8");
+  });
+});
+
 describe("fitColour", () => {
-  it("runs red at nothing covered and green at all of it", () => {
-    expect(fitColour(0)).toBe("hsl(0deg 65% 45%)");
-    expect(fitColour(1)).toBe("hsl(120deg 65% 45%)");
+  it("answers with a token rather than a colour, so both themes are one table", () => {
+    expect(fitColour(1)).toBe("var(--vital)");
+    expect(fitColour(0.6)).toBe("var(--ember)");
+    expect(fitColour(0)).toBe("var(--rose)");
   });
 
-  it("passes through amber on the way", () => {
-    expect(fitColour(0.5)).toBe("hsl(60deg 65% 45%)");
-  });
-
-  it("moves with the ratio rather than in steps", () => {
-    expect(fitColour(0.75)).toBe("hsl(90deg 65% 45%)");
-    expect(fitColour(0.25)).toBe("hsl(30deg 65% 45%)");
+  it("turns at the thresholds themselves, not a hair past them", () => {
+    expect(fitColour(GOOD_FIT_RATIO)).toBe("var(--vital)");
+    expect(fitColour(GOOD_FIT_RATIO - 0.01)).toBe("var(--ember)");
+    expect(fitColour(PARTIAL_FIT_RATIO)).toBe("var(--ember)");
+    expect(fitColour(PARTIAL_FIT_RATIO - 0.01)).toBe("var(--rose)");
   });
 });
 

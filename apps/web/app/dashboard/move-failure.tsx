@@ -1,7 +1,7 @@
 "use client";
 
 import { JOB_STATUS_LABELS } from "@repo/ui/status-badge";
-import { TEXT_BUTTON } from "../form";
+import { SECONDARY_BUTTON_SMALL } from "../form";
 import type { FailedMove } from "./use-job-applications";
 
 /**
@@ -13,6 +13,10 @@ import type { FailedMove } from "./use-job-applications";
  * dragging can still be in flight when the user switches to the table, and a
  * failure the user cannot see is the silent revert this message exists to
  * prevent.
+ *
+ * It says plainly what happened and what to press, and nothing else. Nothing
+ * here is funny — the card the user dropped is back where it started, and they
+ * need to know why rather than to be entertained about it.
  */
 export function MoveFailure({
   failed,
@@ -27,18 +31,25 @@ export function MoveFailure({
 }) {
   return (
     <div
-      className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300"
+      className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-card border border-rose bg-rose-tint px-4 py-3"
       role="alert"
     >
-      <span>
-        Could not move {company ?? "that Job Application"} to{" "}
-        {JOB_STATUS_LABELS[failed.move.status]}. {failed.reason}
+      <span className="text-[12.5px] leading-[1.55] text-ink-muted">
+        <span className="font-semibold text-rose">
+          Could not move {company ?? "that Job Application"} to{" "}
+          {JOB_STATUS_LABELS[failed.move.status]}.
+        </span>{" "}
+        {failed.reason}
       </span>
-      <button className={TEXT_BUTTON} onClick={onRetry} type="button">
+      <button
+        className={SECONDARY_BUTTON_SMALL}
+        onClick={onRetry}
+        type="button"
+      >
         Retry
       </button>
       <button
-        className="opacity-60 underline underline-offset-2"
+        className={SECONDARY_BUTTON_SMALL}
         onClick={onDismiss}
         type="button"
       >

@@ -26,13 +26,15 @@ import {
   type SkillEdit,
 } from "../../../lib/profile/skill-edits";
 import {
-  FIELD,
+  FIELD_ON_RAISED,
   Field,
+  ICON_BUTTON,
   PRIMARY_BUTTON,
   Problems,
   SECONDARY_BUTTON,
   TEXT_BUTTON,
 } from "../../form";
+import { Panel } from "../../panel";
 import { Empty } from "../../states";
 
 /**
@@ -203,12 +205,9 @@ function UploadCv({
   }
 
   return (
-    <section className="flex flex-col gap-3">
-      <div>
-        <h2 className="text-lg font-semibold">
-          {replacing === null ? "Upload your CV" : "Replace your CV"}
-        </h2>
-        <p className="text-sm opacity-60">
+    <Panel title={replacing === null ? "Upload your CV" : "Replace your CV"}>
+      <div className="flex flex-col gap-3">
+        <p className="text-[12.5px] leading-[1.55] text-ink-muted">
           {replacing === null ? (
             <>
               {capitalised(ACCEPTED_CV_FORMATS)}, under {MAX_CV_MEGABYTES}MB.
@@ -222,46 +221,48 @@ function UploadCv({
             </>
           )}
         </p>
-      </div>
 
-      <form className="flex flex-col gap-3" onSubmit={onSubmit}>
-        <input
-          accept={CV_FILE_ACCEPT}
-          aria-label="Your CV"
-          className={`${FIELD} file:mr-3 file:rounded-md file:border-0 file:bg-neutral-200 file:px-3 file:py-1.5 file:text-sm dark:file:bg-neutral-800 dark:file:text-white`}
-          disabled={reading}
-          name="cv"
-          onChange={(event) => {
-            setProblems([]);
-            setChosen(event.target.files?.[0] ?? null);
-          }}
-          type="file"
-        />
+        <form className="flex flex-col gap-3" onSubmit={onSubmit}>
+          <input
+            accept={CV_FILE_ACCEPT}
+            aria-label="Your CV"
+            className={`${FIELD_ON_RAISED} py-1.5 file:mr-3 file:h-[22px] file:rounded-tag file:border-0 file:bg-paper-sunk file:px-2.5 file:text-xs file:font-semibold file:text-ink-muted`}
+            disabled={reading}
+            name="cv"
+            onChange={(event) => {
+              setProblems([]);
+              setChosen(event.target.files?.[0] ?? null);
+            }}
+            type="file"
+          />
 
-        <Problems problems={problems} />
+          <Problems problems={problems} />
 
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            className={`self-start ${PRIMARY_BUTTON}`}
-            disabled={reading || chosen === null}
-            type="submit"
-          >
-            {replacing === null ? "Upload and read it" : "Replace and read it"}
-          </button>
-
-          {reading && (
-            <span
-              aria-live="polite"
-              className="text-sm opacity-60"
-              role="status"
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              className={`self-start ${PRIMARY_BUTTON}`}
+              disabled={reading || chosen === null}
+              type="submit"
             >
-              Reading your CV… the model is being asked what is in it, which
-              takes a few seconds.
-            </span>
-          )}
-        </div>
-      </form>
-    </section>
+              {replacing === null
+                ? "Upload and read it"
+                : "Replace and read it"}
+            </button>
+
+            {reading && (
+              <span
+                aria-live="polite"
+                className="text-[12.5px] leading-[1.55] text-ink-muted"
+                role="status"
+              >
+                Reading your CV… the model is being asked what is in it, which
+                takes a few seconds.
+              </span>
+            )}
+          </div>
+        </form>
+      </div>
+    </Panel>
   );
 }
 
@@ -329,41 +330,44 @@ function ProposedSkills({
   }
 
   return (
-    <section className="flex flex-col gap-3 rounded-lg border border-neutral-300 p-4 dark:border-neutral-700">
-      <div>
-        <h2 className="text-lg font-semibold">Skills read from your CV</h2>
-        <p className="text-sm opacity-60">
+    <Panel title="Skills read from your CV">
+      <div className="flex flex-col gap-3">
+        <p className="text-[12.5px] leading-[1.55] text-ink-muted">
           {accepted.length === 0
             ? "Nothing is saved yet. Correct anything that is wrong, add what was missed, then accept the list."
             : `Correct anything that is wrong, then accept it — it replaces the ${countOf(accepted.length, "skill")} on your Profile. Discard it and that list stays exactly as it is.`}
         </p>
+
+        <form className="flex flex-col gap-3" onSubmit={onSubmit}>
+          <SkillRows
+            addLabel="Add a skill the CV missed"
+            whenEmpty="The model proposed nothing. Add what you can do, or discard this and try another CV."
+            onChange={onChange}
+            rows={rows}
+          />
+
+          <Problems problems={problems} />
+
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              className={PRIMARY_BUTTON}
+              disabled={accepting}
+              type="submit"
+            >
+              {accepting ? "Accepting…" : "Accept these skills"}
+            </button>
+            <button
+              className={`text-[12.5px] text-ink-muted hover:text-ink ${TEXT_BUTTON}`}
+              disabled={accepting}
+              onClick={onDiscard}
+              type="button"
+            >
+              Discard them
+            </button>
+          </div>
+        </form>
       </div>
-
-      <form className="flex flex-col gap-3" onSubmit={onSubmit}>
-        <SkillRows
-          addLabel="Add a skill the CV missed"
-          whenEmpty="The model proposed nothing. Add what you can do, or discard this and try another CV."
-          onChange={onChange}
-          rows={rows}
-        />
-
-        <Problems problems={problems} />
-
-        <div className="flex flex-wrap items-center gap-3">
-          <button className={PRIMARY_BUTTON} disabled={accepting} type="submit">
-            {accepting ? "Accepting…" : "Accept these skills"}
-          </button>
-          <button
-            className={`text-sm opacity-60 ${TEXT_BUTTON}`}
-            disabled={accepting}
-            onClick={onDiscard}
-            type="button"
-          >
-            Discard them
-          </button>
-        </div>
-      </form>
-    </section>
+    </Panel>
   );
 }
 
@@ -410,37 +414,36 @@ function AcceptedSkills({
   }
 
   return (
-    <section className="flex flex-col gap-3">
-      <div>
-        <h2 className="text-lg font-semibold">Your skills</h2>
-        <p className="text-sm opacity-60">
+    <Panel title="Your skills">
+      <div className="flex flex-col gap-3">
+        <p className="text-[12.5px] leading-[1.55] text-ink-muted">
           What a Job Application is measured against. Yours to word however you
           word it — changing this leaves the document alone.
         </p>
+
+        <form className="flex flex-col gap-3" onSubmit={onSubmit}>
+          <SkillRows
+            addLabel="Add a skill"
+            whenEmpty="Nothing accepted yet. Accept a list read from your CV, or type your skills in here."
+            onChange={edit}
+            rows={rows}
+          />
+
+          <Problems problems={problems} />
+
+          <div className="flex items-center gap-3">
+            <button className={PRIMARY_BUTTON} disabled={saving} type="submit">
+              {saving ? "Saving…" : "Save your skills"}
+            </button>
+            {notice !== null && (
+              <span aria-live="polite" className="type-meta">
+                {notice}
+              </span>
+            )}
+          </div>
+        </form>
       </div>
-
-      <form className="flex flex-col gap-3" onSubmit={onSubmit}>
-        <SkillRows
-          addLabel="Add a skill"
-          whenEmpty="Nothing accepted yet. Accept a list read from your CV, or type your skills in here."
-          onChange={edit}
-          rows={rows}
-        />
-
-        <Problems problems={problems} />
-
-        <div className="flex items-center gap-3">
-          <button className={PRIMARY_BUTTON} disabled={saving} type="submit">
-            {saving ? "Saving…" : "Save your skills"}
-          </button>
-          {notice !== null && (
-            <span aria-live="polite" className="text-sm opacity-60">
-              {notice}
-            </span>
-          )}
-        </div>
-      </form>
-    </section>
+    </Panel>
   );
 }
 
@@ -479,14 +482,16 @@ function SkillRows({
       <legend className="sr-only">Skills</legend>
 
       {rows.length === 0 ? (
-        <p className="text-sm opacity-60">{whenEmpty}</p>
+        <p className="text-[12.5px] leading-[1.55] text-ink-muted">
+          {whenEmpty}
+        </p>
       ) : (
         <ul className="flex flex-col gap-2">
           {rows.map((row) => (
             <li className="flex items-center gap-2" key={row.key}>
               <input
                 aria-label="Skill"
-                className={`${FIELD} min-w-0 flex-1`}
+                className={`${FIELD_ON_RAISED} min-w-0 flex-1`}
                 onChange={(event) =>
                   onChange(
                     rows.map((other) =>
@@ -504,13 +509,13 @@ function SkillRows({
                     ? "Remove this skill"
                     : `Remove ${row.skill}`
                 }
-                className="shrink-0 text-sm underline underline-offset-2 opacity-60"
+                className={ICON_BUTTON}
                 onClick={() =>
                   onChange(rows.filter((other) => other.key !== row.key))
                 }
                 type="button"
               >
-                Remove
+                <Cross />
               </button>
             </li>
           ))}
@@ -520,7 +525,7 @@ function SkillRows({
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
         <Field label={addLabel}>
           <input
-            className={FIELD}
+            className={FIELD_ON_RAISED}
             onChange={(event) => setTyped(event.target.value)}
             // Enter in a box inside a form submits it, which here would save
             // the list and leave the typed skill behind in this box.
@@ -585,57 +590,78 @@ function UploadedDocument({
   }
 
   return (
-    <section className="flex flex-col gap-3">
-      <div>
-        <h2 className="text-lg font-semibold">Your CV</h2>
-        <p className="text-sm opacity-60">
+    <Panel
+      aside={
+        <span className="type-meta">
           {profile.fileName} · uploaded {dayOf(profile.uploadedAt)}
-        </p>
-      </div>
-
-      {profile.mediaType === "application/pdf" ? (
-        <iframe
-          className="h-[32rem] w-full rounded-md border border-neutral-300 bg-white dark:border-neutral-700"
-          src={profile.fileUrl}
-          title={profile.fileName}
-        />
-      ) : (
-        <pre className="max-h-[32rem] overflow-auto rounded-md border border-neutral-300 bg-neutral-50 p-4 text-sm whitespace-pre-wrap dark:border-neutral-700 dark:bg-neutral-900">
-          {profile.extractedText}
-        </pre>
-      )}
-
-      <Problems problems={problems} />
-
-      <div className="flex flex-wrap items-center gap-4 text-sm">
-        <a
-          className={TEXT_BUTTON}
-          href={downloadUrlFor(profile)}
-          rel="noreferrer"
-        >
-          Download it
-        </a>
-        <a
-          className={`opacity-60 ${TEXT_BUTTON}`}
-          href={profile.fileUrl}
-          rel="noreferrer"
-          target="_blank"
-        >
-          Open it in a tab
-        </a>
-        <span className="opacity-60">
-          These links last a few minutes.{" "}
-          <button
-            className={TEXT_BUTTON}
-            disabled={refreshing}
-            onClick={refresh}
-            type="button"
-          >
-            {refreshing ? "Asking…" : "Get fresh ones"}
-          </button>
         </span>
+      }
+      title="Your CV"
+    >
+      <div className="flex flex-col gap-3">
+        {profile.mediaType === "application/pdf" ? (
+          <iframe
+            className="h-[32rem] w-full rounded-card border border-line bg-paper"
+            src={profile.fileUrl}
+            title={profile.fileName}
+          />
+        ) : (
+          <pre className="max-h-[32rem] overflow-auto rounded-card border border-line bg-paper p-4 text-[12.5px] leading-[1.55] whitespace-pre-wrap text-ink-muted">
+            {profile.extractedText}
+          </pre>
+        )}
+
+        <Problems problems={problems} />
+
+        <div className="flex flex-wrap items-center gap-4 text-[12.5px]">
+          <a
+            className={TEXT_BUTTON}
+            href={downloadUrlFor(profile)}
+            rel="noreferrer"
+          >
+            Download it
+          </a>
+          <a
+            className={`text-ink-muted hover:text-ink ${TEXT_BUTTON}`}
+            href={profile.fileUrl}
+            rel="noreferrer"
+            target="_blank"
+          >
+            Open it in a tab
+          </a>
+          <span className="text-ink-faint">
+            These links last a few minutes.{" "}
+            <button
+              className={TEXT_BUTTON}
+              disabled={refreshing}
+              onClick={refresh}
+              type="button"
+            >
+              {refreshing ? "Asking…" : "Get fresh ones"}
+            </button>
+          </span>
+        </div>
       </div>
-    </section>
+    </Panel>
+  );
+}
+
+/** Taking a skill out of the list: 24px grid, 1.7px stroke, no fill. */
+function Cross() {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      height="15"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeWidth="1.7"
+      viewBox="0 0 24 24"
+      width="15"
+    >
+      <path d="M6 6l12 12" />
+      <path d="M18 6L6 18" />
+    </svg>
   );
 }
 

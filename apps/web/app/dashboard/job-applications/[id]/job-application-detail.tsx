@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  EXCITEMENT_SCALE,
   groupedByNecessity,
   JobStatus,
   Necessity,
@@ -45,6 +44,7 @@ import {
 } from "../../../../lib/job-applications/requirement-edits";
 import { describeIssues } from "../../../../lib/zod-issues";
 import { ClosingBadge } from "../../closing-badge";
+import { SilenceOf } from "../../silence-tag";
 import { AnalysisSection } from "./analysis";
 import {
   AnalysedReason,
@@ -52,14 +52,26 @@ import {
   CoverageReadings,
   worthNudging,
 } from "./coverage-badge";
+import { Excitement } from "./excitement";
+import { FitBanner } from "./fit-banner";
+import { SilenceThread } from "./silence-thread";
 import {
-  FIELD,
+  DANGER_BUTTON,
+  FIELD_ON_RAISED,
+  FIELD_SMALL_ON_RAISED,
   Field,
+  ICON_BUTTON,
   PRIMARY_BUTTON,
   Problems,
+  QUIET_FIELD,
   Row,
   SECONDARY_BUTTON,
+  SECONDARY_BUTTON_SMALL,
+  SELECT_ON_RAISED,
+  SELECT_SMALL_ON_RAISED,
+  TEXTAREA_ON_RAISED,
 } from "../../../form";
+import { Panel } from "../../../panel";
 import { JOB_APPLICATIONS_KEY } from "../../use-job-applications";
 
 /**
@@ -116,6 +128,10 @@ export function JobApplicationDetail({
   const [saving, setSaving] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  // The Save button stands in the header, beside the title, rather than at the
+  // foot of a page this tall — so the form it submits is named rather than
+  // wrapped around it.
+  const form = useId();
 
   const edit =
     (field: keyof JobApplicationEdits) =>
@@ -289,244 +305,303 @@ export function JobApplicationDetail({
 
   return (
     <>
-      <header className="flex flex-col gap-2">
-        <Link
-          className="text-sm underline underline-offset-2 opacity-60"
-          href="/dashboard"
-        >
-          ← Back to the board
-        </Link>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-semibold">{saved.company}</h1>
-            <p className="text-sm opacity-60">{saved.jobTitle}</p>
-          </div>
-          {/* Beside the Status, because the two are read together: what a
-              Closing Date asks of the user depends entirely on where they are
-              standing (ADR-0007). It reads the saved Job Application rather
-              than the boxes below, so an unsaved edit cannot make the badge
-              claim something the record does not yet say. */}
-          <div className="flex items-center gap-2">
-            <ClosingBadge closesOn={saved.closesOn} status={saved.status} />
-            <StatusBadge status={saved.status} />
-          </div>
+      <Link
+        className="inline-flex w-fit items-center gap-1.5 text-[13px] font-medium text-ink-muted hover:text-ink"
+        href="/dashboard"
+      >
+        <Back />
+        Back to the board
+      </Link>
+
+      <header className="flex flex-wrap items-end justify-between gap-6">
+        <div className="min-w-0">
+          <h1 className="type-display">{saved.company}</h1>
+          <p className="mt-[5px] text-[15px] leading-[1.4] text-ink-muted">
+            {[saved.jobTitle, saved.location].filter(Boolean).join(" · ")}
+          </p>
+          <p className="mt-[9px] text-[11.5px] leading-none text-ink-faint">
+            Saved {dayOf(saved.createdAt)}
+            {saved.appliedAt !== null && ` · applied ${dayOf(saved.appliedAt)}`}
+            {` · last changed ${dayOf(saved.updatedAt)}`}
+          </p>
         </div>
-        <p className="text-xs opacity-50">
-          Added on {dayOf(saved.createdAt)} · last changed{" "}
-          {dayOf(saved.updatedAt)}
-        </p>
-      </header>
 
-      <form className="flex flex-col gap-4" onSubmit={onSubmit}>
-        <Row>
-          <Field label="Company">
-            <input
-              className={FIELD}
-              onChange={edit("company")}
-              value={edits.company}
-            />
-          </Field>
-          <Field label="Job title">
-            <input
-              className={FIELD}
-              onChange={edit("jobTitle")}
-              value={edits.jobTitle}
-            />
-          </Field>
-        </Row>
-
-        <Row>
-          <Field label="Posting URL">
-            <input
-              className={FIELD}
-              onChange={edit("jobUrl")}
-              placeholder="No Posting"
-              value={edits.jobUrl}
-            />
-          </Field>
-          <Field label="Source">
-            <input
-              className={FIELD}
-              onChange={edit("source")}
-              placeholder="Referral, LinkedIn, recruiter email…"
-              value={edits.source}
-            />
-          </Field>
-        </Row>
-
-        <Row>
-          <Field label="Status">
-            <select
-              className={FIELD}
-              onChange={edit("status")}
-              value={edits.status}
-            >
-              {JobStatus.options.map((status) => (
-                <option key={status} value={status}>
-                  {JOB_STATUS_LABELS[status]}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Applied on">
-            <input
-              className={FIELD}
-              onChange={edit("appliedAt")}
-              type="date"
-              value={edits.appliedAt}
-            />
-          </Field>
-          <Field label="Closes on">
-            <input
-              className={FIELD}
-              onChange={edit("closesOn")}
-              type="date"
-              value={edits.closesOn}
-            />
-          </Field>
-        </Row>
-
-        <Row>
-          <Field label="Location">
-            <input
-              className={FIELD}
-              onChange={edit("location")}
-              value={edits.location}
-            />
-          </Field>
-          <Field label="Remote type">
-            <select
-              className={FIELD}
-              onChange={edit("remoteType")}
-              value={edits.remoteType}
-            >
-              <option value="">Not recorded</option>
-              {RemoteType.options.map((remoteType) => (
-                <option key={remoteType} value={remoteType}>
-                  {REMOTE_TYPE_LABELS[remoteType]}
-                </option>
-              ))}
-            </select>
-          </Field>
-        </Row>
-
-        <Row>
-          <Field label="Salary from">
-            <input
-              className={FIELD}
-              onChange={edit("salaryMin")}
-              type="number"
-              value={edits.salaryMin}
-            />
-          </Field>
-          <Field label="Salary to">
-            <input
-              className={FIELD}
-              onChange={edit("salaryMax")}
-              type="number"
-              value={edits.salaryMax}
-            />
-          </Field>
-          <Field label="Currency">
-            <input
-              className={FIELD}
-              onChange={edit("currency")}
-              placeholder="GBP"
-              value={edits.currency}
-            />
-          </Field>
-          <Field label="Per">
-            <select
-              className={FIELD}
-              onChange={edit("salaryPeriod")}
-              value={edits.salaryPeriod}
-            >
-              <option value="">Not recorded</option>
-              {SalaryPeriod.options.map((period) => (
-                <option key={period} value={period}>
-                  {SALARY_PERIOD_LABELS[period]}
-                </option>
-              ))}
-            </select>
-          </Field>
-        </Row>
-
-        <Excitement
-          onChange={(excitement) => {
-            setNotice(null);
-            setEdits((current) => ({ ...current, excitement }));
-          }}
-          value={edits.excitement}
-        />
-
-        <Field label="Description">
-          <textarea
-            className={FIELD}
-            onChange={edit("description")}
-            rows={5}
-            value={edits.description}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* The two axes, side by side and shaped apart: what happened to the
+              user, then what the user set. A Closing Date is read against the
+              Status (ADR-0007), and both read the saved Job Application rather
+              than the boxes below — an unsaved edit must not make a tag claim
+              something the record does not yet say. */}
+          <SilenceOf
+            appliedAt={saved.appliedAt}
+            status={saved.status}
+            updatedAt={saved.updatedAt}
           />
-        </Field>
+          <ClosingBadge closesOn={saved.closesOn} status={saved.status} />
+          <StatusBadge status={saved.status} />
 
-        {/* Only where there is something to analyse. A Job Application that
-            records no Requirements has nothing to ask the model about — the
-            endpoint refuses it without spending anything — and a control that
-            could only fail is not one to offer. Whether there is a CV to read
-            is deliberately not asked here: the answer is the Profile's prose,
-            which this page does not hold, and the endpoint says so plainly. */}
-        {saved.requirements.length > 0 && (
-          <AnalysisSection
-            analysis={analysis}
-            onRun={onAnalyse}
-            unsaved={
-              requirementChanges(requirements, saved).requirements !== undefined
-            }
-          />
-        )}
+          {saved.jobUrl !== null && (
+            <a
+              className={SECONDARY_BUTTON}
+              href={saved.jobUrl}
+              rel="noreferrer noopener"
+              target="_blank"
+            >
+              <External />
+              Open the Posting
+            </a>
+          )}
 
-        <Requirements
-          hasProfileSkills={hasProfileSkills}
-          onChange={(next) => {
-            setNotice(null);
-            setRequirements(next);
-          }}
-          onOverride={onOverride}
-          requirements={requirements}
-          stale={analysis?.stale === true}
-        />
-
-        <Field label="Notes">
-          <textarea
-            className={FIELD}
-            onChange={edit("notes")}
-            placeholder="What you want to remember about this one."
-            rows={4}
-            value={edits.notes}
-          />
-        </Field>
-
-        <Problems problems={problems} />
-
-        <div className="flex items-center gap-3">
-          <button className={PRIMARY_BUTTON} disabled={saving} type="submit">
+          {/* Outside the form it submits, because it belongs beside the title
+              rather than at the bottom of a page this long — which is what the
+              `form` attribute is for. */}
+          <button
+            className={PRIMARY_BUTTON}
+            disabled={saving}
+            form={form}
+            type="submit"
+          >
             {saving ? "Saving…" : "Save changes"}
           </button>
+
           {notice !== null && (
-            <span aria-live="polite" className="text-sm opacity-60">
+            <span aria-live="polite" className="type-meta">
               {notice}
             </span>
           )}
         </div>
-      </form>
+      </header>
 
-      <DeleteJobApplication
-        company={saved.company}
-        confirming={confirmingDelete}
-        deleting={deleting}
-        onCancel={() => setConfirmingDelete(false)}
-        onConfirm={onDelete}
-        onStart={() => setConfirmingDelete(true)}
-      />
+      {/*
+        Two columns, and which side a thing is on is the argument the page
+        makes. Left is what the user came to read — how they fit, what the job
+        asks for, what the Posting said and what they thought of it. Right is
+        the record and the machinery. The fields did not get fewer; they
+        stopped being the first thing you see (`docs/design-system.md`).
+      */}
+      <form
+        className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_396px]"
+        id={form}
+        onSubmit={onSubmit}
+      >
+        <div className="flex min-w-0 flex-col gap-5">
+          <FitBanner requirements={saved.requirements} />
+
+          <Requirements
+            hasProfileSkills={hasProfileSkills}
+            onChange={(next) => {
+              setNotice(null);
+              setRequirements(next);
+            }}
+            onOverride={onOverride}
+            requirements={requirements}
+            stale={analysis?.stale === true}
+          />
+
+          <Panel title="The Posting, and what you thought">
+            <div className="flex flex-col gap-3.5">
+              <Field label="Description">
+                <textarea
+                  className={TEXTAREA_ON_RAISED}
+                  onChange={edit("description")}
+                  rows={5}
+                  value={edits.description}
+                />
+              </Field>
+              <Field label="Your notes">
+                <textarea
+                  className={TEXTAREA_ON_RAISED}
+                  onChange={edit("notes")}
+                  placeholder="What you want to remember about this one."
+                  rows={4}
+                  value={edits.notes}
+                />
+              </Field>
+            </div>
+          </Panel>
+
+          <Problems problems={problems} />
+
+          <DeleteJobApplication
+            company={saved.company}
+            confirming={confirmingDelete}
+            deleting={deleting}
+            onCancel={() => setConfirmingDelete(false)}
+            onConfirm={onDelete}
+            onStart={() => setConfirmingDelete(true)}
+          />
+        </div>
+
+        <div className="flex min-w-0 flex-col gap-5">
+          <SilenceThread jobApplication={saved} />
+
+          {/* Only where there is something to analyse. A Job Application that
+              records no Requirements has nothing to ask the model about — the
+              endpoint refuses it without spending anything — and a control
+              that could only fail is not one to offer. Whether there is a CV
+              to read is deliberately not asked here: the answer is the
+              Profile's prose, which this page does not hold, and the endpoint
+              says so plainly. */}
+          {saved.requirements.length > 0 && (
+            <AnalysisSection
+              analysis={analysis}
+              onRun={onAnalyse}
+              unsaved={
+                requirementChanges(requirements, saved).requirements !==
+                undefined
+              }
+            />
+          )}
+
+          <Panel title="The record">
+            <div className="flex flex-col gap-3.5">
+              <Field label="Company">
+                <input
+                  className={FIELD_ON_RAISED}
+                  onChange={edit("company")}
+                  value={edits.company}
+                />
+              </Field>
+              <Field label="Job title">
+                <input
+                  className={FIELD_ON_RAISED}
+                  onChange={edit("jobTitle")}
+                  value={edits.jobTitle}
+                />
+              </Field>
+
+              <Row>
+                <Field label="Status">
+                  <select
+                    className={SELECT_ON_RAISED}
+                    onChange={edit("status")}
+                    value={edits.status}
+                  >
+                    {JobStatus.options.map((status) => (
+                      <option key={status} value={status}>
+                        {JOB_STATUS_LABELS[status]}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Applied on">
+                  <input
+                    className={FIELD_ON_RAISED}
+                    onChange={edit("appliedAt")}
+                    type="date"
+                    value={edits.appliedAt}
+                  />
+                </Field>
+              </Row>
+
+              <Row>
+                <Field label="Closes on">
+                  <input
+                    className={FIELD_ON_RAISED}
+                    onChange={edit("closesOn")}
+                    type="date"
+                    value={edits.closesOn}
+                  />
+                </Field>
+                <Field label="Remote type">
+                  <select
+                    className={SELECT_ON_RAISED}
+                    onChange={edit("remoteType")}
+                    value={edits.remoteType}
+                  >
+                    <option value="">Not recorded</option>
+                    {RemoteType.options.map((remoteType) => (
+                      <option key={remoteType} value={remoteType}>
+                        {REMOTE_TYPE_LABELS[remoteType]}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              </Row>
+
+              <Field label="Location">
+                <input
+                  className={FIELD_ON_RAISED}
+                  onChange={edit("location")}
+                  value={edits.location}
+                />
+              </Field>
+
+              <Row>
+                <Field label="Salary from">
+                  <input
+                    className={FIELD_ON_RAISED}
+                    onChange={edit("salaryMin")}
+                    type="number"
+                    value={edits.salaryMin}
+                  />
+                </Field>
+                <Field label="Salary to">
+                  <input
+                    className={FIELD_ON_RAISED}
+                    onChange={edit("salaryMax")}
+                    type="number"
+                    value={edits.salaryMax}
+                  />
+                </Field>
+              </Row>
+
+              <Row>
+                <Field label="Currency">
+                  <input
+                    className={FIELD_ON_RAISED}
+                    onChange={edit("currency")}
+                    placeholder="GBP"
+                    value={edits.currency}
+                  />
+                </Field>
+                <Field label="Per">
+                  <select
+                    className={SELECT_ON_RAISED}
+                    onChange={edit("salaryPeriod")}
+                    value={edits.salaryPeriod}
+                  >
+                    <option value="">Not recorded</option>
+                    {SalaryPeriod.options.map((period) => (
+                      <option key={period} value={period}>
+                        {SALARY_PERIOD_LABELS[period]}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              </Row>
+
+              <Field label="Source">
+                <input
+                  className={FIELD_ON_RAISED}
+                  onChange={edit("source")}
+                  placeholder="Referral, LinkedIn, recruiter email…"
+                  value={edits.source}
+                />
+              </Field>
+
+              <Field label="Posting URL">
+                <input
+                  className={FIELD_ON_RAISED}
+                  onChange={edit("jobUrl")}
+                  placeholder="No Posting"
+                  value={edits.jobUrl}
+                />
+              </Field>
+            </div>
+          </Panel>
+
+          <Panel title="Excitement">
+            <Excitement
+              onChange={(excitement) => {
+                setNotice(null);
+                setEdits((current) => ({ ...current, excitement }));
+              }}
+              value={edits.excitement}
+            />
+          </Panel>
+        </div>
+      </form>
     </>
   );
 }
@@ -535,6 +610,12 @@ export function JobApplicationDetail({
  * Removing a Job Application, behind a question. Deleting is the one thing
  * here that cannot be undone by editing the field back, so the button that
  * does it is never the button the user reaches for first.
+ *
+ * A dashed frame rather than a filled rose panel: nothing has gone wrong until
+ * the user presses this, and a red block at the foot of every Job Application
+ * would be the page shouting at a page that is fine. There is no wit in it —
+ * this is money-and-data territory, where the voice says plainly what happens
+ * and what to press.
  */
 function DeleteJobApplication({
   company,
@@ -552,37 +633,84 @@ function DeleteJobApplication({
   onCancel: () => void;
 }) {
   return (
-    <section className="mt-4 border-t border-neutral-200 pt-4 dark:border-neutral-800">
+    <section className="flex flex-wrap items-center justify-between gap-3.5 rounded-panel border border-dashed border-line-strong px-[18px] py-3.5">
       {confirming ? (
-        <div className="flex flex-wrap items-center gap-3 text-sm">
-          <span>Delete {company}? This cannot be undone.</span>
-          <button
-            className="rounded-md bg-red-600 px-3 py-1.5 font-medium text-white disabled:opacity-50"
-            disabled={deleting}
-            onClick={onConfirm}
-            type="button"
-          >
-            {deleting ? "Deleting…" : "Yes, delete it"}
-          </button>
-          <button
-            className="underline underline-offset-2 opacity-60"
-            disabled={deleting}
-            onClick={onCancel}
-            type="button"
-          >
-            Keep it
-          </button>
-        </div>
+        <>
+          <p className="text-[12.5px] leading-[1.5] text-ink-muted">
+            Delete {company}? Its Requirements, its Coverage and its Analysis go
+            with it, and it cannot be undone.
+          </p>
+          <div className="flex items-center gap-2.5">
+            <button
+              className={DANGER_BUTTON}
+              disabled={deleting}
+              onClick={onConfirm}
+              type="button"
+            >
+              {deleting ? "Deleting…" : "Yes, delete it"}
+            </button>
+            <button
+              className={SECONDARY_BUTTON_SMALL}
+              disabled={deleting}
+              onClick={onCancel}
+              type="button"
+            >
+              Keep it
+            </button>
+          </div>
+        </>
       ) : (
-        <button
-          className="text-sm text-red-600 underline underline-offset-2 dark:text-red-400"
-          onClick={onStart}
-          type="button"
-        >
-          Delete this Job Application
-        </button>
+        <>
+          <p className="text-[12.5px] leading-[1.5] text-ink-faint">
+            Deleting this Job Application removes its Requirements, its Coverage
+            and its Analysis. It cannot be undone.
+          </p>
+          <button className={DANGER_BUTTON} onClick={onStart} type="button">
+            Delete
+          </button>
+        </>
       )}
     </section>
+  );
+}
+
+/** Back to where the user came from: 24px grid, 1.7px stroke, no fill. */
+function Back() {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      height="14"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="1.9"
+      viewBox="0 0 24 24"
+      width="14"
+    >
+      <path d="M15 5l-7 7 7 7" />
+    </svg>
+  );
+}
+
+/** A link that leaves the app, which the icon is the whole of the warning of. */
+function External() {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      height="14"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="1.8"
+      viewBox="0 0 24 24"
+      width="14"
+    >
+      <path d="M14 4h6v6" />
+      <path d="M20 4l-9 9" />
+      <path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" />
+    </svg>
   );
 }
 
@@ -653,80 +781,102 @@ function Requirements({
   }
 
   return (
-    <fieldset className="flex flex-col gap-3">
-      <legend className="mb-1 text-sm opacity-60">Requirements</legend>
-
-      {groups.length > 0 && !hasProfileSkills && (
-        <p className="text-sm opacity-60">
-          Nothing is being compared yet.{" "}
-          <Link
-            className="underline underline-offset-2"
-            href="/settings/profile"
-          >
-            Upload your CV and accept its skills
-          </Link>{" "}
-          and every Requirement here will say whether you have it.
-        </p>
-      )}
-
-      {groups.length === 0 ? (
-        <p className="text-sm opacity-60">
-          Nothing is recorded as asked for yet.
-        </p>
-      ) : (
-        groups.map(({ necessity: asked, requirements: group }) => (
-          <div className="flex flex-col gap-2" key={asked}>
-            <h3 className="text-xs font-medium uppercase opacity-50">
-              {NECESSITY_LABELS[asked]}
-            </h3>
-            <ul className="flex flex-col gap-2">
-              {group.map((requirement) => (
-                <RequirementRow
-                  hasProfileSkills={hasProfileSkills}
-                  key={requirement.key}
-                  onCorrect={(correction) =>
-                    correct(requirement.key, correction)
-                  }
-                  onOverride={(coverage) => onOverride(requirement, coverage)}
-                  onRemove={() => remove(requirement.key)}
-                  requirement={requirement}
-                  stale={stale}
-                />
-              ))}
-            </ul>
+    <Panel
+      aside={
+        // Adding one is the panel's own business and belongs on the line with
+        // its name, rather than as a third field under a list of them.
+        <div className="flex items-center gap-2">
+          <div className="w-[190px] shrink-0">
+            <input
+              aria-label="Add a Requirement"
+              className={FIELD_SMALL_ON_RAISED}
+              onChange={(event) => setSkill(event.target.value)}
+              // Enter in a box inside a form saves the form, which here would
+              // save the page and leave the typed skill behind in the box.
+              onKeyDown={(event) => {
+                if (event.key !== "Enter") return;
+                event.preventDefault();
+                add();
+              }}
+              placeholder="What this job asks for"
+              value={skill}
+            />
           </div>
-        ))
-      )}
+          <div className="w-[124px] shrink-0">
+            <NecessitySelect
+              label="Necessity of the Requirement being added"
+              onChange={setNecessity}
+              small
+              value={necessity}
+            />
+          </div>
+          <button
+            className={SECONDARY_BUTTON_SMALL}
+            disabled={typed === ""}
+            onClick={add}
+            type="button"
+          >
+            Add
+          </button>
+        </div>
+      }
+      title="Requirements"
+    >
+      <div className="flex flex-col gap-5">
+        {groups.length > 0 && !hasProfileSkills && (
+          <p className="text-[12.5px] leading-[1.55] text-ink-muted">
+            Nothing is being compared yet.{" "}
+            <Link
+              className="underline underline-offset-2"
+              href="/settings/profile"
+            >
+              Upload your CV and accept its skills
+            </Link>{" "}
+            and every Requirement here will say whether you have it.
+          </p>
+        )}
 
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-        <Field label="Add a Requirement">
-          <input
-            className={FIELD}
-            onChange={(event) => setSkill(event.target.value)}
-            // Enter in a box inside a form saves the form, which here would
-            // save the page and leave the typed skill behind in the box.
-            onKeyDown={(event) => {
-              if (event.key !== "Enter") return;
-              event.preventDefault();
-              add();
-            }}
-            placeholder="What this job asks for"
-            value={skill}
-          />
-        </Field>
-        <Field label="Necessity">
-          <NecessitySelect onChange={setNecessity} value={necessity} />
-        </Field>
-        <button
-          className={SECONDARY_BUTTON}
-          disabled={typed === ""}
-          onClick={add}
-          type="button"
-        >
-          Add
-        </button>
+        {groups.length === 0 ? (
+          <p className="text-[12.5px] leading-[1.55] text-ink-muted">
+            Nothing is recorded as asked for yet. Add what the Posting asks for
+            above, and each one will say how you read against it.
+          </p>
+        ) : (
+          groups.map(({ necessity: asked, requirements: group }) => (
+            <div key={asked}>
+              {/* An eyebrow, a rule and a count: the heading is a divider
+                  rather than a title, because the panel above it already has
+                  the only heading this section needs. */}
+              <div className="mb-2 flex items-center gap-2.5">
+                <h3 className="type-eyebrow text-ink-faint">
+                  {NECESSITY_LABELS[asked]}
+                </h3>
+                <span className="h-px flex-1 bg-line" />
+                <span className="type-eyebrow text-ink-faint">
+                  {group.length}
+                </span>
+              </div>
+
+              <ul>
+                {group.map((requirement) => (
+                  <RequirementRow
+                    hasProfileSkills={hasProfileSkills}
+                    key={requirement.key}
+                    onCorrect={(correction) =>
+                      correct(requirement.key, correction)
+                    }
+                    onOverride={(coverage) => onOverride(requirement, coverage)}
+                    onRemove={() => remove(requirement.key)}
+                    requirement={requirement}
+                    stale={stale}
+                  />
+                ))}
+              </ul>
+            </div>
+          ))
+        )}
       </div>
-    </fieldset>
+    </Panel>
   );
 }
 
@@ -789,20 +939,24 @@ function RequirementRow({
   }
 
   return (
-    <li className="flex flex-col gap-1">
-      <div className="flex flex-wrap items-center gap-2">
+    // Ruled off from the row above rather than boxed: eight Requirements are a
+    // list of what a job asks for, and eight bordered cards would read as a
+    // form somebody has to fill in.
+    <li className="border-t border-line first:border-t-0">
+      <div className="flex flex-wrap items-center gap-2 py-1.5">
         <input
           aria-label="Skill"
-          className={`${FIELD} min-w-0 flex-1`}
+          className={`${QUIET_FIELD} min-w-0 flex-1 text-[13.5px] font-medium`}
           onChange={(event) => onCorrect({ skill: event.target.value })}
           value={requirement.skill}
         />
         {/* The select fills what it is given, so its width is the row's
             business rather than its own. */}
-        <div className="w-40 shrink-0">
+        <div className="w-[124px] shrink-0">
           <NecessitySelect
             label={`Necessity of ${requirement.skill}`}
             onChange={(wanted) => onCorrect({ necessity: wanted })}
+            quiet
             value={requirement.necessity}
           />
         </div>
@@ -815,16 +969,18 @@ function RequirementRow({
         />
         <button
           aria-label={`Remove ${requirement.skill}`}
-          className="text-sm underline underline-offset-2 opacity-60"
+          className={ICON_BUTTON}
           onClick={onRemove}
           type="button"
         >
-          Remove
+          <Cross />
         </button>
       </div>
 
       {requirement.analysedReason !== null && (
-        <AnalysedReason reason={requirement.analysedReason} stale={stale} />
+        <div className="pb-2.5">
+          <AnalysedReason reason={requirement.analysedReason} stale={stale} />
+        </div>
       )}
 
       {showingReadings && (
@@ -844,6 +1000,25 @@ function RequirementRow({
   );
 }
 
+/** Taking a Requirement out of the list: 24px grid, 1.7px stroke, no fill. */
+function Cross() {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      height="15"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeWidth="1.7"
+      viewBox="0 0 24 24"
+      width="15"
+    >
+      <path d="M6 6l12 12" />
+      <path d="M18 6L6 18" />
+    </svg>
+  );
+}
+
 /**
  * The three Necessities, offered as the contract lists them. The value is
  * asserted rather than parsed for the same reason the Status select's is: the
@@ -859,15 +1034,27 @@ function NecessitySelect({
   value,
   onChange,
   label,
+  quiet = false,
+  small = false,
 }: {
   value: Necessity;
   onChange: (necessity: Necessity) => void;
   label?: string;
+  /** Held back until it is pointed at, for a select in a column of rows. */
+  quiet?: boolean;
+  /** The 28px control, for a select on a panel's own header line. */
+  small?: boolean;
 }) {
   return (
     <select
       aria-label={label}
-      className={FIELD}
+      className={
+        quiet
+          ? `${QUIET_FIELD} caret cursor-pointer text-[13px]`
+          : small
+            ? SELECT_SMALL_ON_RAISED
+            : SELECT_ON_RAISED
+      }
       onChange={(event) => onChange(event.target.value as Necessity)}
       value={value}
     >
@@ -877,59 +1064,5 @@ function NecessitySelect({
         </option>
       ))}
     </select>
-  );
-}
-
-/**
- * How much the user wants this one, one to five. A row of radios rather than a
- * select, because a scale is a thing you point at rather than a list you pick
- * from — and it can be put back to nothing at all, which is where every Job
- * Application starts.
- */
-function Excitement({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (excitement: string) => void;
-}) {
-  return (
-    <fieldset>
-      <legend className="mb-1 text-sm opacity-60">Excitement</legend>
-      <div className="flex items-center gap-2">
-        {EXCITEMENT_SCALE.map((step) => {
-          const chosen = value === String(step);
-          return (
-            <label
-              className={`cursor-pointer rounded-md border px-3 py-1.5 text-sm focus-within:ring-2 focus-within:ring-blue-500 ${
-                chosen
-                  ? "border-neutral-900 bg-neutral-900 text-white dark:border-white dark:bg-white dark:text-neutral-900"
-                  : "border-neutral-300 dark:border-neutral-700"
-              }`}
-              key={step}
-            >
-              <input
-                checked={chosen}
-                className="sr-only"
-                name="excitement"
-                onChange={() => onChange(String(step))}
-                type="radio"
-                value={step}
-              />
-              {step}
-            </label>
-          );
-        })}
-        {value !== "" && (
-          <button
-            className="text-sm underline underline-offset-2 opacity-60"
-            onClick={() => onChange("")}
-            type="button"
-          >
-            Clear
-          </button>
-        )}
-      </div>
-    </fieldset>
   );
 }

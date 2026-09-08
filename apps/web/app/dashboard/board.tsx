@@ -22,10 +22,14 @@ import {
 import type { Move } from "./use-job-applications";
 
 /**
- * The pipeline as columns. The Job Applications arrive already narrowed by the
- * dashboard's search and Status filter, out of the one cached list, and are
- * grouped here in the browser — so a card dropped into another column is a
- * change to that one list rather than a second thing to keep in step with it.
+ * The pipeline as six columns, each an equal share of the page rather than a
+ * fixed width — the board is a picture of a process, and a column that is
+ * wider because it is fuller would be a picture of something else.
+ *
+ * The Job Applications arrive already narrowed by the dashboard's toolbar, out
+ * of the one cached list, and are grouped here in the browser — so a card
+ * dropped into another column is a change to that one list rather than a
+ * second thing to keep in step with it.
  *
  * Dropping a card reports the move upwards rather than making it here: the
  * move outlives this component, which the user can unmount by switching to the
@@ -84,20 +88,28 @@ export function Board({
       onDragStart={({ active }) => setDraggingId(String(active.id))}
       sensors={sensors}
     >
-      <div className="flex gap-3 overflow-x-auto pb-2">
-        {JobStatus.options.map((status) => (
-          <Column
-            jobApplications={columns[status]}
-            key={status}
-            status={status}
-          />
-        ))}
+      {/* Six columns wherever there is room for six, and a sideways scroll
+          where there is not — the shape of the pipeline is the whole of what
+          this view is for, and stacking it would make it a list. */}
+      <div className="overflow-x-auto pb-2">
+        <div className="grid min-w-[980px] grid-cols-6 items-start gap-3.5">
+          {JobStatus.options.map((status) => (
+            <Column
+              jobApplications={columns[status]}
+              key={status}
+              status={status}
+            />
+          ))}
+        </div>
       </div>
 
-      {/* What follows the cursor, so the card stays legible in flight. */}
+      {/* What follows the cursor, so the card stays legible in flight. It is
+          lifted with a ring rather than a shadow: there is no shadow anywhere
+          in this system, and the one place a card has to look picked up is the
+          one place a border is not enough. */}
       <DragOverlay>
         {dragging === undefined ? null : (
-          <div className="w-64 cursor-grabbing opacity-90 shadow-lg">
+          <div className="w-64 cursor-grabbing rounded-card ring-2 ring-spectre">
             <JobApplicationCard jobApplication={dragging} />
           </div>
         )}
@@ -105,6 +117,13 @@ export function Board({
     </DndContext>
   );
 }
+
+/**
+ * The two columns nothing leaves. Their headings drop to `ink-faint`, because
+ * a pipeline is read left to right and these are where it stops — they are
+ * still part of the picture, and no longer part of the work.
+ */
+const TERMINAL: ReadonlySet<JobStatus> = new Set(["rejected", "withdrawn"]);
 
 function Column({
   status,
@@ -118,19 +137,27 @@ function Column({
   return (
     <section
       aria-label={JOB_STATUS_LABELS[status]}
-      className={`flex w-64 shrink-0 flex-col gap-2 rounded-lg border p-2 transition-colors ${
-        isOver
-          ? "border-blue-400 bg-blue-50 dark:border-blue-500 dark:bg-blue-950/30"
-          : "border-neutral-200 dark:border-neutral-800"
-      }`}
-      ref={setNodeRef}
+      className="flex min-w-0 flex-col gap-[9px]"
     >
-      <h3 className="flex items-baseline justify-between px-1 text-sm font-medium">
-        {JOB_STATUS_LABELS[status]}
-        <span className="text-xs opacity-50">{jobApplications.length}</span>
-      </h3>
+      <div className="flex items-baseline justify-between gap-1.5 border-b-[1.5px] border-line-strong pb-[7px]">
+        <h3
+          className={`type-eyebrow ${TERMINAL.has(status) ? "text-ink-faint" : "text-ink-muted"}`}
+        >
+          {JOB_STATUS_LABELS[status]}
+        </h3>
+        <span className="text-[11px] leading-none font-medium text-ink-faint">
+          {jobApplications.length}
+        </span>
+      </div>
 
-      <div className="flex min-h-24 flex-col gap-2">
+      {/* The padding is always there and only the fill arrives, so a card being
+          dragged over a column does not nudge every other column's contents. */}
+      <div
+        className={`-mx-1 flex min-h-16 flex-col gap-2 rounded-card p-1 transition-colors ${
+          isOver ? "bg-spectre-tint" : ""
+        }`}
+        ref={setNodeRef}
+      >
         {jobApplications.map((jobApplication) => (
           <DraggableJobApplicationCard
             jobApplication={jobApplication}

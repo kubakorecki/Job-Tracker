@@ -1,0 +1,124 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Public+Sans:ital,wght@0,300..800;1,400&display=swap">
+  <style>
+    :root{
+      --paper:oklch(0.972 0.006 285); --paper-2:oklch(0.998 0.002 285); --paper-3:oklch(0.951 0.008 285);
+      --ink:oklch(0.215 0.022 285); --ink-2:oklch(0.420 0.018 285); --ink-3:oklch(0.530 0.014 285);
+      --line:oklch(0.905 0.008 285); --line-2:oklch(0.858 0.010 285);
+      --spectre:oklch(0.520 0.120 298); --spectre-t:oklch(0.945 0.032 298);
+      --night:oklch(0.183 0.018 288); --night-line:oklch(0.318 0.018 288);
+      --night-ink:oklch(0.958 0.005 288); --night-ink-2:oklch(0.755 0.014 288);
+      --night-ink-3:oklch(0.620 0.016 288); --night-spectre:oklch(0.735 0.145 298);
+      --serif:"Instrument Serif","Iowan Old Style","Palatino Linotype",Georgia,serif;
+      --sans:"Public Sans","Geist",-apple-system,"Helvetica Neue",Arial,sans-serif;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:var(--sans);background:var(--paper);color:var(--ink);
+      -webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+    a{color:var(--spectre);text-decoration:none} a:hover{color:var(--ink)}
+    .root{min-height:900px;display:grid;grid-template-columns:minmax(0,1.18fr) minmax(0,1fr);background:var(--paper)}
+
+    /* ---- the statement ---- */
+    .stage{position:relative;overflow:hidden;background:var(--night);color:var(--night-ink);
+      padding:60px 64px;display:flex;flex-direction:column;justify-content:space-between}
+    .stage .mark{display:flex;align-items:center;gap:10px;position:relative;z-index:2}
+    .stage .wordmark{font-family:var(--serif);font-size:25px;line-height:1}
+    .stage .wordmark .tld{color:var(--night-spectre)}
+    .drift{position:absolute;right:-96px;bottom:-70px;color:#fff;opacity:.045;z-index:1}
+    .drift2{position:absolute;left:38%;top:-58px;color:var(--night-spectre);opacity:.06;z-index:1}
+    .say{position:relative;z-index:2;max-width:620px}
+    .say h2{font-family:var(--serif);font-size:57px;font-weight:400;line-height:1.06;letter-spacing:-0.017em;margin:0;text-wrap:balance}
+    .say h2 em{font-style:italic;color:var(--night-spectre)}
+    .say p{margin:22px 0 0;font:400 15px/1.65 var(--sans);color:var(--night-ink-2);max-width:470px;text-wrap:pretty}
+    .facts{position:relative;z-index:2;display:flex;gap:44px;padding-top:26px;border-top:1px solid var(--night-line)}
+    .fact .n{font-family:var(--serif);font-size:31px;line-height:1;display:block}
+    .fact .l{font:400 12px/1.45 var(--sans);color:var(--night-ink-3);margin-top:6px;display:block;max-width:150px}
+
+    /* ---- the door ---- */
+    .door{display:flex;flex-direction:column;justify-content:center;padding:60px 72px;gap:26px;background:var(--paper)}
+    .door h1{font-family:var(--serif);font-size:34px;font-weight:400;line-height:1.15;margin:0}
+    .door .sub{margin:7px 0 0;font:400 13.5px/1.55 var(--sans);color:var(--ink-2)}
+    form{display:flex;flex-direction:column;gap:15px}
+    .f{display:flex;flex-direction:column;gap:6px}
+    .f > span{font:600 11px/1 var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+    .field{width:100%;height:40px;border:1px solid var(--line-2);border-radius:6px;background:var(--paper-2);
+      color:var(--ink);font:400 14px/1 var(--sans);padding:0 12px;outline:none;font-family:var(--sans)}
+    .field:focus{border-color:var(--spectre);box-shadow:0 0 0 3px var(--spectre-t)}
+    .field::placeholder{color:var(--ink-3)}
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:42px;padding:0 18px;
+      border-radius:6px;font:600 14px/1 var(--sans);border:1px solid transparent;cursor:pointer}
+    .btn-primary{background:var(--ink);color:var(--paper-2);width:100%}
+    .btn-primary:hover{background:var(--spectre)}
+    .foot{font:400 12px/1.6 var(--sans);color:var(--ink-3);margin:0;max-width:340px}
+    .rowline{display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .linkish{font:500 12.5px/1 var(--sans);color:var(--ink-2)}
+  </style>
+</helmet>
+
+<div class="root">
+
+  <section class="stage">
+    <svg class="drift" width="430" height="430" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 21V10a8 8 0 0 1 16 0v11 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 Z"></path></svg>
+    <svg class="drift2" width="250" height="250" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 21V10a8 8 0 0 1 16 0v11 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 Z"></path></svg>
+
+    <div class="mark">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M4 21V10a8 8 0 0 1 16 0v11 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"></path>
+        <circle cx="9.2" cy="10.8" r="1.15" fill="currentColor"></circle>
+        <circle cx="14.8" cy="10.8" r="1.15" fill="currentColor"></circle>
+      </svg>
+      <span class="wordmark">ghosted<span class="tld">.boo</span></span>
+    </div>
+
+    <div class="say">
+      <h2>They said they would be in touch. <em>They were not.</em></h2>
+      <p>A tracker for the part nobody designs for — the weeks after you hit send. Every job you are chasing, how well you actually fit it, and exactly how long it has been since anyone had the decency to reply.</p>
+    </div>
+
+    <div class="facts">
+      <div class="fact"><span class="n">45</span><span class="l">days of silence before a job counts as ghosted</span></div>
+      <div class="fact"><span class="n">6</span><span class="l">columns, one honest pipeline</span></div>
+      <div class="fact"><span class="n">0</span><span class="l">statuses guessed on your behalf</span></div>
+    </div>
+  </section>
+
+  <section class="door">
+    <div>
+      <h1>Welcome back.</h1>
+      <p class="sub">Let us see who has been ignoring you.</p>
+    </div>
+
+    <form>
+      <label class="f">
+        <span>Email</span>
+        <input class="field" type="email" autocomplete="email" placeholder="you@example.com">
+      </label>
+      <label class="f">
+        <span>Password</span>
+        <input class="field" type="password" autocomplete="current-password" placeholder="••••••••••••">
+      </label>
+      <button class="btn btn-primary" type="submit">Sign in</button>
+      <div class="rowline" style="justify-content:flex-end">
+        <a class="linkish" href="#">Forgotten your password?</a>
+      </div>
+    </form>
+
+    <p class="foot">Accounts are made by hand — there is no sign-up here. If you need one, ask the person who runs this.</p>
+  </section>
+
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {}
+</script>
+</body>
+</html>

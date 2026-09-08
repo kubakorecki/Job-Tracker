@@ -1,12 +1,13 @@
 import type { JobApplication } from "@repo/schema";
 import type { ReactNode } from "react";
+import { todayInUtc } from "../../lib/day";
 import {
   closingLabel,
   closingOf,
   closingDescription,
-  todayInUtc,
   type ClosingKind,
 } from "../../lib/job-applications/closing";
+import { Tag, type TagTone } from "../tag";
 
 /**
  * When a Posting stops taking applications, and what that means today: a
@@ -14,8 +15,13 @@ import {
  * intake that closed while they were waiting to hear (ADR-0007).
  *
  * One component for the board card, the table row and the detail view, for the
- * same reason there is one fit ring: a Closing that read one way on a card
- * and another on the page behind it would be a reason to trust neither.
+ * same reason there is one fit ring: a Closing that read one way on a card and
+ * another on the page behind it would be a reason to trust neither.
+ *
+ * It wears the same rectangle as the silence tag, and on a card it takes that
+ * one slot when there is no silence to report — the two are the same kind of
+ * news, a clock running somewhere the user is not, and both are shaped apart
+ * from the Status pill for it.
  *
  * It is handed the two fields the reading is made of rather than a Closing, so
  * that nothing above it can pair a date with a Status it did not come from,
@@ -42,35 +48,28 @@ export function ClosingBadge({
   if (closing === null) return unrecorded;
 
   return (
-    <span
-      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs whitespace-nowrap ${TONES[closing.kind]}`}
-      // The date itself and what follows from it — which the four words on the
-      // face of the badge have no room for.
-      title={closingDescription(closing)}
-    >
+    // The date itself and what follows from it — which the four words on the
+    // face of the tag have no room for.
+    <Tag title={closingDescription(closing)} tone={TONES[closing.kind]}>
       {closingLabel(closing)}
-    </span>
+    </Tag>
   );
 }
 
 /**
- * How each reading is dressed. Outlined rather than filled, so that a Closing
- * is not mistaken for the Status badge it sits beside — the two say different
- * things and should not look like two of the same thing.
+ * How each reading is dressed. Only the two that ask something of the user
+ * raise their voice, and they raise it in `rose` — a date running out is the
+ * one clock in the app the user can still beat. The other two are the page's
+ * own line and ink, because a Closing the user has already acted on is a fact
+ * rather than a warning.
  *
- * Only the two readings that ask something of the user raise their voice:
- * amber for a Closing still worth acting on, red for one that got away. The
- * other two are the page's own grey, because a Closing the user has already
- * acted on is a fact rather than a warning. Colour is reinforcement in every
- * case — `closingLabel` says the whole of it in words, so nothing here is
- * legible only to a reader who can tell amber from grey.
+ * Colour is reinforcement in every case: `closingLabel` says the whole of it
+ * in words, so nothing here is legible only to a reader who can tell rose from
+ * grey.
  */
-const TONES: Record<ClosingKind, string> = {
-  open: "border-neutral-200 text-neutral-600 dark:border-neutral-700 dark:text-neutral-400",
-  "closing-soon":
-    "border-amber-400 bg-amber-50 font-medium text-amber-800 dark:border-amber-500/60 dark:bg-amber-900/30 dark:text-amber-200",
-  missed:
-    "border-red-300 font-medium text-red-700 dark:border-red-500/60 dark:text-red-300",
-  closed:
-    "border-neutral-200 text-neutral-500 dark:border-neutral-800 dark:text-neutral-400",
+const TONES: Record<ClosingKind, TagTone> = {
+  open: "quiet",
+  "closing-soon": "urgent",
+  missed: "urgent",
+  closed: "plain",
 };

@@ -5,6 +5,7 @@ import { SIGN_IN_PATH } from "../../../../lib/auth/route-access";
 import { isJobApplicationId } from "../../../../lib/job-applications/api";
 import { getJobApplication } from "../../../../lib/job-applications/repository";
 import { acceptedSkills } from "../../../../lib/profile/repository";
+import { AppBar, Page, PageBody } from "../../../app-bar";
 import { JobApplicationDetail } from "./job-application-detail";
 
 export default async function JobApplicationPage({
@@ -44,13 +45,19 @@ export default async function JobApplicationPage({
     readAnalysis(user.id, jobApplication),
   ]);
 
+  // The same bar as the board, and no "Track a job" on it: that button opens a
+  // panel over the board, and offering it here would be a way out of a page
+  // the user is in the middle of editing.
   return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 p-12">
-      <JobApplicationDetail
-        analysis={analysis}
-        hasProfileSkills={skills.length > 0}
-        jobApplication={jobApplication}
-      />
-    </main>
+    <Page>
+      <AppBar email={user.email ?? user.id} />
+      <PageBody>
+        <JobApplicationDetail
+          analysis={analysis}
+          hasProfileSkills={skills.length > 0}
+          jobApplication={jobApplication}
+        />
+      </PageBody>
+    </Page>
   );
 }

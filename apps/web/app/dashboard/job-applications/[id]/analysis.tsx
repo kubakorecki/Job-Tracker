@@ -4,7 +4,8 @@ import { useState } from "react";
 import { describeFailure } from "../../../../lib/api/client";
 import type { AnalysisOrNone } from "../../../../lib/analysis/contract";
 import { dayOf } from "../../../../lib/day";
-import { Problems, SECONDARY_BUTTON } from "../../../form";
+import { Problems, SECONDARY_BUTTON_SMALL } from "../../../form";
+import { Panel } from "../../../panel";
 
 /**
  * The Analysis, as the one thing on this page the user asks for rather than
@@ -59,27 +60,10 @@ export function AnalysisSection({
   }
 
   return (
-    <section className="flex flex-col gap-2 rounded-md border border-neutral-200 p-3 dark:border-neutral-800">
-      {analysis?.stale === true && <Stale ranAt={analysis.ranAt} />}
-
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-col gap-0.5">
-          <h2 className="text-sm font-medium">Analysis</h2>
-          <p className="text-xs opacity-60">
-            {analysis === null ? (
-              <>
-                A deeper reading than the automatic comparison: the model reads
-                your CV against each Requirement and says in a line what it
-                makes of it. It spends one call from today&rsquo;s allowance.
-              </>
-            ) : (
-              <>Last run on {dayOf(analysis.ranAt)}.</>
-            )}
-          </p>
-        </div>
-
+    <Panel
+      aside={
         <button
-          className={SECONDARY_BUTTON}
+          className={SECONDARY_BUTTON_SMALL}
           disabled={running || unsaved}
           onClick={run}
           type="button"
@@ -90,27 +74,56 @@ export function AnalysisSection({
               ? "Run an Analysis"
               : "Run it again"}
         </button>
+      }
+      title="Analysis"
+    >
+      <div className="flex flex-col gap-[11px]">
+        {analysis?.stale === true && <Stale ranAt={analysis.ranAt} />}
+
+        <p className="text-[12.5px] leading-[1.55] text-ink-muted">
+          {analysis === null ? (
+            <>
+              A deeper reading than the automatic comparison: the model reads
+              your CV against each Requirement and says in a line what it makes
+              of it.
+            </>
+          ) : (
+            <>
+              Ran on {dayOf(analysis.ranAt)} against your Profile. The model
+              read the Posting and said what it thought each Requirement asks
+              for, and whether your CV answers it.
+            </>
+          )}
+        </p>
+
+        <p className="text-[12.5px] leading-[1.55] text-ink-faint">
+          Analysing spends one call from today&rsquo;s allowance.
+        </p>
+
+        {running && (
+          // A model call takes seconds, and a button that simply went quiet
+          // for them would read as a page that had stopped working — the same
+          // reason the CV upload says what it is waiting for.
+          <p
+            aria-live="polite"
+            className="text-[12.5px] leading-[1.55] text-ink-muted"
+            role="status"
+          >
+            Reading your CV against these Requirements… the model is being asked
+            about each one, which takes a few seconds.
+          </p>
+        )}
+
+        {unsaved && (
+          <p className="text-[12.5px] leading-[1.55] text-ink-muted">
+            Save your changes first. An Analysis reads the Requirements as they
+            are saved, so it would answer about the list you have just changed.
+          </p>
+        )}
+
+        <Problems problems={problems} />
       </div>
-
-      {running && (
-        // A model call takes seconds, and a button that simply went quiet for
-        // them would read as a page that had stopped working — the same reason
-        // the CV upload says what it is waiting for.
-        <p aria-live="polite" className="text-xs opacity-60" role="status">
-          Reading your CV against these Requirements… the model is being asked
-          about each one, which takes a few seconds.
-        </p>
-      )}
-
-      {unsaved && (
-        <p className="text-xs opacity-60">
-          Save your changes first. An Analysis reads the Requirements as they
-          are saved, so it would answer about the list you have just changed.
-        </p>
-      )}
-
-      <Problems problems={problems} />
-    </section>
+    </Panel>
   );
 }
 
@@ -140,13 +153,37 @@ export function AnalysisSection({
 function Stale({ ranAt }: { ranAt: string }) {
   return (
     <p
-      className="rounded-md border border-amber-600/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-300"
+      className="flex items-start gap-2.5 rounded-[7px] border border-ember bg-ember-tint px-3 py-2.5 text-xs leading-[1.5] text-ember"
       role="status"
     >
-      This Analysis is out of date. Your CV or what this job asks for has
-      changed since it ran on {dayOf(ranAt)}, so what it concluded is about
-      something that is no longer there. Run it again to have the model read
-      what is there now.
+      <Warn />
+      <span>
+        This Analysis is out of date. Your CV or what this job asks for has
+        changed since it ran on {dayOf(ranAt)}, so what it concluded is about
+        something that is no longer there. Run it again to have the model read
+        what is there now.
+      </span>
     </p>
+  );
+}
+
+/** 24px grid, 1.7px stroke, `currentColor`, no fill — as every icon is. */
+function Warn() {
+  return (
+    <svg
+      aria-hidden="true"
+      className="mt-px shrink-0"
+      fill="none"
+      height="15"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeWidth="1.8"
+      viewBox="0 0 24 24"
+      width="15"
+    >
+      <path d="M12 8v5" />
+      <path d="M12 16.5v.01" />
+      <circle cx="12" cy="12" r="9" />
+    </svg>
   );
 }

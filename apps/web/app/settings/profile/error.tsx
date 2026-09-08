@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { DASHBOARD_PATH } from "../../../lib/auth/route-access";
+import { SettingsPage } from "../settings-page";
 import { Failure } from "../../states";
 
 /**
@@ -14,15 +13,8 @@ import { Failure } from "../../states";
  */
 export default function ProfileError({ retry }: { retry: () => void }) {
   return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 p-12">
-      <Link
-        className="text-sm underline underline-offset-2 opacity-60"
-        href={DASHBOARD_PATH}
-      >
-        ← Back to the board
-      </Link>
-      <h1 className="text-2xl font-semibold">Your Profile</h1>
+    <SettingsPage title="Your Profile">
       <Failure onRetry={retry} what="your Profile" />
-    </main>
+    </SettingsPage>
   );
 }

@@ -1,5 +1,5 @@
 import type { JobApplication } from "@repo/schema";
-import { dayOf } from "../day";
+import { dayOf, daysBetween } from "../day";
 
 /**
  * What a Job Application's Closing Date amounts to today. The date is a fact
@@ -50,20 +50,6 @@ export type Closing = {
  * still about this week rather than a date in the calendar.
  */
 export const CLOSING_SOON_DAYS = 7;
-
-/**
- * Today, as the days below are counted in: a UTC calendar day. Read from the
- * clock here and nowhere else, so every function that reasons about a Closing
- * Date takes the day as an argument and can be tested at any point in the
- * year.
- *
- * UTC rather than the reader's zone for the reason `dayOf` formats in it: the
- * board renders on the server and again in the browser, and a "today" that
- * differed between the two would count a different number of days in each.
- */
-export function todayInUtc(): string {
-  return new Date().toISOString().slice(0, 10);
-}
 
 /**
  * What this Job Application's Closing Date says today, or `null` where it has
@@ -161,18 +147,4 @@ function ahead(days: number): string {
 function behind(days: number): string {
   if (days === 0) return "today";
   return days === 1 ? "1 day ago" : `${days} days ago`;
-}
-
-/**
- * Whole days from one calendar day to another, positive where the second is
- * later. Both are `YYYY-MM-DD`, and both are read as UTC midnight, so no hour
- * of daylight saving can make a month come out a day short.
- */
-function daysBetween(from: string, to: string): number {
-  const DAY_IN_MS = 24 * 60 * 60 * 1000;
-  return (midnightUtc(to) - midnightUtc(from)) / DAY_IN_MS;
-}
-
-function midnightUtc(day: string): number {
-  return Date.parse(`${day}T00:00:00.000Z`);
 }

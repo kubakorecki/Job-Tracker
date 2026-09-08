@@ -1,0 +1,273 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Public+Sans:ital,wght@0,300..800;1,400&family=JetBrains+Mono:wght@400;500&display=swap">
+  <style>
+    :root{
+      --paper:oklch(0.972 0.006 285); --paper-2:oklch(0.998 0.002 285); --paper-3:oklch(0.951 0.008 285);
+      --ink:oklch(0.215 0.022 285); --ink-2:oklch(0.420 0.018 285); --ink-3:oklch(0.530 0.014 285);
+      --line:oklch(0.905 0.008 285); --line-2:oklch(0.858 0.010 285);
+      --spectre:oklch(0.520 0.120 298); --spectre-t:oklch(0.945 0.032 298);
+      --ember:oklch(0.520 0.120 62);   --ember-t:oklch(0.951 0.036 68);
+      --vital:oklch(0.520 0.120 152);  --vital-t:oklch(0.949 0.036 155);
+      --rose:oklch(0.520 0.120 18);    --rose-t:oklch(0.953 0.030 20);
+      --serif:"Instrument Serif","Iowan Old Style","Palatino Linotype",Georgia,serif;
+      --sans:"Public Sans","Geist",-apple-system,"Helvetica Neue",Arial,sans-serif;
+      --mono:"JetBrains Mono","SF Mono",Menlo,Consolas,monospace;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:var(--sans);background:var(--paper);color:var(--ink);
+      -webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+    a{color:var(--spectre);text-decoration:none} a:hover{color:var(--ink)}
+    .root{min-height:2560px;background:var(--paper);padding:44px 48px 60px;display:flex;flex-direction:column;gap:34px}
+
+    h1{font-family:var(--serif);font-size:38px;font-weight:400;line-height:1.05;margin:0}
+    .lede{margin:8px 0 0;font:400 14px/1.6 var(--sans);color:var(--ink-2);max-width:680px;text-wrap:pretty}
+    .sec{display:flex;flex-direction:column;gap:15px}
+    .sec-head{display:flex;align-items:center;gap:12px}
+    .sec-head span{font:600 10.5px/1 var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+    .sec-head .rule{flex:1;height:1px;background:var(--line)}
+    .note{margin:0;font:400 12.5px/1.6 var(--sans);color:var(--ink-3);max-width:760px}
+    .note b{color:var(--ink-2);font-weight:600}
+
+    /* ---- swatches ---- */
+    .swatches{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:11px}
+    .sw{display:flex;flex-direction:column;gap:7px}
+    .chipcolor{height:58px;border-radius:8px;border:1px solid var(--line)}
+    .sw .name{font:600 12px/1 var(--sans)}
+    .sw .val{font:400 10.5px/1.4 var(--mono);color:var(--ink-3);word-break:break-all}
+
+    /* ---- type ---- */
+    .ramp{display:flex;flex-direction:column;gap:0}
+    .rrow{display:grid;grid-template-columns:132px minmax(0,1fr);gap:22px;align-items:baseline;
+      padding:12px 0;border-bottom:1px solid var(--line)}
+    .rrow:last-child{border-bottom:0}
+    .rmeta{font:400 10.5px/1.5 var(--mono);color:var(--ink-3)}
+    .rmeta b{display:block;font:600 11px/1.4 var(--sans);color:var(--ink-2);letter-spacing:.05em;text-transform:uppercase}
+
+    /* ---- specimen rows ---- */
+    .specs{display:flex;flex-direction:column;gap:16px}
+    .spec{display:grid;grid-template-columns:148px minmax(0,1fr);gap:22px;align-items:center}
+    .spec > .lab{font:600 11px/1.4 var(--sans);letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3)}
+    .bin{display:flex;flex-wrap:wrap;align-items:center;gap:9px}
+
+    .pill{display:inline-flex;align-items:center;height:22px;padding:0 10px;border-radius:999px;
+      font:600 11px/1 var(--sans);letter-spacing:.02em}
+    .pill-bookmarked{background:var(--paper-3);color:var(--ink-2)}
+    .pill-applied{background:var(--spectre-t);color:var(--spectre)}
+    .pill-interviewing{background:var(--ember-t);color:var(--ember)}
+    .pill-offer{background:var(--vital-t);color:var(--vital)}
+    .pill-rejected{background:var(--rose-t);color:var(--rose)}
+    .pill-withdrawn{background:transparent;color:var(--ink-3);box-shadow:inset 0 0 0 1px var(--line-2)}
+
+    .tag{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:4px;
+      font:500 10.5px/1 var(--sans);border:1px solid;white-space:nowrap}
+    .tag-quiet{border-color:var(--line-2);color:var(--ink-2)}
+    .tag-cold{border-color:var(--ember);background:var(--ember-t);color:var(--ember);font-weight:600}
+    .tag-gone{border-color:var(--ink-3);border-style:dashed;color:var(--ink-2);font-weight:600}
+    .tag-closing{border-color:var(--rose);background:var(--rose-t);color:var(--rose);font-weight:600}
+
+    .cov{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 9px;border-radius:5px;
+      font:600 11.5px/1 var(--sans);border:1px solid}
+    .cov-have{border-color:var(--vital);background:var(--vital-t);color:var(--vital)}
+    .cov-partial{border-color:var(--ember);background:var(--ember-t);color:var(--ember)}
+    .cov-missing{border-color:var(--rose);background:var(--rose-t);color:var(--rose)}
+    .cov .src{font-weight:400;opacity:.75;font-size:10.5px}
+
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;height:34px;padding:0 14px;
+      border-radius:5px;font:600 13px/1 var(--sans);border:1px solid transparent;cursor:pointer}
+    .btn-primary{background:var(--ink);color:var(--paper-2)}
+    .btn-primary:hover{background:var(--spectre)}
+    .btn-quiet{background:var(--paper-2);color:var(--ink-2);border-color:var(--line-2)}
+    .btn-danger{background:transparent;color:var(--rose);border-color:var(--rose)}
+    .btn[disabled]{opacity:.42;cursor:not-allowed}
+    .btn-sm{height:28px;padding:0 10px;font-size:12px}
+
+    .field{height:34px;border:1px solid var(--line-2);border-radius:5px;background:var(--paper-2);
+      color:var(--ink);font:400 13px/1 var(--sans);padding:0 10px;outline:none;font-family:var(--sans);width:190px}
+    .field.focus{border-color:var(--spectre);box-shadow:0 0 0 3px var(--spectre-t)}
+    .field.bad{border-color:var(--rose);box-shadow:0 0 0 3px var(--rose-t)}
+    .field::placeholder{color:var(--ink-3)}
+
+    .icons{display:flex;flex-wrap:wrap;gap:16px;align-items:center;color:var(--ink-2)}
+
+    /* ---- code ---- */
+    pre{margin:0;padding:17px 19px;border:1px solid var(--line);border-radius:10px;background:var(--paper-2);
+      font:400 11.5px/1.75 var(--mono);color:var(--ink-2);overflow-x:auto}
+    pre b{color:var(--ink);font-weight:500}
+    pre i{color:var(--ink-3);font-style:normal}
+
+    .two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;align-items:start}
+    .scale{display:flex;align-items:flex-end;gap:9px}
+    .scale div{background:var(--spectre-t);border:1px solid var(--spectre);border-radius:3px;
+      display:flex;align-items:flex-end;justify-content:center;padding-bottom:3px;
+      font:500 9.5px/1 var(--mono);color:var(--spectre)}
+    .radii{display:flex;align-items:center;gap:14px}
+    .radii div{width:62px;height:52px;background:var(--paper-3);border:1px solid var(--line-2);
+      display:flex;align-items:center;justify-content:center;font:500 10px/1 var(--mono);color:var(--ink-3)}
+  </style>
+</helmet>
+
+<div class="root">
+
+  <div>
+    <h1>ghosted.boo — the parts list</h1>
+    <p class="lede">One accent hue for the brand and three semantic ones for status, all sharing a lightness of 0.52 and a chroma of 0.12 so nothing shouts louder than anything else. Two faces: a high-contrast serif for numbers and headlines, a plain grotesque for everything you actually read.</p>
+  </div>
+
+  <section class="sec">
+    <div class="sec-head"><span>Ground and ink</span><div class="rule"></div></div>
+    <div class="swatches">
+      <div class="sw"><div class="chipcolor" style="background:var(--paper)"></div><span class="name">paper</span><span class="val">oklch(.972 .006 285)</span></div>
+      <div class="sw"><div class="chipcolor" style="background:var(--paper-2)"></div><span class="name">paper-raised</span><span class="val">oklch(.998 .002 285)</span></div>
+      <div class="sw"><div class="chipcolor" style="background:var(--paper-3)"></div><span class="name">paper-sunk</span><span class="val">oklch(.951 .008 285)</span></div>
+      <div class="sw"><div class="chipcolor" style="background:var(--line)"></div><span class="name">line</span><span class="val">oklch(.905 .008 285)</span></div>
+      <div class="sw"><div class="chipcolor" style="background:var(--ink-2)"></div><span class="name">ink-muted</span><span class="val">oklch(.420 .018 285)</span></div>
+      <div class="sw"><div class="chipcolor" style="background:var(--ink)"></div><span class="name">ink</span><span class="val">oklch(.215 .022 285)</span></div>
+    </div>
+    <p class="note">Every neutral carries the same <b>285° hue</b> at very low chroma, so the greys read as a cool bone-white paper rather than as switched-off colour. This replaces the <b>opacity-60</b> the app currently uses for all secondary text — opacity double-dims over tinted backgrounds and cannot be tuned per surface, which is why the badges and the failure banner currently look muddier than they should.</p>
+  </section>
+
+  <section class="sec">
+    <div class="sec-head"><span>Accents — one brand hue, three semantics</span><div class="rule"></div></div>
+    <div class="swatches">
+      <div class="sw"><div class="chipcolor" style="background:var(--spectre)"></div><span class="name">spectre</span><span class="val">298° — brand, Applied, links, focus</span></div>
+      <div class="sw"><div class="chipcolor" style="background:var(--ember)"></div><span class="name">ember</span><span class="val">62° — Interviewing, going cold, partial</span></div>
+      <div class="sw"><div class="chipcolor" style="background:var(--vital)"></div><span class="name">vital</span><span class="val">152° — Offer, have it</span></div>
+      <div class="sw"><div class="chipcolor" style="background:var(--rose)"></div><span class="name">rose</span><span class="val">18° — Rejected, missing, closing</span></div>
+      <div class="sw"><div class="chipcolor" style="background:var(--spectre-t)"></div><span class="name">spectre-tint</span><span class="val">the same hue as a fill</span></div>
+      <div class="sw"><div class="chipcolor" style="background:var(--ember-t)"></div><span class="name">ember-tint</span><span class="val">the same hue as a fill</span></div>
+    </div>
+    <p class="note">All four sit at <b>L 0.52 / C 0.12</b> and differ only in hue, so a green badge and a red badge carry exactly the same visual weight and no status can win an argument by being brighter. That chroma is the ceiling: <b>0.12 is the most any of these four hues can hold at this lightness and stay inside sRGB</b> — push it and the browser clips ember and vital, shifting their hue without telling you. Each accent reads at <b>4.5:1 or better on its own tint</b>, and colour is never the only carrier — every badge says its reading in words too.</p>
+  </section>
+
+  <section class="sec">
+    <div class="sec-head"><span>Type</span><div class="rule"></div></div>
+    <div class="ramp">
+      <div class="rrow"><div class="rmeta"><b>Display</b>Instrument Serif · 48/1.02</div><div style="font-family:var(--serif);font-size:48px;line-height:1.02;letter-spacing:-.015em">Stripe</div></div>
+      <div class="rrow"><div class="rmeta"><b>Statement</b>Instrument Serif · 37/1.12</div><div style="font-family:var(--serif);font-size:37px;line-height:1.12">14 tracked. 3 have gone quiet.</div></div>
+      <div class="rrow"><div class="rmeta"><b>Section</b>Instrument Serif · 26/1.15</div><div style="font-family:var(--serif);font-size:26px;line-height:1.15">Nothing out there yet.</div></div>
+      <div class="rrow"><div class="rmeta"><b>Title</b>Public Sans 600 · 14/1.3</div><div style="font:600 14px/1.3 var(--sans)">Senior Product Engineer</div></div>
+      <div class="rrow"><div class="rmeta"><b>Body</b>Public Sans 400 · 13.5/1.55</div><div style="font:400 13.5px/1.55 var(--sans);max-width:560px">The Posting asks for services that survive a region going down. Your CV describes queue-backed workers and a read replica.</div></div>
+      <div class="rrow"><div class="rmeta"><b>Meta</b>Public Sans 400 · 12/1.4</div><div style="font:400 12px/1.4 var(--sans);color:var(--ink-3)">Saved 14 Aug · applied 15 Aug · last changed 3 Sep</div></div>
+      <div class="rrow"><div class="rmeta"><b>Eyebrow</b>Public Sans 600 · 10.5, .09em caps</div><div style="font:600 10.5px/1 var(--sans);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-2)">Requirements</div></div>
+    </div>
+    <p class="note"><b>Instrument Serif has one weight.</b> Never let a browser synthesise bold on it — headline emphasis comes from colour and size, never from a heavier cut. Public Sans is the workhorse and is metric-compatible enough with the <b>Geist</b> already installed in <b>apps/web/app/layout.tsx</b> that you can keep Geist for UI and add only the serif if you would rather ship one new font. Numbers everywhere use <b>tabular-nums</b> so counts do not shuffle as they change.</p>
+  </section>
+
+  <section class="sec">
+    <div class="sec-head"><span>Components</span><div class="rule"></div></div>
+    <div class="specs">
+      <div class="spec"><span class="lab">Status</span><div class="bin">
+        <span class="pill pill-bookmarked">Bookmarked</span><span class="pill pill-applied">Applied</span>
+        <span class="pill pill-interviewing">Interviewing</span><span class="pill pill-offer">Offer</span>
+        <span class="pill pill-rejected">Rejected</span><span class="pill pill-withdrawn">Withdrawn</span>
+      </div></div>
+      <div class="spec"><span class="lab">Silence</span><div class="bin">
+        <span class="tag tag-quiet">Quiet · 12d</span><span class="tag tag-cold">Going cold · 34d</span>
+        <span class="tag tag-gone">Ghosted · 61d</span><span class="tag tag-closing">Closes in 3d</span>
+      </div></div>
+      <div class="spec"><span class="lab">Coverage</span><div class="bin">
+        <span class="cov cov-have">Have it</span>
+        <span class="cov cov-partial">Partly<span class="src">· analysed</span></span>
+        <span class="cov cov-missing">Missing</span>
+        <span class="cov cov-have">Have it<span class="src">· yours</span></span>
+      </div></div>
+      <div class="spec"><span class="lab">Buttons</span><div class="bin">
+        <button class="btn btn-primary" type="button">Save changes</button>
+        <button class="btn btn-quiet" type="button">Run it again</button>
+        <button class="btn btn-danger btn-sm" type="button">Delete</button>
+        <button class="btn btn-primary" type="button" disabled>Saving…</button>
+      </div></div>
+      <div class="spec"><span class="lab">Fields</span><div class="bin">
+        <input class="field" placeholder="Company or job title">
+        <input class="field focus" value="Stripe">
+        <input class="field bad" value="">
+        <span style="font:400 12px/1.4 var(--sans);color:var(--rose)">Company is required.</span>
+      </div></div>
+      <div class="spec"><span class="lab">Icons · 24 grid</span><div class="icons">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 21V10a8 8 0 0 1 16 0v11 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"></path><circle cx="9.2" cy="10.8" r="1.15" fill="currentColor"></circle><circle cx="14.8" cy="10.8" r="1.15" fill="currentColor"></circle></svg>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v5H4z"></path><path d="M4 13h9v7H4z"></path><path d="M17 13h3v7h-3z"></path></svg>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6"></path><path d="M20 4l-9 9"></path><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"></path></svg>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M12 8v5"></path><path d="M12 16.5v.01"></path><circle cx="12" cy="12" r="9"></circle></svg>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7.5V12l3 2"></path></svg>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8.2 12.3 2.6 2.6 5-5.4"></path><circle cx="12" cy="12" r="9"></circle></svg>
+        <span class="note" style="margin-left:4px">1.7px stroke, round caps, no fills except the ghost's eyes. Never emoji.</span>
+      </div></div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-head"><span>Metrics</span><div class="rule"></div></div>
+    <div class="two">
+      <div style="display:flex;flex-direction:column;gap:11px">
+        <div class="scale">
+          <div style="width:26px;height:4px">4</div><div style="width:26px;height:8px">8</div>
+          <div style="width:26px;height:12px">12</div><div style="width:26px;height:16px">16</div>
+          <div style="width:26px;height:22px">22</div><div style="width:26px;height:34px">34</div>
+          <div style="width:26px;height:48px">48</div><div style="width:26px;height:64px">64</div>
+        </div>
+        <p class="note">Spacing on a 4px base. Card padding 12, panel padding 18, page gutter 64, section gap 20–34.</p>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:11px">
+        <div class="radii">
+          <div style="border-radius:4px">4 · tag</div>
+          <div style="border-radius:5px">5 · control</div>
+          <div style="border-radius:9px">9 · card</div>
+          <div style="border-radius:11px">11 · panel</div>
+          <div style="border-radius:999px">999 · pill</div>
+        </div>
+        <p class="note">Tighter than the current <b>rounded-md</b> everywhere. Controls 34px tall (28 for small); <b>every hit target on a phone stays at 44px.</b></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-head"><span>Where this goes in the repo</span><div class="rule"></div></div>
+    <pre><i>/* packages/tailwind-config/shared-styles.css — replaces the three</i>
+<i>   orphan --color-*-1000 values left over from the create-turbo starter */</i>
+
+@import "tailwindcss";
+
+@theme {
+  <b>--color-paper</b>:        oklch(0.972 0.006 285);
+  <b>--color-paper-raised</b>: oklch(0.998 0.002 285);
+  <b>--color-paper-sunk</b>:   oklch(0.951 0.008 285);
+  <b>--color-line</b>:         oklch(0.905 0.008 285);
+  <b>--color-line-strong</b>:  oklch(0.858 0.010 285);
+  <b>--color-ink</b>:          oklch(0.215 0.022 285);
+  <b>--color-ink-muted</b>:    oklch(0.420 0.018 285);
+  <b>--color-ink-faint</b>:    oklch(0.530 0.014 285);
+
+  <b>--color-spectre</b>:      oklch(0.520 0.120 298);   <i>/* brand · Applied */</i>
+  <b>--color-spectre-tint</b>: oklch(0.945 0.032 298);
+  <b>--color-ember</b>:        oklch(0.520 0.120 62);    <i>/* Interviewing · going cold */</i>
+  <b>--color-ember-tint</b>:   oklch(0.951 0.036 68);
+  <b>--color-vital</b>:        oklch(0.520 0.120 152);   <i>/* Offer · have it */</i>
+  <b>--color-vital-tint</b>:   oklch(0.949 0.036 155);
+  <b>--color-rose</b>:         oklch(0.520 0.120 18);    <i>/* Rejected · missing */</i>
+  <b>--color-rose-tint</b>:    oklch(0.953 0.030 20);
+
+  <b>--font-display</b>: "Instrument Serif", "Iowan Old Style", Georgia, serif;
+  <b>--radius-tag</b>: 4px;  <b>--radius-control</b>: 5px;
+  <b>--radius-card</b>: 9px; <b>--radius-panel</b>: 11px;
+}</pre>
+    <p class="note">The dark palette is the same table with <b>paper</b> and <b>ink</b> swapped and the four accents lifted to <b>L 0.735 / C 0.145</b> — same four hues, so nothing in a component has to know which theme it is in. <b>packages/ui</b> keeps its <b>ui:</b> prefix and imports the same file, so <b>StatusBadge</b> and the web app cannot drift.</p>
+  </section>
+
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"$preview":{"width":1180,"height":2560}}'>
+class Component extends DCLogic {}
+</script>
+</body>
+</html>

@@ -1,0 +1,264 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Public+Sans:ital,wght@0,300..800;1,400&display=swap">
+  <style>
+    :root{
+      --paper:oklch(0.972 0.006 285); --paper-2:oklch(0.998 0.002 285); --paper-3:oklch(0.951 0.008 285);
+      --ink:oklch(0.215 0.022 285); --ink-2:oklch(0.420 0.018 285); --ink-3:oklch(0.530 0.014 285);
+      --line:oklch(0.905 0.008 285); --line-2:oklch(0.858 0.010 285);
+      --spectre:oklch(0.520 0.120 298); --spectre-t:oklch(0.945 0.032 298);
+      --ember:oklch(0.520 0.120 62);   --ember-t:oklch(0.951 0.036 68);
+      --vital:oklch(0.520 0.120 152);  --vital-t:oklch(0.949 0.036 155);
+      --rose:oklch(0.520 0.120 18);    --rose-t:oklch(0.953 0.030 20);
+      --serif:"Instrument Serif","Iowan Old Style","Palatino Linotype",Georgia,serif;
+      --sans:"Public Sans","Geist",-apple-system,"Helvetica Neue",Arial,sans-serif;
+    }
+    .dark{
+      --paper:oklch(0.183 0.018 288); --paper-2:oklch(0.228 0.020 288); --paper-3:oklch(0.268 0.020 288);
+      --ink:oklch(0.958 0.005 288); --ink-2:oklch(0.755 0.014 288); --ink-3:oklch(0.620 0.016 288);
+      --line:oklch(0.318 0.018 288); --line-2:oklch(0.382 0.020 288);
+      --spectre:oklch(0.735 0.145 298); --spectre-t:oklch(0.315 0.058 298);
+      --ember:oklch(0.735 0.145 62);   --ember-t:oklch(0.300 0.052 62);
+      --vital:oklch(0.735 0.145 152);  --vital-t:oklch(0.292 0.052 152);
+      --rose:oklch(0.735 0.145 18);    --rose-t:oklch(0.308 0.058 18);
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:var(--sans);background:var(--paper);color:var(--ink);
+      -webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+    a{color:var(--spectre);text-decoration:none} a:hover{color:var(--ink)}
+    .root{min-height:1620px;background:var(--paper);padding:44px 48px 56px;display:flex;flex-direction:column;gap:34px}
+
+    .sheet-head h1{font-family:var(--serif);font-size:38px;font-weight:400;line-height:1.05;margin:0}
+    .sheet-head p{margin:8px 0 0;font:400 14px/1.6 var(--sans);color:var(--ink-2);max-width:640px;text-wrap:pretty}
+
+    .sec{display:flex;flex-direction:column;gap:14px}
+    .sec-head{display:flex;align-items:center;gap:12px}
+    .sec-head span{font:600 10.5px/1 var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+    .sec-head .rule{flex:1;height:1px;background:var(--line)}
+    .caption{margin:0;font:400 12.5px/1.6 var(--sans);color:var(--ink-3);max-width:680px}
+    .caption b{color:var(--ink-2);font-weight:600}
+
+    /* ---- silence ladder ---- */
+    .ladder{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;align-items:start}
+    .rungwrap{display:flex;flex-direction:column;gap:9px}
+    .rungmeta{font:600 10.5px/1 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+    .rungmeta em{font-style:normal;font-weight:400;letter-spacing:0;text-transform:none;color:var(--ink-3);opacity:.8}
+    .card{position:relative;overflow:hidden;display:flex;flex-direction:column;gap:3px;
+      padding:11px 12px 12px;border:1px solid var(--line);border-radius:9px;background:var(--paper-2)}
+    .card .co{font:600 13.5px/1.3 var(--sans)}
+    .card .ti{font:400 12px/1.35 var(--sans);color:var(--ink-2)}
+    .card .marks{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:7px}
+    .card[data-tone="cold"]{border-color:var(--ember);border-style:dashed}
+    .card[data-tone="gone"]{border-style:dashed;border-color:var(--line-2);background:transparent}
+    .card[data-tone="gone"] .co{color:var(--ink-2)} .card[data-tone="gone"] .ti{color:var(--ink-3)}
+    .haunt{position:absolute;right:-14px;bottom:-20px;color:var(--ink);opacity:.055;pointer-events:none}
+    .tag{display:inline-flex;align-items:center;height:19px;padding:0 7px;border-radius:4px;
+      font:500 10.5px/1 var(--sans);border:1px solid;white-space:nowrap}
+    .tag-quiet{border-color:var(--line-2);color:var(--ink-2)}
+    .tag-cold{border-color:var(--ember);background:var(--ember-t);color:var(--ember);font-weight:600}
+    .tag-gone{border-color:var(--ink-3);border-style:dashed;color:var(--ink-2);font-weight:600}
+    .fit{display:inline-flex;align-items:center;gap:5px;font:500 11px/1 var(--sans);color:var(--ink-2)}
+
+    /* ---- state blocks ---- */
+    .pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:start}
+    .frame{border:1px solid var(--line);border-radius:12px;background:var(--paper-2);padding:8px}
+    .empty{display:flex;flex-direction:column;align-items:center;gap:10px;padding:44px 28px;text-align:center;
+      border:1px dashed var(--line-2);border-radius:9px}
+    .empty h3{font-family:var(--serif);font-size:26px;font-weight:400;margin:0;line-height:1.1}
+    .empty p{margin:0;font:400 13px/1.6 var(--sans);color:var(--ink-2);max-width:400px}
+    .empty .ghost{color:var(--ink-3);opacity:.5;margin-bottom:2px}
+
+    .btn{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 14px;border-radius:5px;
+      font:600 13px/1 var(--sans);border:1px solid transparent;cursor:pointer;white-space:nowrap}
+    .btn-primary{background:var(--ink);color:var(--paper-2)}
+    .btn-quiet{background:var(--paper-2);color:var(--ink-2);border-color:var(--line-2)}
+    .btn-sm{height:29px;padding:0 11px;font-size:12px}
+
+    /* ---- failure ---- */
+    .failure{display:flex;gap:12px;align-items:flex-start;padding:15px 17px;border:1px solid var(--rose);
+      background:var(--rose-t);border-radius:9px}
+    .failure h4{margin:0;font:600 13.5px/1.4 var(--sans);color:var(--rose)}
+    .failure p{margin:5px 0 0;font:400 12.5px/1.55 var(--sans);color:var(--ink-2)}
+    .failure .acts{margin-top:10px;display:flex;gap:8px}
+
+    /* ---- nudge ---- */
+    .nudge{display:flex;align-items:center;gap:18px;padding:17px 20px;border:1px solid var(--line);
+      border-left:3px solid var(--ember);border-radius:10px;background:var(--paper-2)}
+    .nudge .n{font-family:var(--serif);font-size:38px;line-height:1;color:var(--ember)}
+    .nudge .copy{flex:1;min-width:0}
+    .nudge h4{margin:0;font-family:var(--serif);font-size:21px;font-weight:400;line-height:1.25}
+    .nudge p{margin:4px 0 0;font:400 12.5px/1.55 var(--sans);color:var(--ink-2)}
+    .nudge .acts{display:flex;gap:8px;flex-shrink:0}
+
+    /* ---- loading ---- */
+    .skel{background:var(--line);border-radius:4px;animation:pulse 1.8s ease-in-out infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+    .loadwrap{display:flex;flex-direction:column;gap:8px;padding:14px}
+    .loadline{font:400 12.5px/1 var(--sans);color:var(--ink-3);margin:0 0 5px}
+  </style>
+</helmet>
+
+<div class="root {{themeClass}}">
+
+  <div class="sheet-head">
+    <h1>When there is nothing to show</h1>
+    <p>Four ways silence reads on a card, and the six screens that stand in for content. The voice is dry, never chirpy — and it goes quiet entirely when something has actually gone wrong.</p>
+  </div>
+
+  <!-- ============ the silence ladder ============ -->
+  <section class="sec">
+    <div class="sec-head"><span>The silence ladder</span><div class="rule"></div></div>
+    <div class="ladder">
+
+      <div class="rungwrap">
+        <div class="rungmeta">Fresh <em>· 0–7 days</em></div>
+        <div class="card" data-tone="live">
+          <span class="co">Anthropic</span>
+          <span class="ti">Research Engineer</span>
+          <div class="marks">
+            <span class="fit"><svg width="15" height="15" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="none" stroke="var(--line-2)" stroke-width="4"></circle><circle cx="10" cy="10" r="8" fill="none" stroke="var(--ember)" stroke-width="4" stroke-dasharray="50.27" stroke-dashoffset="11.2" stroke-linecap="butt" transform="rotate(-90 10 10)"></circle></svg>7/9</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="rungwrap">
+        <div class="rungmeta">Quiet <em>· 8–20 days</em></div>
+        <div class="card" data-tone="quiet">
+          <span class="co">Vercel</span>
+          <span class="ti">Developer Experience Engineer</span>
+          <div class="marks">
+            <span class="fit"><svg width="15" height="15" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="none" stroke="var(--line-2)" stroke-width="4"></circle><circle cx="10" cy="10" r="8" fill="none" stroke="var(--vital)" stroke-width="4" stroke-dasharray="50.27" stroke-dashoffset="5.6" stroke-linecap="butt" transform="rotate(-90 10 10)"></circle></svg>8/9</span>
+            <span class="tag tag-quiet">Quiet · 12d</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="rungwrap">
+        <div class="rungmeta">Going cold <em>· 21–44 days</em></div>
+        <div class="card" data-tone="cold">
+          <span class="co">Stripe</span>
+          <span class="ti">Senior Product Engineer</span>
+          <div class="marks">
+            <span class="fit"><svg width="15" height="15" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="none" stroke="var(--line-2)" stroke-width="4"></circle><circle cx="10" cy="10" r="8" fill="none" stroke="var(--ember)" stroke-width="4" stroke-dasharray="50.27" stroke-dashoffset="18.9" stroke-linecap="butt" transform="rotate(-90 10 10)"></circle></svg>5/8</span>
+            <span class="tag tag-cold">Going cold · 34d</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="rungwrap">
+        <div class="rungmeta">Ghosted <em>· 45 days and up</em></div>
+        <div class="card" data-tone="gone">
+          <svg class="haunt" width="86" height="86" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 21V10a8 8 0 0 1 16 0v11 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 Z"></path></svg>
+          <span class="co">Figma</span>
+          <span class="ti">Product Designer</span>
+          <div class="marks">
+            <span class="fit"><svg width="15" height="15" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="none" stroke="var(--line-2)" stroke-width="4"></circle><circle cx="10" cy="10" r="8" fill="none" stroke="var(--rose)" stroke-width="4" stroke-dasharray="50.27" stroke-dashoffset="27.9" stroke-linecap="butt" transform="rotate(-90 10 10)"></circle></svg>4/9</span>
+            <span class="tag tag-gone">Ghosted · 61d</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <p class="caption">Silence is counted from the last thing that actually happened, and it only applies where the user is <b>waiting on somebody</b> — an Applied or Interviewing Job Application. A Bookmarked one has nobody to hear from, and an Offer, a Rejection or a Withdrawal has already been answered. The card fades toward the page rather than turning red: <b>ghosting is an absence, not an error.</b></p>
+  </section>
+
+  <!-- ============ empty states ============ -->
+  <section class="sec">
+    <div class="sec-head"><span>Nothing to show</span><div class="rule"></div></div>
+    <div class="pair">
+
+      <div class="frame">
+        <div class="empty">
+          <svg class="ghost" width="40" height="40" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 21V10a8 8 0 0 1 16 0v11 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"></path><circle cx="9.2" cy="10.8" r="1" fill="currentColor"></circle><circle cx="14.8" cy="10.8" r="1" fill="currentColor"></circle></svg>
+          <h3>Nothing out there yet.</h3>
+          <p>Track your first job and the board fills itself in. Or open the extension on a Posting you are already reading and save it from the page.</p>
+          <div style="display:flex;gap:8px;margin-top:4px">
+            <button class="btn btn-primary btn-sm" type="button">Track a job</button>
+            <button class="btn btn-quiet btn-sm" type="button">Get the extension</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="frame">
+        <div class="empty">
+          <svg class="ghost" width="40" height="40" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 21V10a8 8 0 0 1 16 0v11 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 q-1.6-2.4-3.2 0 Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-dasharray="3 3"></path></svg>
+          <h3>No sign of it.</h3>
+          <p>No Job Application at that Status carries what you searched for. The filters are doing more work than you meant them to.</p>
+          <button class="btn btn-quiet btn-sm" type="button" style="margin-top:4px">Show everything</button>
+        </div>
+      </div>
+
+      <div class="frame">
+        <div class="empty">
+          <svg class="ghost" width="40" height="40" viewBox="0 0 24 24" fill="none" style="color:var(--vital);opacity:.7" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.4"></circle><path d="m8.2 12.3 2.6 2.6 5-5.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          <h3>Nobody is ignoring you.</h3>
+          <p>Every job you are waiting on has been heard from in the last week. Enjoy it — this is not the usual state of affairs.</p>
+        </div>
+      </div>
+
+      <div class="frame loadwrap">
+        <p class="loadline" role="status">Loading your Job Applications…</p>
+        <div class="skel" style="height:13px;width:34%"></div>
+        <div class="skel" style="height:56px;width:100%;border-radius:9px"></div>
+        <div class="skel" style="height:56px;width:100%;border-radius:9px;animation-delay:.15s"></div>
+        <div class="skel" style="height:56px;width:100%;border-radius:9px;animation-delay:.3s"></div>
+        <p class="caption" style="margin-top:2px">The wait is written out as well as drawn — a skeleton is furniture to a screen reader.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============ things that went wrong ============ -->
+  <section class="sec">
+    <div class="sec-head"><span>When something is actually wrong</span><div class="rule"></div></div>
+
+    <div class="failure" role="alert">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" style="color:var(--rose);flex:0 0 17px;margin-top:1px" aria-hidden="true"><path d="M12 8v5"></path><path d="M12 16.5v.01"></path><circle cx="12" cy="12" r="9"></circle></svg>
+      <div style="flex:1">
+        <h4>Could not load the latest Job Applications.</h4>
+        <p>The board below is the last good copy, from four minutes ago. Anything you change now may not save.</p>
+        <div class="acts">
+          <button class="btn btn-quiet btn-sm" type="button">Try again</button>
+          <button class="btn btn-quiet btn-sm" type="button">Dismiss</button>
+        </div>
+      </div>
+    </div>
+    <p class="caption">No jokes in this one. <b>The voice stops being funny the moment the user has a problem to solve</b> — errors, destructive confirmations and anything about money or data say plainly what happened, what state things are in now, and what to press.</p>
+  </section>
+
+  <!-- ============ the nudge ============ -->
+  <section class="sec">
+    <div class="sec-head"><span>The one place the app speaks first</span><div class="rule"></div></div>
+    <div class="nudge">
+      <span class="n">3</span>
+      <div class="copy">
+        <h4>Three of them have stopped writing back.</h4>
+        <p>Figma, Notion and Wise have all been quiet for over six weeks. Nothing is owed to you — but the board reads better once they are off it.</p>
+      </div>
+      <div class="acts">
+        <button class="btn btn-quiet btn-sm" type="button">Review the three</button>
+        <button class="btn btn-quiet btn-sm" type="button">Not now</button>
+      </div>
+    </div>
+    <p class="caption">Shown at most once a week, above the board, and dismissible for good. It never marks anything Rejected on the user's behalf — <b>Status is set by the user and never inferred</b>, so this only offers to take them to the three.</p>
+  </section>
+
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","section":"Theme"},"$preview":{"width":1180,"height":1620}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { themeClass: (this.props.theme ?? 'light') === 'dark' ? 'dark' : '' };
+  }
+}
+</script>
+</body>
+</html>
