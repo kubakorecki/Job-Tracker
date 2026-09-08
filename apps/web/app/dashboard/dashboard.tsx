@@ -184,26 +184,32 @@ export function Dashboard({
                 value={filter.search}
               />
 
-              <select
-                aria-label="Filter by Status"
-                className={`${SELECT} w-[148px] shrink-0`}
-                onChange={(event) =>
-                  narrow(
-                    "status",
-                    event.target.value === ""
-                      ? null
-                      : (event.target.value as JobStatus),
-                  )
-                }
-                value={filter.status ?? ""}
-              >
-                <option value="">Any Status</option>
-                {JobStatus.options.map((status) => (
-                  <option key={status} value={status}>
-                    {JOB_STATUS_LABELS[status]}
-                  </option>
-                ))}
-              </select>
+              {/* The select fills what it is given, so its width is the
+                  toolbar's business rather than its own — and it has to be,
+                  because a `w-[148px]` on the control itself would lose to the
+                  `w-full` in `SELECT` (see `form.tsx`). */}
+              <div className="w-[148px] shrink-0">
+                <select
+                  aria-label="Filter by Status"
+                  className={SELECT}
+                  onChange={(event) =>
+                    narrow(
+                      "status",
+                      event.target.value === ""
+                        ? null
+                        : (event.target.value as JobStatus),
+                    )
+                  }
+                  value={filter.status ?? ""}
+                >
+                  <option value="">Any Status</option>
+                  {JobStatus.options.map((status) => (
+                    <option key={status} value={status}>
+                      {JOB_STATUS_LABELS[status]}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
               <Segmented
                 label="Silence"

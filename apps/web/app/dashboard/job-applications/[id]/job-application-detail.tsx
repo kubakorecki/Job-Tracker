@@ -786,20 +786,22 @@ function Requirements({
         // Adding one is the panel's own business and belongs on the line with
         // its name, rather than as a third field under a list of them.
         <div className="flex items-center gap-2">
-          <input
-            aria-label="Add a Requirement"
-            className={`${FIELD_SMALL_ON_RAISED} w-[190px]`}
-            onChange={(event) => setSkill(event.target.value)}
-            // Enter in a box inside a form saves the form, which here would
-            // save the page and leave the typed skill behind in the box.
-            onKeyDown={(event) => {
-              if (event.key !== "Enter") return;
-              event.preventDefault();
-              add();
-            }}
-            placeholder="What this job asks for"
-            value={skill}
-          />
+          <div className="w-[190px] shrink-0">
+            <input
+              aria-label="Add a Requirement"
+              className={FIELD_SMALL_ON_RAISED}
+              onChange={(event) => setSkill(event.target.value)}
+              // Enter in a box inside a form saves the form, which here would
+              // save the page and leave the typed skill behind in the box.
+              onKeyDown={(event) => {
+                if (event.key !== "Enter") return;
+                event.preventDefault();
+                add();
+              }}
+              placeholder="What this job asks for"
+              value={skill}
+            />
+          </div>
           <div className="w-[124px] shrink-0">
             <NecessitySelect
               label="Necessity of the Requirement being added"
