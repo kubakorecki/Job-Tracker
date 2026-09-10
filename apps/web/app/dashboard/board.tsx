@@ -90,8 +90,16 @@ export function Board({
     >
       {/* Six columns wherever there is room for six, and a sideways scroll
           where there is not — the shape of the pipeline is the whole of what
-          this view is for, and stacking it would make it a list. */}
-      <div className="overflow-x-auto pb-2">
+          this view is for, and stacking it would make it a list.
+
+          The four pixels of padding either side are the room each column's
+          drop zone bleeds into: it is pulled out by `-mx-1` below so the cards
+          line up with the rule above them, and without somewhere for the last
+          column's to go it overflowed by exactly that much and left the board
+          scrolling sideways on a screen with room to spare. The matching
+          `-mx-1` here puts the columns back on the page's own gutter, so
+          nothing moves but the scrollbar. */}
+      <div className="-mx-1 overflow-x-auto px-1 pb-2">
         <div className="grid min-w-[980px] grid-cols-6 items-start gap-3.5">
           {JobStatus.options.map((status) => (
             <Column

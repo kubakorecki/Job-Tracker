@@ -329,7 +329,7 @@ function Segmented<Value extends string>({
           aria-pressed={option.value === value}
           className={`h-[32px] border-r border-line-strong px-3 text-[12.5px] font-medium last:border-r-0 ${
             option.value === value
-              ? "bg-ink text-paper-raised"
+              ? "bg-ink text-paper-raised hover:bg-ink-muted"
               : "text-ink-muted hover:text-ink"
           }`}
           key={option.value}

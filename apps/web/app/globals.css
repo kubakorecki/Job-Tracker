@@ -36,6 +36,23 @@
     color: var(--ink);
   }
 
+  /*
+   * Anything you can press says so under the pointer. Stated once here rather
+   * than as a `cursor-pointer` on each of the constants in `app/form.tsx`,
+   * because it is a fact about a control and not a decision about one — a
+   * segmented option or a coverage badge written inline gets it too, and a new
+   * button cannot be added without it.
+   *
+   * `:not(:disabled)` so a control that is off keeps the `cursor-not-allowed`
+   * its class asks for; a base rule loses to a utility in any case, and this
+   * says the same thing twice on purpose.
+   */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  summary {
+    cursor: pointer;
+  }
+
   /* Never removed, only restyled: every card and row on the board is a real
      link, and the ring is how a keyboard finds it. */
   :focus-visible {

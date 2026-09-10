@@ -126,7 +126,11 @@ export function CoverageBadge({
       // A rectangle rather than the Status pill's round: Coverage is a reading
       // about the user, Status is what they set, and the two are never to be
       // read as one axis.
-      className={`inline-flex h-6 shrink-0 items-center gap-1.5 rounded-control border px-[9px] text-[11.5px] leading-none font-semibold whitespace-nowrap ${
+      // The halo is drawn in `currentColor` rather than in one of the four
+      // accents, because the badge is a different colour for every Coverage and
+      // a fixed hover would be a fifth reading on a control whose whole job is
+      // to carry one.
+      className={`inline-flex h-6 shrink-0 items-center gap-1.5 rounded-control border px-[9px] text-[11.5px] leading-none font-semibold whitespace-nowrap hover:ring-2 hover:ring-current/30 ${
         requirement.coverage === null
           ? "border-line-strong text-ink-faint"
           : COVERAGE_STYLES[requirement.coverage]

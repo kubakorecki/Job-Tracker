@@ -109,15 +109,19 @@ export const SECONDARY_BUTTON_SMALL = `${BUTTON_BASE} h-[28px] px-2.5 text-xs bg
  * the reason `FIELD_CORE` is: Tailwind emits `bg-paper-raised` after `bg-ink`
  * and `border-line-strong` after `border-ink`, so the override would lose and
  * leave paper text on a paper button.
+ *
+ * It answers the pointer even though it is the one already chosen — pressing
+ * it again is what un-chooses it, and a control that does something has to
+ * look like it does.
  */
-export const CHOSEN_BUTTON_SMALL = `${BUTTON_BASE} h-[28px] px-2.5 text-xs bg-ink text-paper-raised border-ink`;
+export const CHOSEN_BUTTON_SMALL = `${BUTTON_BASE} h-[28px] px-2.5 text-xs bg-ink text-paper-raised border-ink hover:bg-ink-muted hover:border-ink-muted`;
 
 /**
  * The one that cannot be undone by typing the field back. Outlined rather than
  * filled: a red block is what a page uses to say something has gone wrong, and
  * nothing has gone wrong until the user presses this.
  */
-export const DANGER_BUTTON = `${BUTTON_BASE} h-[28px] px-2.5 text-xs bg-transparent text-rose border-rose`;
+export const DANGER_BUTTON = `${BUTTON_BASE} h-[28px] px-2.5 text-xs bg-transparent text-rose border-rose hover:bg-rose-tint`;
 
 /**
  * A control that is only its icon: 28px square, the page's faint ink until it
@@ -131,8 +135,13 @@ export const ICON_BUTTON =
  * A control that reads as a line of prose, for the one thing a sentence can
  * offer: follow it, clear it, undo it. It inherits its colour, so the same
  * button is legible inside a `rose` failure and on the page.
+ *
+ * Which is why it answers the pointer by thickening its own rule rather than
+ * by changing colour: a hover written as `hover:text-ink` would be the one
+ * thing in it that stops inheriting, and would go grey inside a red sentence.
  */
-export const TEXT_BUTTON = "font-medium underline underline-offset-2";
+export const TEXT_BUTTON =
+  "font-medium underline underline-offset-2 hover:decoration-2";
 
 /** What a label says of the control under it. */
 export const LABEL =
