@@ -1,7 +1,6 @@
 import { send, upload } from "../api/client";
 import {
   CV_FIELD,
-  type Profile,
   type ProfileOrNone,
   type ProfileSkills,
   type UploadedCv,
@@ -73,8 +72,17 @@ export async function putProfileSkills(
  * not part of what was signed, so appending it here needs no second signature
  * and costs no second round trip. An `<a download>` cannot do this job: the
  * bucket is on another origin, and the attribute is ignored across origins.
+ *
+ * It takes the two fields rather than a Profile, because a Tailored CV is the
+ * same pair of things from the same bucket and saving one is the same gesture.
  */
-export function downloadUrlFor({ fileUrl, fileName }: Profile): string {
+export function downloadUrlFor({
+  fileUrl,
+  fileName,
+}: {
+  fileUrl: string;
+  fileName: string;
+}): string {
   // Parsed rather than concatenated. Whether a signed URL already carries a
   // query string is the store's business and could change; whether this is the
   // right way to add a parameter to one cannot.

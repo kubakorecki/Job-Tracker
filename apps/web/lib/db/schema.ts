@@ -296,6 +296,72 @@ export const profiles = pgTable("profiles", {
 export type ProfileRow = typeof profiles.$inferSelect;
 
 /**
+ * A Tailored CV: the one CV attached to one Job Application — the document the
+ * user is actually sending for this job, as against the Profile, which is what
+ * they would send if they had tailored nothing.
+ *
+ * Keyed by the Job Application rather than by an id of its own, for the reason
+ * the Profile is keyed by the user: "there is exactly one" is then a fact the
+ * database keeps instead of a rule every write has to remember. The foreign key
+ * cascades, so deleting a Job Application takes its Tailored CV row with it —
+ * the file in the bucket is the caller's to take away, as it is on a
+ * replacement.
+ *
+ * The columns are the Profile's, minus the skill list: a skill list is the
+ * user's own side of the comparison and there is one of it, on the Profile. A
+ * Tailored CV is a document and its text, and nothing else.
+ */
+export const tailoredCvs = pgTable(
+  "tailored_cvs",
+  {
+    jobApplicationId: uuid("job_application_id")
+      .primaryKey()
+      .references(() => jobApplications.id, { onDelete: "cascade" }),
+    /** No foreign key into `auth.users`, for the same reason as above. */
+    userId: uuid("user_id").notNull(),
+    /**
+     * Where the file sits in the bucket — the same private bucket the Profile's
+     * CV lives in, under the same user's folder. A fresh path every upload: a
+     * stored file is never rewritten, so attaching another CV writes a new
+     * object and takes the old one away rather than overwriting one in place.
+     */
+    storagePath: text("storage_path").notNull(),
+    /** The name it was uploaded under, so a download can offer it back. */
+    fileName: text("file_name").notNull(),
+    /** The IANA media type the file was accepted as. Text, as on a Profile. */
+    mediaType: text("media_type").notNull(),
+    /**
+     * The document's text, beside the file. What an Analysis against the
+     * Tailored CV Basis reads, and what the page shows for a CV that is its own
+     * text (ADR-0004).
+     */
+    extractedText: text("extracted_text").notNull(),
+    /**
+     * When the file that is there now was attached, and when anything about the
+     * Tailored CV last moved. Two stamps for the Profile's reason: an Analysis
+     * measured against this document goes stale when it moves, and the Tailored
+     * CV effort reads the second of these to know that it has.
+     */
+    uploadedAt: timestamp("uploaded_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    /**
+     * Every read names the owner as well as the Job Application (ADR-0001), and
+     * the key alone cannot serve a query that also filters by user.
+     */
+    index("tailored_cvs_user_id_idx").on(table.userId),
+  ],
+);
+
+export type TailoredCvRow = typeof tailoredCvs.$inferSelect;
+
+/**
  * A Personal Access Token: the long-lived credential the user pastes into the
  * extension, standing in for the session cookie an extension origin cannot
  * have. Only the SHA-256 hash of the raw value is stored, so a reader of this

@@ -5,6 +5,7 @@ import { SIGN_IN_PATH } from "../../../../lib/auth/route-access";
 import { isJobApplicationId } from "../../../../lib/job-applications/api";
 import { getJobApplication } from "../../../../lib/job-applications/repository";
 import { acceptedSkills } from "../../../../lib/profile/repository";
+import { readTailoredCv } from "../../../../lib/tailored-cvs/view";
 import { AppBar, Page, PageBody } from "../../../app-bar";
 import { JobApplicationDetail } from "./job-application-detail";
 
@@ -30,7 +31,7 @@ export default async function JobApplicationPage({
 
   // What the page knows about this Job Application beyond the record itself.
   // Neither read waits on the other.
-  const [skills, analysis] = await Promise.all([
+  const [skills, analysis, tailoredCv] = await Promise.all([
     // Whether there is anything to compare a Requirement against. The page
     // reads it rather than the component inferring it from the readings,
     // because "we have not read this" and "you have told us nothing to read it
@@ -43,6 +44,11 @@ export default async function JobApplicationPage({
     // there and travels with it, so the banner renders an answer rather than
     // reaching one.
     readAnalysis(user.id, jobApplication),
+    // Which document this job is getting, if it is getting one of its own.
+    // Read here rather than by the section that shows it, so that opening the
+    // page is one round of reads — and through the feature rather than its own
+    // endpoint, for the reason the Analysis above is.
+    readTailoredCv(user.id, jobApplication.id),
   ]);
 
   // The same bar as the board, and no "Track a job" on it: that button opens a
@@ -56,6 +62,7 @@ export default async function JobApplicationPage({
           analysis={analysis}
           hasProfileSkills={skills.length > 0}
           jobApplication={jobApplication}
+          tailoredCv={tailoredCv}
         />
       </PageBody>
     </Page>

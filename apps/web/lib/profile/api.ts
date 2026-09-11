@@ -3,20 +3,12 @@ import { errorResponse } from "../api/response";
 import type { CurrentUser } from "../auth/current-user";
 import { MODEL_CALL_LIMIT_STATUS, spendModelCall } from "../model-calls/budget";
 import { describeIssues } from "../zod-issues";
-import {
-  ACCEPTED_CV_FORMATS,
-  CV_FIELD,
-  CV_TOO_LARGE,
-  CvMediaType,
-  MAX_CV_BYTES,
-  ProfileSkills,
-  type ProfileOrNone,
-  type UploadedCv,
-} from "./contract";
+import { ProfileSkills, type ProfileOrNone, type UploadedCv } from "./contract";
 import { readCvWithGemini, type CvReading, type ReadCv } from "./reader";
 import { replaceProfileCv, setProfileSkills } from "./repository";
 import { tidySkills } from "./skills";
 import { supabaseCvStore, type CvStore } from "./storage";
+import { cvFrom } from "./upload";
 import { profileFrom, readProfile } from "./view";
 
 /**
@@ -29,14 +21,6 @@ import { profileFrom, readProfile } from "./view";
  * the file and the row are written in, and which half of a reading the user
  * has to say yes to before it is theirs.
  */
-
-/** The file extensions each accepted format is recognised by, failing that. */
-const EXTENSION_TYPES: Record<string, CvMediaType> = {
-  pdf: "application/pdf",
-  md: "text/markdown",
-  markdown: "text/markdown",
-  txt: "text/plain",
-};
 
 /**
  * `POST /api/profile`. Takes one CV as `multipart/form-data`, stores it as it
@@ -63,24 +47,10 @@ export function uploadProfileResponse(
   store: CvStore = supabaseCvStore,
 ) {
   return async (request: Request, user: CurrentUser): Promise<Response> => {
-    const form = await formData(request);
-    if (form === null) return errorResponse("Expected a file upload.", 400);
+    const arrived = await cvFrom(request);
+    if ("refusal" in arrived) return arrived.refusal;
 
-    const file = form.get(CV_FIELD);
-    if (!(file instanceof File)) {
-      return errorResponse(`Expected a CV in the "${CV_FIELD}" field.`, 400);
-    }
-
-    const mediaType = cvMediaTypeOf(file);
-    if (mediaType === null) {
-      return errorResponse(`A CV has to be ${ACCEPTED_CV_FORMATS}.`, 415, [
-        `${file.name || "That file"} is not one of them.`,
-      ]);
-    }
-
-    if (file.size > MAX_CV_BYTES) {
-      return errorResponse(CV_TOO_LARGE, 413);
-    }
+    const { bytes, mediaType, fileName } = arrived.cv;
 
     // Spent from the one daily budget every model call comes out of, and spent
     // before the reading rather than after, so a reading that reached a
@@ -93,8 +63,6 @@ export function uploadProfileResponse(
         MODEL_CALL_LIMIT_STATUS,
       );
     }
-
-    const bytes = new Uint8Array(await file.arrayBuffer());
 
     let reading: CvReading;
     try {
@@ -121,7 +89,7 @@ export function uploadProfileResponse(
     const storagePath = await store.put(user.id, { bytes, mediaType });
     const { profile, replaced } = await replaceProfileCv(user.id, {
       storagePath,
-      fileName: fileNameOf(file, mediaType),
+      fileName,
       mediaType,
       extractedText,
     });
@@ -211,52 +179,4 @@ export async function setProfileSkillsResponse(
 
   const answer: ProfileSkills = { skills: row.skills };
   return Response.json(answer);
-}
-
-/**
- * What this file is, if it is a CV at all. The media type the browser declared
- * is believed when it is one of the three, and the file's own extension
- * answers when it is not: a `.md` file reaches a request as `text/markdown`,
- * as `text/plain`, or as nothing at all depending on the browser and the
- * operating system, and a user who exported a CV should not have to know which
- * of those they got.
- *
- * An extension is the fallback rather than the rule because it is the weaker
- * claim of the two — anything can be renamed. Neither is trusted further than
- * this: the reader is handed the bytes, and a file that is not what it says it
- * is comes back with no text.
- */
-export function cvMediaTypeOf(file: File): CvMediaType | null {
-  const declared = CvMediaType.safeParse(file.type.split(";")[0]?.trim());
-  if (declared.success) return declared.data;
-
-  const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
-  return EXTENSION_TYPES[extension] ?? null;
-}
-
-/** The name to keep, or one of our own for a file that arrived without one. */
-function fileNameOf(file: File, mediaType: CvMediaType): string {
-  return file.name.trim() === "" ? `cv${extensionOf(mediaType)}` : file.name;
-}
-
-function extensionOf(mediaType: CvMediaType): string {
-  const named = Object.entries(EXTENSION_TYPES).find(
-    ([, type]) => type === mediaType,
-  );
-
-  return named === undefined ? "" : `.${named[0]}`;
-}
-
-/**
- * The request's form body, or `null` when it carries none. A body that will
- * not parse as a multipart upload is the client's mistake, and is worth saying
- * so before anything else gets a look at it — the same question `jsonBody`
- * asks of the endpoints that take JSON.
- */
-async function formData(request: Request): Promise<FormData | null> {
-  try {
-    return await request.formData();
-  } catch {
-    return null;
-  }
 }

@@ -22,6 +22,7 @@ import { dayOf } from "../../../../lib/day";
 import { describeFailure } from "../../../../lib/api/client";
 import { fetchAnalysis, runAnalysis } from "../../../../lib/analysis/client";
 import type { AnalysisOrNone } from "../../../../lib/analysis/contract";
+import type { TailoredCvOrNone } from "../../../../lib/tailored-cvs/contract";
 import {
   deleteCoverageOverride,
   putCoverageOverride,
@@ -55,6 +56,7 @@ import {
 import { Excitement } from "./excitement";
 import { FitBanner } from "./fit-banner";
 import { SilenceThread } from "./silence-thread";
+import { TailoredCvSection } from "./tailored-cv";
 import {
   DANGER_BUTTON,
   FIELD_ON_RAISED,
@@ -88,6 +90,7 @@ export function JobApplicationDetail({
   jobApplication,
   hasProfileSkills,
   analysis: lastAnalysis,
+  tailoredCv,
 }: {
   jobApplication: JobApplication;
   /**
@@ -104,6 +107,13 @@ export function JobApplicationDetail({
    * views of the same run.
    */
   analysis: AnalysisOrNone;
+  /**
+   * The CV attached to this Job Application, or `null` where none is — in
+   * which case the Profile is what would be sent. It is read here rather than
+   * by the section itself, so that opening the page costs one round of reads
+   * rather than a render followed by a fetch.
+   */
+  tailoredCv: TailoredCvOrNone;
 }) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -419,6 +429,15 @@ export function JobApplicationDetail({
               </Field>
             </div>
           </Panel>
+
+          {/* Below what the job asks for and what the Posting said, because it
+              is the answer to those two: this is the document going back. It
+              saves nothing through the form it sits inside — attaching and
+              removing are their own requests, on the press. */}
+          <TailoredCvSection
+            jobApplicationId={saved.id}
+            tailoredCv={tailoredCv}
+          />
 
           <Problems problems={problems} />
 
