@@ -13,8 +13,9 @@ _Avoid_: listing, ad, job
 
 **Job Application**:
 The record we keep of one job the user is pursuing. It may originate from a
-Posting or from nothing at all (a referral, a recruiter email). This is the
-only aggregate v1 persists.
+Posting or from nothing at all (a referral, a recruiter email). It was the only
+aggregate v1 persisted, which is the shape ADR-0001 was written against; a
+Conversation is the second.
 _Avoid_: job, application, entry, card
 
 **Status**:
@@ -144,13 +145,46 @@ uploaded by hand, and sent when the user records that it was. While none is
 attached, the Profile stands in as what would be sent.
 _Avoid_: application CV, attachment, resume, document
 
+**Conversation**:
+A record of the user talking to the model about their job search, kept so it
+can be returned to. There are two kinds and no more: one attached to a Job
+Application, which sees that Job Application and nothing else, and one
+unattached general Conversation, which sees every Job Application in outline
+and none in full. Both always see the Profile. Clearing one destroys its
+Messages; there is never a second Conversation of the same kind to choose
+between, so a Conversation is found by standing somewhere rather than by
+picking it off a list. Nothing marks one stale — every turn is assembled from
+the state of that moment, and what was said stands as a record of a
+conversation that happened rather than a claim still being made.
+_Avoid_: chat, thread, session, history
+
+**Message**:
+One thing said in a Conversation, by the user or by the model. The model's are
+prose and nothing else: there is no Draft here and nothing a Message becomes.
+A cover letter is a Message the user reads and copies out, not a document the
+product stores a second time under another name.
+_Avoid_: turn, exchange, reply, completion
+
 **Model Call**:
 One call to the model, on the user's behalf and against the one API key:
-reading a Posting, reading a CV, or running an Analysis. All three spend from a
-single daily allowance per user, because it is one grant and the reason for
-the limit is indifferent to which call drained it. The table that counts them
-is still `extraction_usage`, from when extraction was the only kind.
+reading a Posting, reading a CV, running an Analysis, or answering one turn of
+a Conversation. All of them spend from a single daily count per user, because
+it is one grant and the reason for the limit is indifferent to which call
+drained it. That count exists to cap what a leaked Personal Access Token can
+spend in a day and for nothing else — what a user has spent is AI Usage's
+business, and a Model Call is never shown to anyone (ADR-0009). The table that
+counts them is still `extraction_usage`, from when extraction was the only
+kind.
 _Avoid_: extraction (for the counter), request, generation, token
+
+**AI Usage**:
+What one user has spent on the model this month, counted in tokens — every
+token the provider reports for a call, the model's own thinking included —
+summed across reading a Posting, reading a CV, an Analysis and every
+Conversation turn alike. It is the only measure of cost the product shows, it
+is metered against a monthly limit, and it is drawn on the Profile. A Model
+Call is the other limit and answers a different question (ADR-0009).
+_Avoid_: quota, credits, allowance, budget
 
 **Personal Access Token**:
 A long-lived credential the user generates in the dashboard and pastes into the
