@@ -195,7 +195,7 @@ function UploadCv({
       setChosen(null);
     } catch (error) {
       // Whatever the endpoint said, in its own words: an unreadable file, a
-      // provider that could not be reached, a spent daily allowance. The three
+      // provider that could not be reached, a spent month of AI Usage. The three
       // are worded differently on purpose and none of them is worth
       // paraphrasing here.
       setProblems(describeFailure(error));

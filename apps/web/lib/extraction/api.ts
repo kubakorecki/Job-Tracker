@@ -3,6 +3,9 @@ import {
   type ExtractJobResponse,
   type JobExtraction,
 } from "@repo/schema";
+import { AI_USAGE_LIMIT_STATUS, mayStartAiCall } from "../ai-usage/meter";
+import { tokensSpentBy, type Metered } from "../ai-usage/metered";
+import { recordAiUsage } from "../ai-usage/repository";
 import { jsonBody } from "../api/request";
 import { errorResponse } from "../api/response";
 import type { CurrentUser } from "../auth/current-user";
@@ -31,9 +34,11 @@ export const MAX_PAGE_TEXT_LENGTH = 30_000;
  * it are the same bytes, and the panel has to tell them apart to know whether
  * to apologise.
  *
- * Two of the three failures answer 200, because the panel's right response to
- * them is to open the manual form; `rate_limited` answers the shared model
- * call limit status, because its right response is to wait.
+ * Two of the four failures answer 200, because the panel's right response to
+ * them is to open the manual form. The two that are limits answer their own
+ * limit status, because neither is answered by filling the form in now:
+ * `ai_usage_spent` is the month's allowance gone, and `rate_limited` is the
+ * daily Model Call ceiling, which the user should never see (ADR-0009).
  *
  * The extraction function is substitutable so the endpoint can be exercised
  * with no API key and no network; nothing but a test ever passes one.
@@ -52,7 +57,19 @@ export function extractJobResponse(extract: ExtractJob = extractWithGemini) {
       );
     }
 
-    // Spent from the one daily budget every model call comes out of. Here
+    // The month's AI Usage, asked before the reading starts and never again: a
+    // page cannot be priced until it has been read, so a reading admitted here
+    // is allowed to finish and overshoot (ADR-0009). The sentence the user is
+    // shown is the panel's, from this reason — the shared one is for the
+    // endpoints that answer in prose.
+    if ((await mayStartAiCall(user.id)) === "over-limit") {
+      return json(
+        { ok: false, reason: "ai_usage_spent" },
+        AI_USAGE_LIMIT_STATUS,
+      );
+    }
+
+    // Spent from the one daily count every model call comes out of. Here
     // rather than lower down so that a request refused above costs nothing at
     // all; `spendModelCall` explains the rest.
     if ((await spendModelCall(user.id)) === "over-limit") {
@@ -62,9 +79,9 @@ export function extractJobResponse(extract: ExtractJob = extractWithGemini) {
       );
     }
 
-    let draft: JobExtraction;
+    let call: Metered<JobExtraction>;
     try {
-      draft = await extract({
+      call = await extract({
         url: input.data.url,
         pageText: input.data.pageText.slice(0, MAX_PAGE_TEXT_LENGTH),
         // The day the reading is made on, read from the clock here rather than
@@ -73,13 +90,25 @@ export function extractJobResponse(extract: ExtractJob = extractWithGemini) {
         // server's fact, not something a client's clock should get to decide.
         today: todayInUtc(),
       });
-    } catch {
+    } catch (error) {
       // Every way of failing to reach or understand the provider — an outage,
       // an exhausted quota, a malformed reply — is the same answer here. There
       // is deliberately no second attempt on a cheaper model: a visible failure
       // is how the user learns the grant is spent.
+      //
+      // One of those ways still costs tokens: a provider that answered with
+      // something unreadable was paid for answering. `tokensSpentBy` is nought
+      // for all the others (ADR-0009).
+      await recordAiUsage(user.id, tokensSpentBy(error));
       return json({ ok: false, reason: "provider_error" });
     }
+
+    // What the reading cost. A reading that never reached the provider records
+    // nothing and has still spent its Model Call, which is why that one is
+    // charged before the provider is reached (ADR-0009).
+    await recordAiUsage(user.id, call.tokens);
+
+    const draft = call.answer;
 
     // A Posting always names at least one of the two. Neither means the page
     // was not a Posting, which is a real answer rather than an error.

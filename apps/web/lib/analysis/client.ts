@@ -5,7 +5,7 @@ import type { AnalysisOrNone, AnalysisResult } from "./contract";
  * The Analysis endpoints, as the Job Application page addresses them.
  *
  * Two requests that look alike and cost nothing alike: one spends a model call
- * from the user's daily allowance and one is a read. They are named so that
+ * from the user's AI Usage and one is a read. They are named so that
  * calling the expensive one is never a slip of the finger — `runAnalysis` is
  * the only thing in the dashboard that spends anything, and it is only ever
  * reached from a button the user pressed.
@@ -25,7 +25,7 @@ const analysisOf = (jobApplicationId: string) =>
  *
  * It refuses in four distinguishable ways, each in the endpoint's own
  * sentence: nothing to analyse, no CV to analyse against, a provider that
- * could not be reached, and a spent daily allowance. None of them is worth
+ * could not be reached, and a spent month of AI Usage. None of them is worth
  * paraphrasing at the button.
  */
 export async function runAnalysis(

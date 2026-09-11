@@ -280,10 +280,22 @@ export const ExtractJobRequest = z.object({
 });
 export type ExtractJobRequest = z.infer<typeof ExtractJobRequest>;
 
+/**
+ * Why an extraction answered with no Draft.
+ *
+ * `ai_usage_spent` and `rate_limited` are two different refusals and not one:
+ * the first is the user's month of AI Usage gone, which is an ordinary end to
+ * an ordinary allowance, and the second is the daily Model Call ceiling, which
+ * a user should never see and which means a runaway client or a leaked
+ * Personal Access Token when they do (ADR-0009). A panel that could not tell
+ * them apart would have to word both as one, and one of the two wordings would
+ * be a lie.
+ */
 export const ExtractionFailureReason = z.enum([
   "no_job_found",
   "provider_error",
   "rate_limited",
+  "ai_usage_spent",
 ]);
 export type ExtractionFailureReason = z.infer<typeof ExtractionFailureReason>;
 
@@ -360,3 +372,51 @@ export const ActivityEvent = z.object({
   createdAt: z.iso.datetime(),
 });
 export type ActivityEvent = z.infer<typeof ActivityEvent>;
+
+/**
+ * Who said one Message. A closed set like the Statuses and Necessities above,
+ * and the database's enum is derived from it rather than retyped.
+ *
+ * `model` rather than `assistant`: it is the word `CONTEXT.md` uses, and the
+ * two roles here are the user and the thing they are talking to. There is no
+ * third — a system instruction is assembled for each turn and is never a
+ * Message (ADR-0008), so it has no role to be stored under.
+ */
+export const MessageRole = z.enum(["user", "model"]);
+export type MessageRole = z.infer<typeof MessageRole>;
+
+/**
+ * A Conversation: the record of the user talking to the model, kept so it can
+ * be returned to.
+ *
+ * `jobApplicationId` is the whole of the routing — null is the general
+ * Conversation, and an id is the one attached to that Job Application. There
+ * are two kinds and no more, which the database enforces with a pair of unique
+ * indexes rather than this comment.
+ *
+ * Nothing here marks a Conversation stale, deliberately: every turn is
+ * assembled from the state of that moment, so a Message is a record of
+ * something said rather than a claim still being made (`CONTEXT.md`).
+ */
+export const Conversation = z.object({
+  id: z.uuid(),
+  userId: z.string(),
+  jobApplicationId: z.uuid().nullable(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+});
+export type Conversation = z.infer<typeof Conversation>;
+
+/**
+ * A Message: one thing said in a Conversation. Prose and nothing else — there
+ * is no Draft here and nothing a Message becomes, so it carries text rather
+ * than a shape to be read as anything (`CONTEXT.md`).
+ */
+export const Message = z.object({
+  id: z.uuid(),
+  conversationId: z.uuid(),
+  role: MessageRole,
+  text: z.string(),
+  saidAt: z.iso.datetime(),
+});
+export type Message = z.infer<typeof Message>;

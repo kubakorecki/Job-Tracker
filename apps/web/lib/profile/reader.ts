@@ -1,5 +1,10 @@
 import { GoogleGenAI } from "@google/genai";
 import { z } from "zod";
+import {
+  tokensReported,
+  UnreadableAnswer,
+  type Metered,
+} from "../ai-usage/metered";
 import { geminiApiKey } from "../env";
 import type { CvMediaType } from "./contract";
 
@@ -62,7 +67,7 @@ export type CvReading = { text: string; skills: string[] };
  * asked or could not be understood, which is a different failure and gets a
  * different answer.
  */
-export type ReadCv = (file: CvFile) => Promise<CvReading>;
+export type ReadCv = (file: CvFile) => Promise<Metered<CvReading>>;
 
 /**
  * Whether the document's text will come from the model. From a PDF it will: it
@@ -163,46 +168,46 @@ ${SKILLS_INSTRUCTION}`;
  */
 export const readCvWithGemini: ReadCv = async ({ bytes, mediaType }) => {
   if (textComesFromTheModel(mediaType)) {
-    const reply = TranscriptReply.parse(
-      await askGemini({
-        instructions: TRANSCRIPT_INSTRUCTIONS,
-        schema: TRANSCRIPT_SCHEMA,
-        contents: [
-          {
-            role: "user",
-            parts: [
-              {
-                inlineData: {
-                  mimeType: mediaType,
-                  data: Buffer.from(bytes).toString("base64"),
-                },
+    return askGemini({
+      instructions: TRANSCRIPT_INSTRUCTIONS,
+      schema: TRANSCRIPT_SCHEMA,
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              inlineData: {
+                mimeType: mediaType,
+                data: Buffer.from(bytes).toString("base64"),
               },
-            ],
-          },
-        ],
-      }),
-    );
-
-    return { text: reply.text.trim(), skills: reply.skills };
+            },
+          ],
+        },
+      ],
+      read: (json) => {
+        const reply = TranscriptReply.parse(json);
+        return { text: reply.text.trim(), skills: reply.skills };
+      },
+    });
   }
 
   const text = decodedText(bytes);
 
   // Nothing to propose skills from, and nothing the user can be told about
   // this file but to upload a cleaner one. Asking anyway would spend a call on
-  // an empty document.
-  if (text === "") return { text, skills: [] };
+  // an empty document — and an unasked call costs nothing, which is what the
+  // nought here says.
+  if (text === "") return { answer: { text, skills: [] }, tokens: 0 };
 
-  const { skills } = SkillsReply.parse(
-    await askGemini({
-      instructions: SKILLS_INSTRUCTIONS,
-      schema: SKILLS_SCHEMA,
-      contents: text,
-    }),
-  );
+  const asked = await askGemini({
+    instructions: SKILLS_INSTRUCTIONS,
+    schema: SKILLS_SCHEMA,
+    contents: text,
+    read: (json) => SkillsReply.parse(json).skills,
+  });
 
   // The text is the file's own, not the model's: it was never asked for it.
-  return { text, skills };
+  return { answer: { text, skills: asked.answer }, tokens: asked.tokens };
 };
 
 /** What the SDK will take as the body of one request. */
@@ -211,19 +216,25 @@ type GeminiContents = Parameters<
 >[0]["contents"];
 
 /**
- * One question, and the JSON it was answered with — not yet read as anything,
- * because what a reply has to carry differs with what was asked. Every way of
+ * One question, what the reply amounted to, and what it cost. Every way of
  * failing to reach or understand the provider leaves here as a rejection.
+ *
+ * `read` is the caller's, because what a reply has to carry differs with what
+ * was asked — and it runs in here rather than outside so that a reply which
+ * cannot be read still reports its tokens. The provider answered and billed
+ * for it; only a call that fails before it answers is free (ADR-0009).
  */
-async function askGemini({
+async function askGemini<Answer>({
   instructions,
   schema,
   contents,
+  read,
 }: {
   instructions: string;
   schema: object;
   contents: GeminiContents;
-}): Promise<unknown> {
+  read: (json: unknown) => Answer;
+}): Promise<Metered<Answer>> {
   const response = await gemini().models.generateContent({
     model: CV_READING_MODEL,
     contents,
@@ -234,12 +245,24 @@ async function askGemini({
     },
   });
 
+  const tokens = tokensReported(response.usageMetadata);
+
   const { text } = response;
   if (text === undefined || text === "") {
-    throw new Error(`${CV_READING_MODEL} answered with no content.`);
+    throw new UnreadableAnswer(
+      tokens,
+      `${CV_READING_MODEL} answered with no content.`,
+    );
   }
 
-  return JSON.parse(text);
+  try {
+    return { answer: read(JSON.parse(text)), tokens };
+  } catch (cause) {
+    throw new UnreadableAnswer(
+      tokens,
+      `${CV_READING_MODEL} answered with something that could not be read: ${String(cause)}`,
+    );
+  }
 }
 
 /**

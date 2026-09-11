@@ -4,6 +4,15 @@ import {
   type JobExtraction,
 } from "@repo/schema";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import {
+  AI_USAGE_LIMIT_STATUS,
+  MONTHLY_AI_USAGE_LIMIT,
+} from "../ai-usage/meter";
+import {
+  aiUsageSoFar,
+  forgetAiUsage,
+  setAiUsage,
+} from "../ai-usage/repository";
 import type { CurrentUser } from "../auth/current-user";
 import { todayInUtc } from "../day";
 import {
@@ -17,18 +26,20 @@ import type { ExtractJob, PostingToRead } from "./provider";
 
 /**
  * The extraction endpoint as its only caller sees it: what the panel gets back
- * for a Posting, for a page that is not one, for a provider that is down, and
- * for a user who has spent the day's allowance.
+ * for a Posting, for a page that is not one, for a provider that is down, for
+ * a user whose month of AI Usage is spent, and for one who has hit the daily
+ * Model Call ceiling.
  *
  * No API key and no network. The provider is substituted at the extraction
  * function — the seam the endpoint was built around — so a fake standing in
  * for Gemini also lets the test read what the endpoint decided to send it,
  * which is how truncation is asserted without inspecting anything private.
  *
- * The daily budget is a real row in the real table, cleared around each test:
- * it is the one part of this endpoint that has to survive a request. What that
- * budget is and how it is spent lives in `lib/model-calls`, tested there; what
- * is asserted here is only what this endpoint does with a spent one.
+ * Both limits are real rows in the real tables, cleared around each test: they
+ * are the parts of this endpoint that have to survive a request. What they are
+ * and how they are spent lives in `lib/model-calls` and `lib/ai-usage`, tested
+ * there; what is asserted here is only what this endpoint does with a spent
+ * one, and that a reading's tokens reach the meter at all.
  */
 
 const ENDPOINT = "https://job-tracker.test/api/extract-job";
@@ -56,12 +67,17 @@ const DRAFT: JobExtraction = {
   ],
 };
 
+/** What the fake provider reports having spent, prompt and thinking included. */
+const TOKENS = 15_200;
+
 beforeEach(clearCounters);
 afterAll(clearCounters);
 
 async function clearCounters(): Promise<void> {
-  await forgetModelCalls(TEST_USER.id);
-  await forgetModelCalls(OTHER_TEST_USER.id);
+  for (const user of [TEST_USER, OTHER_TEST_USER]) {
+    await forgetModelCalls(user.id);
+    await forgetAiUsage(user.id);
+  }
 }
 
 /**
@@ -79,7 +95,7 @@ function answering(reply: JobExtraction | Error): FakeProvider {
     extract: async (request) => {
       asked.push(request);
       if (reply instanceof Error) throw reply;
-      return reply;
+      return { answer: reply, tokens: TOKENS };
     },
   };
 }
@@ -338,5 +354,64 @@ describe("the daily model call budget", () => {
 
     // The one remaining model call is still there to spend.
     expect((await extract(TEST_USER, POSTING)).status).toBe(200);
+  });
+});
+
+describe("the month's AI Usage", () => {
+  it("records what a reading cost, thinking included", async () => {
+    await extract(TEST_USER, POSTING);
+
+    expect(await aiUsageSoFar(TEST_USER.id)).toBe(TOKENS);
+  });
+
+  it("adds one reading to the next", async () => {
+    await extract(TEST_USER, POSTING);
+    await extract(TEST_USER, POSTING);
+
+    expect(await aiUsageSoFar(TEST_USER.id)).toBe(TOKENS * 2);
+  });
+
+  it("records nothing for a reading that never reached the provider", async () => {
+    await extract(TEST_USER, POSTING, answering(new Error("503")));
+
+    // The Model Call is spent — it is charged before the provider is reached —
+    // and AI Usage is not, because the provider never said what anything cost
+    // (ADR-0009).
+    expect(await aiUsageSoFar(TEST_USER.id)).toBe(0);
+  });
+
+  it("refuses the reading once the month's allowance is spent", async () => {
+    await setAiUsage(TEST_USER.id, MONTHLY_AI_USAGE_LIMIT);
+    const provider = answering(DRAFT);
+    const response = await extract(TEST_USER, POSTING, provider);
+
+    expect(response.status).toBe(AI_USAGE_LIMIT_STATUS);
+    expect(await unionOf(response)).toEqual({
+      ok: false,
+      reason: "ai_usage_spent",
+    });
+    // A reason of its own, not the daily ceiling's: a spent month and a
+    // runaway client ask different things of the user (ADR-0009).
+    expect(provider.asked).toEqual([]);
+  });
+
+  it("spends no model call on a reading the month's allowance refused", async () => {
+    await setAiUsage(TEST_USER.id, MONTHLY_AI_USAGE_LIMIT);
+    await setModelCallCount(TEST_USER.id, DAILY_MODEL_CALL_LIMIT - 1);
+    await extract(TEST_USER, POSTING);
+
+    await forgetAiUsage(TEST_USER.id);
+
+    // The one remaining model call is still there to spend.
+    expect((await extract(TEST_USER, POSTING)).status).toBe(200);
+  });
+
+  it("gives each user their own allowance", async () => {
+    await setAiUsage(TEST_USER.id, MONTHLY_AI_USAGE_LIMIT);
+
+    expect((await extract(TEST_USER, POSTING)).status).toBe(
+      AI_USAGE_LIMIT_STATUS,
+    );
+    expect((await extract(OTHER_TEST_USER, POSTING)).status).toBe(200);
   });
 });

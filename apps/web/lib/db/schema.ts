@@ -2,12 +2,14 @@ import {
   Basis,
   Coverage,
   JobStatus,
+  MessageRole,
   Necessity,
   RemoteType,
   SalaryPeriod,
 } from "@repo/schema";
 import { sql } from "drizzle-orm";
 import {
+  bigint,
   date,
   index,
   numeric,
@@ -50,6 +52,10 @@ export const coverage = pgEnum(
   Coverage.options as [Coverage, ...Coverage[]],
 );
 export const basis = pgEnum("basis", Basis.options as [Basis, ...Basis[]]);
+export const messageRole = pgEnum(
+  "message_role",
+  MessageRole.options as [MessageRole, ...MessageRole[]],
+);
 
 /**
  * A Job Application: the record of one job the user is pursuing. Mirrors
@@ -436,3 +442,153 @@ export const modelCallUsage = pgTable(
 );
 
 export type ModelCallUsageRow = typeof modelCallUsage.$inferSelect;
+
+/**
+ * A Conversation: the record of the user talking to the model, kept so it can
+ * be returned to.
+ *
+ * `job_application_id` is the whole of the routing — null is the one general
+ * Conversation, an id is the one attached to that Job Application — and the
+ * two indexes below are what make "two kinds and no more" a fact the database
+ * keeps rather than a rule every write has to remember. A Conversation is
+ * therefore found by standing somewhere rather than picked off a list, which
+ * is why there is no title, no archive and nothing to name.
+ *
+ * There is deliberately no staleness column and nothing recording what a
+ * Conversation was assembled against. Every turn is built from the state of
+ * that moment, so a Message is a record of something said rather than a claim
+ * still being made — the opposite of an Analysis, which is stamped precisely
+ * because it is a claim (`CONTEXT.md`).
+ */
+export const conversations = pgTable(
+  "conversations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** No foreign key into `auth.users`, for the same reason as above. */
+    userId: uuid("user_id").notNull(),
+    /**
+     * Null for the general Conversation. The foreign key cascades, so deleting
+     * a Job Application takes its Conversation with it — and the Messages
+     * below go with that, by their own cascade.
+     */
+    jobApplicationId: uuid("job_application_id").references(
+      () => jobApplications.id,
+      { onDelete: "cascade" },
+    ),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    /**
+     * One attached Conversation per Job Application per user. Nulls are
+     * distinct to a unique index, so this one says nothing at all about the
+     * general Conversation — which is what the partial index beside it is for.
+     */
+    uniqueIndex("conversations_user_id_job_application_id_key").on(
+      table.userId,
+      table.jobApplicationId,
+    ),
+    /**
+     * One general Conversation per user, and the half of "two kinds and no
+     * more" that the index above cannot express.
+     */
+    uniqueIndex("conversations_user_id_general_key")
+      .on(table.userId)
+      .where(sql`${table.jobApplicationId} is null`),
+  ],
+);
+
+export type ConversationRow = typeof conversations.$inferSelect;
+
+/**
+ * A Message: one thing said in a Conversation, by the user or by the model.
+ * Prose and nothing else — there is no Draft here and nothing a Message
+ * becomes, so a cover letter is text the user reads and copies out rather than
+ * a document stored a second time under another name (`CONTEXT.md`).
+ *
+ * Carries `user_id` like every other table, so that a query for a Message can
+ * name its owner rather than inheriting one from the Conversation it hangs off
+ * (ADR-0001). The foreign key cascades, so clearing is the only way to empty a
+ * Conversation that keeps the row — deleting the Conversation takes its
+ * Messages with it, and deleting the Job Application takes both.
+ */
+export const messages = pgTable(
+  "messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** No foreign key into `auth.users`, for the same reason as above. */
+    userId: uuid("user_id").notNull(),
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => conversations.id, { onDelete: "cascade" }),
+    role: messageRole("role").notNull(),
+    /**
+     * What was said. A model Message that failed partway keeps the text that
+     * arrived, so this may be shorter than the reply meant to be, and may be
+     * empty where a stream failed before its first chunk.
+     */
+    text: text("text").notNull(),
+    /**
+     * When it was said. The name a Message's own timestamp deserves: this is
+     * not a row's creation stamp used for ordering by accident, it is the
+     * order a conversation happened in, which is the only order it can be read
+     * back in.
+     */
+    saidAt: timestamp("said_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    /** Every read is one user's Messages in one Conversation, oldest first. */
+    index("messages_user_id_conversation_id_said_at_idx").on(
+      table.userId,
+      table.conversationId,
+      table.saidAt,
+    ),
+  ],
+);
+
+export type MessageRow = typeof messages.$inferSelect;
+
+/**
+ * What one user has spent on the model this month, in tokens — reading a
+ * Posting, reading a CV, an Analysis and every Conversation turn alike, and
+ * the model's own thinking included in each. This is AI Usage: the only
+ * measure of cost the product shows, and a different question from the daily
+ * Model Call count beside it (ADR-0009).
+ *
+ * The key is the pair, so a call that has just finished can insert and add in
+ * one upsert and read the new total back — the same concurrency argument
+ * `countModelCall` makes, for the same reason.
+ *
+ * Nothing prunes old rows: they are three columns each, and twelve a year is
+ * not a table.
+ */
+export const aiUsage = pgTable(
+  "ai_usage",
+  {
+    /** No foreign key into `auth.users`, for the same reason as above. */
+    userId: uuid("user_id").notNull(),
+    /**
+     * The month, held as the UTC day it starts on. A `date` rather than a
+     * `2026-09` string so that it is a calendar thing Postgres can order and
+     * compare, and UTC for the reason the daily counter is: a meter that reset
+     * at the reader's midnight would reset twice for a user who flew somewhere.
+     */
+    month: date("month", { mode: "string" }).notNull(),
+    /**
+     * A `bigint` rather than an `integer`: the meter keeps climbing past the
+     * limit for whatever was admitted under it, and a column that wrapped
+     * around at two billion would answer that the month had just begun.
+     */
+    tokens: bigint("tokens", { mode: "number" }).notNull().default(0),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.month] })],
+);
+
+export type AiUsageRow = typeof aiUsage.$inferSelect;

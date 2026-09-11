@@ -1,6 +1,11 @@
 import { GoogleGenAI } from "@google/genai";
 import { Coverage, type Requirement } from "@repo/schema";
 import { z } from "zod";
+import {
+  tokensReported,
+  UnreadableAnswer,
+  type Metered,
+} from "../ai-usage/metered";
 import { geminiApiKey } from "../env";
 
 /**
@@ -100,7 +105,7 @@ export type AnalysisOutcome = {
  */
 export type AnalyseCoverage = (
   request: AnalysisRequest,
-) => Promise<AnalysisOutcome>;
+) => Promise<Metered<AnalysisOutcome>>;
 
 /**
  * How many characters of a Requirement's reason are worth keeping. It is a
@@ -201,12 +206,28 @@ export const analyseWithGemini: AnalyseCoverage = async ({
     },
   });
 
+  // What this run cost, read before the reply is, because a reply that cannot
+  // be read was still charged for — and an Analysis is the most expensive call
+  // the product makes on its own, so those are the tokens least worth losing
+  // (ADR-0009).
+  const tokens = tokensReported(response.usageMetadata);
+
   const { text } = response;
   if (text === undefined || text === "") {
-    throw new Error(`${ANALYSIS_MODEL} answered with no content.`);
+    throw new UnreadableAnswer(
+      tokens,
+      `${ANALYSIS_MODEL} answered with no content.`,
+    );
   }
 
-  return readOutcome(text, requirements.length);
+  try {
+    return { answer: readOutcome(text, requirements.length), tokens };
+  } catch (cause) {
+    throw new UnreadableAnswer(
+      tokens,
+      `${ANALYSIS_MODEL} answered with something that is not an Analysis: ${String(cause)}`,
+    );
+  }
 };
 
 /**

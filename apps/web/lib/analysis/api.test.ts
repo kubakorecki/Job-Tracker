@@ -5,6 +5,16 @@ import type {
   RequirementWithCoverage,
 } from "@repo/schema";
 import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
+import {
+  AI_USAGE_LIMIT_STATUS,
+  MONTHLY_AI_USAGE_LIMIT,
+} from "../ai-usage/meter";
+import { UnreadableAnswer } from "../ai-usage/metered";
+import {
+  aiUsageSoFar,
+  forgetAiUsage,
+  setAiUsage,
+} from "../ai-usage/repository";
 import { authenticatedRoute } from "../api/authenticated-route";
 import type { CurrentUser } from "../auth/current-user";
 import { setOverriddenCoverage } from "../coverage/repository";
@@ -47,9 +57,11 @@ import type { Analysis, AnalysisOrNone, AnalysisResult } from "./contract";
  * how "the model was shown the CV's prose and every Requirement" is asserted
  * without reaching a provider.
  *
- * The daily budget is a real row in the real table, as it is in the Profile's
+ * Both limits are real rows in the real tables, as they are in the Profile's
  * tests, because what a run costs the user is half of why this endpoint is its
- * own module.
+ * own module — the daily Model Call count that caps a leaked token, and the
+ * month of AI Usage that is the only spending the user is ever shown
+ * (ADR-0009).
  */
 
 const JOB_APPLICATIONS = "https://job-tracker.test/api/job-applications";
@@ -109,9 +121,13 @@ const saved: { userId: string; id: string }[] = [];
 
 afterAll(forgetTestTokens);
 
+/** What the fake analyser reports having spent, thinking included. */
+const TOKENS = 18_400;
+
 beforeEach(async () => {
   for (const user of [TEST_USER, OTHER_TEST_USER]) {
     await forgetModelCalls(user.id);
+    await forgetAiUsage(user.id);
   }
   await giveProfileSkills(TEST_USER, SKILLS, CV_TEXT);
 });
@@ -146,7 +162,7 @@ function analysing(
     analyse: async (request) => {
       asked.push(request);
       if (reply instanceof Error) throw reply;
-      return { readings: reply, ...outcome };
+      return { answer: { readings: reply, ...outcome }, tokens: TOKENS };
     },
   };
 }
@@ -701,3 +717,81 @@ async function staleUnder(status: JobStatus): Promise<JobApplication> {
 
   return jobApplication;
 }
+
+describe("the month's AI Usage", () => {
+  it("records what a run cost, thinking included", async () => {
+    const { id } = await save(TEST_USER);
+    await run(TEST_USER, id);
+
+    expect(await aiUsageSoFar(TEST_USER.id)).toBe(TOKENS);
+  });
+
+  it("records nothing for a run that never reached the provider", async () => {
+    const { id } = await save(TEST_USER);
+    await run(TEST_USER, id, analysing(new Error("503")));
+
+    // The Model Call is spent — it is charged before the provider is reached —
+    // and AI Usage is not, because the provider never said what it cost
+    // (ADR-0009).
+    expect(await aiUsageSoFar(TEST_USER.id)).toBe(0);
+  });
+
+  it("records what a reply it could not read had already cost", async () => {
+    const { id } = await save(TEST_USER);
+    await run(
+      TEST_USER,
+      id,
+      analysing(new UnreadableAnswer(TOKENS, "not JSON")),
+    );
+
+    // The model answered and was paid for answering; only a call that fails
+    // before the provider answers is free (ADR-0009).
+    expect(await aiUsageSoFar(TEST_USER.id)).toBe(TOKENS);
+  });
+
+  it("refuses the run before the provider once the month is spent", async () => {
+    await setAiUsage(TEST_USER.id, MONTHLY_AI_USAGE_LIMIT);
+    const { id } = await save(TEST_USER);
+    const analyser = analysing(READ_BOTH);
+
+    const response = await run(TEST_USER, id, analyser);
+
+    expect(response.status).toBe(AI_USAGE_LIMIT_STATUS);
+    expect(analyser.asked).toEqual([]);
+  });
+
+  it("says the month is done, not that something went wrong", async () => {
+    await setAiUsage(TEST_USER.id, MONTHLY_AI_USAGE_LIMIT);
+    const { id } = await save(TEST_USER);
+
+    const { error } = await (await run(TEST_USER, id)).json();
+
+    // Two limits, two refusals, and they do not read the same: this one is an
+    // ordinary allowance ending and says when it comes back (ADR-0009).
+    expect(error).toContain("month");
+  });
+
+  it("leaves the previous Analysis alone when the month runs out", async () => {
+    const { id } = await save(TEST_USER);
+    await run(TEST_USER, id);
+    const before = await ranAnalysis(TEST_USER, id);
+
+    await setAiUsage(TEST_USER.id, MONTHLY_AI_USAGE_LIMIT);
+    expect((await run(TEST_USER, id)).status).toBe(AI_USAGE_LIMIT_STATUS);
+
+    await expect(analysisOfOne(TEST_USER, id)).resolves.toEqual(before);
+  });
+
+  it("lets a run admitted within the limit finish and overshoot it", async () => {
+    await setAiUsage(TEST_USER.id, MONTHLY_AI_USAGE_LIMIT - 1);
+    const { id } = await save(TEST_USER);
+
+    // Admitted on the budget it had before it started, and priced only once it
+    // had answered — which is the whole of ADR-0009's consequence.
+    expect((await run(TEST_USER, id)).status).toBe(200);
+    expect(await aiUsageSoFar(TEST_USER.id)).toBeGreaterThan(
+      MONTHLY_AI_USAGE_LIMIT,
+    );
+    expect((await run(TEST_USER, id)).status).toBe(AI_USAGE_LIMIT_STATUS);
+  });
+});

@@ -7,7 +7,10 @@ import {
   ExtractJobResponse,
   JobApplication,
   groupedByNecessity,
+  Message,
+  MessageRole,
   Necessity,
+  Conversation,
   Requirement,
   UpdateJobApplication,
 } from "./index.js";
@@ -272,9 +275,9 @@ describe("a Closing Date", () => {
   });
 
   it("is a Posting fact, so a Draft can propose one", () => {
-    expect(
-      JobExtraction.parse({ closesOn: "2026-09-30" }).closesOn,
-    ).toBe("2026-09-30");
+    expect(JobExtraction.parse({ closesOn: "2026-09-30" }).closesOn).toBe(
+      "2026-09-30",
+    );
   });
 });
 
@@ -328,16 +331,18 @@ describe("ExtractJobResponse", () => {
     });
   });
 
-  it.each(["no_job_found", "provider_error", "rate_limited"] as const)(
-    "carries %s as a failure reason",
-    (reason) => {
-      expect(ExtractJobResponse.safeParse({ ok: false, reason }).success).toBe(
-        true,
-      );
-    },
-  );
+  it.each([
+    "no_job_found",
+    "provider_error",
+    "rate_limited",
+    "ai_usage_spent",
+  ] as const)("carries %s as a failure reason", (reason) => {
+    expect(ExtractJobResponse.safeParse({ ok: false, reason }).success).toBe(
+      true,
+    );
+  });
 
-  it("rejects a reason outside the three", () => {
+  it("rejects a reason outside the four", () => {
     expect(
       ExtractJobResponse.safeParse({ ok: false, reason: "confused" }).success,
     ).toBe(false);
@@ -351,5 +356,66 @@ describe("ExtractJobResponse", () => {
     expect(ExtractJobResponse.safeParse({ ok: false, draft: {} }).success).toBe(
       false,
     );
+  });
+});
+
+describe("MessageRole", () => {
+  it("is the user or the model, and nothing else", () => {
+    expect(MessageRole.options).toEqual(["user", "model"]);
+    expect(MessageRole.safeParse("assistant").success).toBe(false);
+    expect(MessageRole.safeParse("system").success).toBe(false);
+  });
+});
+
+describe("Conversation", () => {
+  const attached = {
+    id: "00000000-0000-4000-8000-00000000000a",
+    userId: "00000000-0000-4000-8000-000000000001",
+    jobApplicationId: "00000000-0000-4000-8000-00000000000b",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+  };
+
+  it("is attached to a Job Application", () => {
+    expect(Conversation.safeParse(attached).success).toBe(true);
+  });
+
+  it("is the general one when no Job Application is named", () => {
+    expect(
+      Conversation.safeParse({ ...attached, jobApplicationId: null }).success,
+    ).toBe(true);
+  });
+
+  it("will not have the Job Application left out altogether", () => {
+    const { jobApplicationId, ...withoutScope } = attached;
+    void jobApplicationId;
+
+    // Null is the general Conversation and an id is an attached one. An absent
+    // field is neither, and a client that forgot it would otherwise be read as
+    // asking for the general one.
+    expect(Conversation.safeParse(withoutScope).success).toBe(false);
+  });
+});
+
+describe("Message", () => {
+  const said = {
+    id: "00000000-0000-4000-8000-00000000000c",
+    conversationId: "00000000-0000-4000-8000-00000000000a",
+    role: "user",
+    text: "Help me write a cover letter for this one.",
+    saidAt: "2026-01-01T00:00:00.000Z",
+  };
+
+  it("is one thing said by the user or the model", () => {
+    expect(Message.safeParse(said).success).toBe(true);
+    expect(Message.safeParse({ ...said, role: "model" }).success).toBe(true);
+  });
+
+  it("refuses a role outside the two", () => {
+    expect(Message.safeParse({ ...said, role: "system" }).success).toBe(false);
+  });
+
+  it("accepts empty text, which is what a reply that failed at once left", () => {
+    expect(Message.safeParse({ ...said, text: "" }).success).toBe(true);
   });
 });

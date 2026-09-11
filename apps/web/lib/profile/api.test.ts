@@ -1,4 +1,13 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import {
+  AI_USAGE_LIMIT_STATUS,
+  MONTHLY_AI_USAGE_LIMIT,
+} from "../ai-usage/meter";
+import {
+  aiUsageSoFar,
+  forgetAiUsage,
+  setAiUsage,
+} from "../ai-usage/repository";
 import type { CurrentUser } from "../auth/current-user";
 import {
   DAILY_MODEL_CALL_LIMIT,
@@ -37,7 +46,7 @@ import type { CvStore, CvUpload } from "./storage";
  *
  * The Profile itself is a real row in the real table, cleared around each
  * test, because one per user is the database's promise rather than the
- * endpoint's. The daily budget is real for the same reason; what that budget
+ * endpoint's. The daily count is real for the same reason; what that count
  * is and how it is spent lives in `lib/model-calls`, tested there.
  */
 
@@ -54,6 +63,9 @@ const CV_TEXT = "Jane Doe\nSenior Engineer\nTypeScript, Postgres, Terraform";
 /** What the model proposes from that CV, until a test says otherwise. */
 const CV_SKILLS = ["TypeScript", "Postgres", "Terraform"];
 
+/** What the fake reader reports having spent, thinking included. */
+const TOKENS = 9_700;
+
 beforeEach(clear);
 afterAll(clear);
 
@@ -61,6 +73,7 @@ async function clear(): Promise<void> {
   for (const user of [TEST_USER, OTHER_TEST_USER]) {
     await forgetProfile(user.id);
     await forgetModelCalls(user.id);
+    await forgetAiUsage(user.id);
   }
 }
 
@@ -85,7 +98,7 @@ function reading(
     read: async (file) => {
       asked.push(file);
       if (answer instanceof Error) throw answer;
-      return answer;
+      return { answer, tokens: TOKENS };
     },
   };
 }
@@ -582,7 +595,7 @@ describe("the daily model call budget", () => {
     ).toBe(MODEL_CALL_LIMIT_STATUS);
   });
 
-  it("refuses the upload once the day's allowance is spent, and reads nothing", async () => {
+  it("refuses the upload once the day's ceiling is reached, and reads nothing", async () => {
     await setModelCallCount(TEST_USER.id, DAILY_MODEL_CALL_LIMIT);
     const reader = reading(CV_TEXT);
     const store = bucket();
@@ -934,5 +947,62 @@ describe("the skill list, once it is the user's", () => {
 
     expect((await profileNow(TEST_USER, store)).skills).toEqual(["TypeScript"]);
     expect((await profileNow(OTHER_TEST_USER, store)).skills).toEqual(["Rust"]);
+  });
+});
+
+describe("the month's AI Usage", () => {
+  it("records what a reading cost, thinking included", async () => {
+    await upload(TEST_USER, cvFile("cv.pdf", "application/pdf"));
+
+    expect(await aiUsageSoFar(TEST_USER.id)).toBe(TOKENS);
+  });
+
+  it("records nothing for a reading that never reached the provider", async () => {
+    await upload(TEST_USER, cvFile("cv.pdf", "application/pdf"), {
+      reader: reading(new Error("503")),
+    });
+
+    // The Model Call is spent — it is charged before the provider is reached —
+    // and AI Usage is not, because the provider never said what it cost
+    // (ADR-0009).
+    expect(await aiUsageSoFar(TEST_USER.id)).toBe(0);
+  });
+
+  it("refuses the upload once the month is spent, and reads nothing", async () => {
+    await setAiUsage(TEST_USER.id, MONTHLY_AI_USAGE_LIMIT);
+    const reader = reading(CV_TEXT);
+
+    const response = await upload(
+      TEST_USER,
+      cvFile("cv.pdf", "application/pdf"),
+      { reader },
+    );
+
+    expect(response.status).toBe(AI_USAGE_LIMIT_STATUS);
+    expect(reader.asked).toEqual([]);
+  });
+
+  it("says the month is done, not that something went wrong", async () => {
+    await setAiUsage(TEST_USER.id, MONTHLY_AI_USAGE_LIMIT);
+
+    const { error } = await (
+      await upload(TEST_USER, cvFile("cv.pdf", "application/pdf"))
+    ).json();
+
+    // Two limits, two refusals, and they do not read the same: this one is an
+    // ordinary allowance ending and says when it comes back (ADR-0009).
+    expect(error).toContain("month");
+  });
+
+  it("gives each user their own allowance", async () => {
+    await setAiUsage(TEST_USER.id, MONTHLY_AI_USAGE_LIMIT);
+
+    expect(
+      (await upload(TEST_USER, cvFile("cv.pdf", "application/pdf"))).status,
+    ).toBe(AI_USAGE_LIMIT_STATUS);
+    expect(
+      (await upload(OTHER_TEST_USER, cvFile("cv.pdf", "application/pdf")))
+        .status,
+    ).toBe(200);
   });
 });

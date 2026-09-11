@@ -12,10 +12,10 @@ describe("problemsIn", () => {
     expect(
       problemsIn({
         error:
-          "You have used today's allowance of model calls. Try again tomorrow.",
+          "You have spent this month's AI Usage. It starts again on the first of next month.",
       }),
     ).toEqual([
-      "You have used today's allowance of model calls. Try again tomorrow.",
+      "You have spent this month's AI Usage. It starts again on the first of next month.",
     ]);
   });
 

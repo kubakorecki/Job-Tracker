@@ -1,5 +1,14 @@
 import { CreateJobApplication, type JobApplication } from "@repo/schema";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import {
+  AI_USAGE_LIMIT_STATUS,
+  MONTHLY_AI_USAGE_LIMIT,
+} from "../ai-usage/meter";
+import {
+  aiUsageSoFar,
+  forgetAiUsage,
+  setAiUsage,
+} from "../ai-usage/repository";
 import type { CurrentUser } from "../auth/current-user";
 import {
   createJobApplication,
@@ -36,7 +45,7 @@ import { getTailoredCv } from "./repository";
  * The Job Application and the attachment are real rows in the real tables
  * (ADR-0003), because one Tailored CV per Job Application, and the cascade that
  * takes it away with its Job Application, are the database's promises rather
- * than the endpoints'. The daily budget is real for the same reason.
+ * than the endpoints'. The daily count is real for the same reason.
  */
 
 const JOB_APPLICATIONS = "https://job-tracker.test/api/job-applications";
@@ -53,9 +62,13 @@ const CV_TEXT = "Jane Doe\nSenior Engineer\nTypeScript for the Vercel role";
 /** Everything this file has written, so it can be taken away again. */
 const saved: { userId: string; id: string }[] = [];
 
+/** What the fake reader reports having spent, thinking included. */
+const TOKENS = 9_700;
+
 beforeEach(async () => {
   for (const user of [TEST_USER, OTHER_TEST_USER]) {
     await forgetModelCalls(user.id);
+    await forgetAiUsage(user.id);
   }
 });
 
@@ -86,7 +99,7 @@ function reading(reply: string | Error): FakeReader {
     read: async (file) => {
       asked.push(file);
       if (answer instanceof Error) throw answer;
-      return answer;
+      return { answer, tokens: TOKENS };
     },
   };
 }
@@ -487,5 +500,42 @@ describe("the Job Application it hangs off", () => {
     // that, worth recording here rather than discovering later.
     expect(await getTailoredCv(TEST_USER.id, id)).toBeNull();
     expect(store.removed).toHaveLength(0);
+  });
+});
+
+describe("the month's AI Usage", () => {
+  it("records what a reading cost, thinking included", async () => {
+    const { id } = await save(TEST_USER);
+    await attach(TEST_USER, id, cvFile("a.pdf", "application/pdf"));
+
+    expect(await aiUsageSoFar(TEST_USER.id)).toBe(TOKENS);
+  });
+
+  it("records nothing for a reading that never reached the provider", async () => {
+    const { id } = await save(TEST_USER);
+    await attach(TEST_USER, id, cvFile("a.pdf", "application/pdf"), {
+      reader: reading(new Error("503")),
+    });
+
+    // The Model Call is spent — it is charged before the provider is reached —
+    // and AI Usage is not, because the provider never said what it cost
+    // (ADR-0009).
+    expect(await aiUsageSoFar(TEST_USER.id)).toBe(0);
+  });
+
+  it("refuses the attachment once the month is spent, and reads nothing", async () => {
+    await setAiUsage(TEST_USER.id, MONTHLY_AI_USAGE_LIMIT);
+    const { id } = await save(TEST_USER);
+    const reader = reading(CV_TEXT);
+
+    const response = await attach(
+      TEST_USER,
+      id,
+      cvFile("a.pdf", "application/pdf"),
+      { reader },
+    );
+
+    expect(response.status).toBe(AI_USAGE_LIMIT_STATUS);
+    expect(reader.asked).toEqual([]);
   });
 });

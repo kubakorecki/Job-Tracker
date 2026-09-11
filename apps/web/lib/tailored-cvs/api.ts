@@ -1,8 +1,19 @@
+import {
+  AI_USAGE_LIMIT_STATUS,
+  AI_USAGE_SPENT_MESSAGE,
+  mayStartAiCall,
+} from "../ai-usage/meter";
+import { tokensSpentBy, type Metered } from "../ai-usage/metered";
+import { recordAiUsage } from "../ai-usage/repository";
 import { errorResponse } from "../api/response";
 import type { CurrentUser } from "../auth/current-user";
 import { isJobApplicationId } from "../job-applications/api";
 import { getJobApplication } from "../job-applications/repository";
-import { MODEL_CALL_LIMIT_STATUS, spendModelCall } from "../model-calls/budget";
+import {
+  MODEL_CALL_CEILING_MESSAGE,
+  MODEL_CALL_LIMIT_STATUS,
+  spendModelCall,
+} from "../model-calls/budget";
 import {
   readCvWithGemini,
   type CvReading,
@@ -64,21 +75,30 @@ export function attachTailoredCvResponse(
 
     const { bytes, mediaType, fileName } = arrived.cv;
 
-    // Spent from the one daily budget every model call comes out of, and spent
+    // The month's AI Usage, asked before the reading starts and never again: a
+    // document cannot be priced until it has been read, so a reading admitted
+    // here is allowed to finish and overshoot (ADR-0009).
+    if ((await mayStartAiCall(user.id)) === "over-limit") {
+      return errorResponse(AI_USAGE_SPENT_MESSAGE, AI_USAGE_LIMIT_STATUS);
+    }
+
+    // Spent from the one daily count every model call comes out of, and spent
     // before the reading rather than after, so a reading that reached a
     // provider counts whether or not it came back with anything. Everything
     // refused above this line costs nothing at all.
     if ((await spendModelCall(user.id)) === "over-limit") {
-      return errorResponse(
-        "You have used today's allowance of model calls. Try again tomorrow.",
-        MODEL_CALL_LIMIT_STATUS,
-      );
+      return errorResponse(MODEL_CALL_CEILING_MESSAGE, MODEL_CALL_LIMIT_STATUS);
     }
 
-    let reading: CvReading;
+    let call: Metered<CvReading>;
     try {
-      reading = await read({ bytes, mediaType });
-    } catch {
+      call = await read({ bytes, mediaType });
+    } catch (error) {
+      // A provider that answered with something unreadable was paid for
+      // answering; `tokensSpentBy` is nought for every other way of failing
+      // (ADR-0009).
+      await recordAiUsage(user.id, tokensSpentBy(error));
+
       // Every way of failing to reach or understand the provider — an outage,
       // an exhausted quota, a malformed reply — is one answer, and a different
       // one from a file that simply had no text in it: this one is not the
@@ -89,6 +109,12 @@ export function attachTailoredCvResponse(
       );
     }
 
+    // What the reading cost. A reading that never reached the provider records
+    // nothing and has still spent its Model Call, which is why that one is
+    // charged before the provider is reached (ADR-0009).
+    await recordAiUsage(user.id, call.tokens);
+
+    const reading = call.answer;
     // Only the text is kept. The same call also proposes skills, because the
     // reader asks one question of one document — and they are dropped here
     // rather than stored anywhere, since the skill list belongs to the Profile

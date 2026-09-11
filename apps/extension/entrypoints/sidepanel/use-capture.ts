@@ -44,7 +44,9 @@ const EXPLANATIONS: Record<ExtractionFailureReason, string> = {
   provider_error:
     "The extraction service is unavailable, so nothing could be filled in for you. Enter the details by hand, or cancel and try again later.",
   rate_limited:
-    "You have reached today's extraction limit. Waiting until tomorrow is the only remedy — or add it by hand now.",
+    "This account has made an unusual number of requests today and has been stopped as a precaution. If that was not you, revoke this token in the dashboard — or add the job by hand now.",
+  ai_usage_spent:
+    "You have spent this month's AI Usage, so nothing could be read for you. It starts again on the first of next month — add the job by hand until then.",
 };
 
 export function useCapture(
@@ -141,13 +143,16 @@ function captureFrom(outcome: ExtractOutcome, url: string): Capture {
         explanation: null,
       };
 
-    // The daily limit is the one reason that does not open a form: a form
-    // would suggest the panel could still fill it in, and the only remedy
-    // there is to wait. It is said where the button is, with manual entry
-    // still beside it.
+    // The two limits are the reasons that do not open a form: a form would
+    // suggest the panel could still fill it in, and nothing the user does now
+    // changes either answer. They are said where the button is, with manual
+    // entry still beside them — and they are said differently, because a spent
+    // month and a precaution against a stolen token are not the same news
+    // (ADR-0009).
     case "not-extracted":
-      return outcome.reason === "rate_limited"
-        ? { kind: "unavailable", problems: [EXPLANATIONS.rate_limited] }
+      return outcome.reason === "rate_limited" ||
+        outcome.reason === "ai_usage_spent"
+        ? { kind: "unavailable", problems: [EXPLANATIONS[outcome.reason]] }
         : review(emptyFields(), url, EXPLANATIONS[outcome.reason]);
 
     case "token-rejected":

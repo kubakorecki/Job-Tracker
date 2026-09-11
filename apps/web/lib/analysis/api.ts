@@ -1,4 +1,11 @@
 import type { JobApplication } from "@repo/schema";
+import {
+  AI_USAGE_LIMIT_STATUS,
+  AI_USAGE_SPENT_MESSAGE,
+  mayStartAiCall,
+} from "../ai-usage/meter";
+import { tokensSpentBy, type Metered } from "../ai-usage/metered";
+import { recordAiUsage } from "../ai-usage/repository";
 import { errorResponse } from "../api/response";
 import type { CurrentUser } from "../auth/current-user";
 import type { AnalysedRequirement } from "../coverage/repository";
@@ -7,7 +14,11 @@ import {
   getJobApplication,
   requirementsFor,
 } from "../job-applications/repository";
-import { MODEL_CALL_LIMIT_STATUS, spendModelCall } from "../model-calls/budget";
+import {
+  MODEL_CALL_CEILING_MESSAGE,
+  MODEL_CALL_LIMIT_STATUS,
+  spendModelCall,
+} from "../model-calls/budget";
 import { getProfile } from "../profile/repository";
 import {
   analyseWithGemini,
@@ -53,8 +64,8 @@ export type AnalysisParams = { id: string };
  * each one.
  *
  * Only when asked. Nothing runs this on a schedule, on a save, or on opening
- * the page: it costs a model call from the user's daily allowance, and the
- * stored result is what makes reopening the Job Application free.
+ * the page: it spends from the user's AI Usage, and the stored result is what
+ * makes reopening the Job Application free.
  *
  * A run writes only the analysed reading of each Requirement, so an override
  * stands whatever the model says, and a Requirement the model did not answer
@@ -96,35 +107,45 @@ export function runAnalysisResponse(
       );
     }
 
-    // Spent from the one daily budget every model call comes out of, and spent
+    // The month's AI Usage, asked before the call starts and never again: an
+    // Analysis cannot be priced until it has answered, so a run admitted here
+    // is allowed to finish and overshoot (ADR-0009).
+    if ((await mayStartAiCall(user.id)) === "over-limit") {
+      return errorResponse(AI_USAGE_SPENT_MESSAGE, AI_USAGE_LIMIT_STATUS);
+    }
+
+    // Spent from the one daily count every model call comes out of, and spent
     // before the provider is reached rather than after, so a call that reached
     // it counts whether or not it came back with anything. Everything refused
     // above this line costs nothing at all.
     if ((await spendModelCall(user.id)) === "over-limit") {
-      return errorResponse(
-        "You have used today's allowance of model calls. Try again tomorrow.",
-        MODEL_CALL_LIMIT_STATUS,
-      );
+      return errorResponse(MODEL_CALL_CEILING_MESSAGE, MODEL_CALL_LIMIT_STATUS);
     }
 
-    let outcome: AnalysisOutcome;
+    let call: Metered<AnalysisOutcome>;
     try {
-      outcome = await analyse({
+      call = await analyse({
         cvText: cvText.slice(0, MAX_CV_TEXT_LENGTH),
         requirements: requirements.map(({ skill, necessity }) => ({
           skill,
           necessity,
         })),
       });
-    } catch {
+    } catch (error) {
       // Every way of failing to reach or understand the provider — an outage,
       // an exhausted quota, a malformed reply, a reply with no usable rating —
       // is one answer, and a different one from a spent allowance: this one
-      // says try again shortly and that one says try tomorrow. Nothing has
-      // been written, so whatever the last Analysis said is still there.
+      // says try again shortly and that one says the month is done. Nothing
+      // has been written, so whatever the last Analysis said is still there.
+      //
+      // One of those ways still costs tokens: a model that answered with
+      // something unreadable was paid for answering, and an Analysis is the
+      // most expensive call here. `tokensSpentBy` is nought for the rest.
+      await recordAiUsage(user.id, tokensSpentBy(error));
       return providerUnreachable();
     }
 
+    const outcome = call.answer;
     const verdicts = addressed(outcome.readings, jobApplication);
 
     // A reply that landed on no Requirement is a provider that could not be
@@ -136,6 +157,12 @@ export function runAnalysisResponse(
       rating: outcome.rating,
       feedback: outcome.feedback,
     });
+
+    // What the run cost, recorded after the Analysis it paid for is safely
+    // stored. The other order would let a meter that failed to write throw
+    // away a reading the user has already spent their month on, and losing the
+    // Analysis is by far the worse of the two failures.
+    await recordAiUsage(user.id, call.tokens);
 
     // Read back rather than assembled from what was just written, so that what
     // a run answers with and what a later read answers with come from one

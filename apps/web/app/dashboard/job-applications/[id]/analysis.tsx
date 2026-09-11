@@ -12,10 +12,12 @@ import { Panel } from "../../../panel";
  * types: the control that runs it, the wait while the model reads, and the
  * banner that says the answer it gave has stopped describing the world.
  *
- * One control and one only. Running an Analysis spends a model call from the
- * day's allowance, so it is never something the page does on its own — not on
- * opening, not on saving, not on a Requirement changing — and there is nothing
- * here that runs one over more than the Job Application in front of the user.
+ * One control and one only. Running an Analysis spends from the user's AI
+ * Usage, so it is never something the page does on its own — not on opening,
+ * not on saving, not on a Requirement changing — and there is nothing here
+ * that runs one over more than the Job Application in front of the user. The
+ * daily Model Call count is never mentioned here or anywhere else the user can
+ * see (ADR-0009).
  *
  * Nothing here mentions plans, tiers or payment, and nothing should: whether
  * this is one day sold is a question about an endpoint, and the user is being
@@ -104,7 +106,7 @@ export function AnalysisSection({
         )}
 
         <p className="text-[12.5px] leading-[1.55] text-ink-faint">
-          Analysing spends one call from today&rsquo;s allowance.
+          Analysing spends from this month&rsquo;s AI Usage.
         </p>
 
         {running && (

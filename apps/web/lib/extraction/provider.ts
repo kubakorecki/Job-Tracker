@@ -8,6 +8,11 @@ import {
   SalaryPeriod,
 } from "@repo/schema";
 import { z } from "zod";
+import {
+  tokensReported,
+  UnreadableAnswer,
+  type Metered,
+} from "../ai-usage/metered";
 import { daysBetween } from "../day";
 import { geminiApiKey } from "../env";
 
@@ -43,7 +48,9 @@ export const EXTRACTION_MODEL = "gemini-2.5-pro";
  * Distinguishing an outage from a malformed reply would gain the caller
  * nothing: both mean fall back to manual entry.
  */
-export type ExtractJob = (reading: PostingToRead) => Promise<JobExtraction>;
+export type ExtractJob = (
+  reading: PostingToRead,
+) => Promise<Metered<JobExtraction>>;
 
 /**
  * What a provider is asked to read: the Posting, and the day the reading is
@@ -252,12 +259,28 @@ export const extractWithGemini: ExtractJob = async ({
     },
   });
 
+  // What this reading cost, read before the reply is, because a reply that
+  // cannot be read was still charged for. The endpoint records it against the
+  // user it was made for: a provider knows the tokens and not the user, and
+  // the endpoint knows the user and not the tokens (ADR-0009).
+  const tokens = tokensReported(response.usageMetadata);
+
   const { text } = response;
   if (text === undefined || text === "") {
-    throw new Error(`${EXTRACTION_MODEL} answered with no content.`);
+    throw new UnreadableAnswer(
+      tokens,
+      `${EXTRACTION_MODEL} answered with no content.`,
+    );
   }
 
-  return readDraft(text, today);
+  try {
+    return { answer: readDraft(text, today), tokens };
+  } catch (cause) {
+    throw new UnreadableAnswer(
+      tokens,
+      `${EXTRACTION_MODEL} answered with something that is not a Draft: ${String(cause)}`,
+    );
+  }
 };
 
 /**
