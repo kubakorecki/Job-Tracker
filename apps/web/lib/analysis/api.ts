@@ -13,6 +13,7 @@ import {
   analyseWithGemini,
   type AnalysedReading,
   type AnalyseCoverage,
+  type AnalysisOutcome,
 } from "./analyser";
 import type { AnalysisResult } from "./contract";
 import { recordAnalysis } from "./repository";
@@ -106,9 +107,9 @@ export function runAnalysisResponse(
       );
     }
 
-    let readings: AnalysedReading[];
+    let outcome: AnalysisOutcome;
     try {
-      readings = await analyse({
+      outcome = await analyse({
         cvText: cvText.slice(0, MAX_CV_TEXT_LENGTH),
         requirements: requirements.map(({ skill, necessity }) => ({
           skill,
@@ -117,21 +118,24 @@ export function runAnalysisResponse(
       });
     } catch {
       // Every way of failing to reach or understand the provider — an outage,
-      // an exhausted quota, a malformed reply — is one answer, and a different
-      // one from a spent allowance: this one says try again shortly and that
-      // one says try tomorrow. Nothing has been written, so whatever the last
-      // Analysis said is still there.
+      // an exhausted quota, a malformed reply, a reply with no usable rating —
+      // is one answer, and a different one from a spent allowance: this one
+      // says try again shortly and that one says try tomorrow. Nothing has
+      // been written, so whatever the last Analysis said is still there.
       return providerUnreachable();
     }
 
-    const verdicts = addressed(readings, jobApplication);
+    const verdicts = addressed(outcome.readings, jobApplication);
 
     // A reply that landed on no Requirement is a provider that could not be
     // understood, not an Analysis of nothing: stamping a run that read nothing
     // would leave the Job Application reading as freshly analysed.
     if (verdicts.length === 0) return providerUnreachable();
 
-    await recordAnalysis(user.id, id, verdicts);
+    await recordAnalysis(user.id, id, verdicts, {
+      rating: outcome.rating,
+      feedback: outcome.feedback,
+    });
 
     // Read back rather than assembled from what was just written, so that what
     // a run answers with and what a later read answers with come from one

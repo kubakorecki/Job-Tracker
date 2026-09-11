@@ -31,6 +31,7 @@ import { OTHER_TEST_USER, TEST_USER } from "../test-support/users";
 import type {
   AnalysedReading,
   AnalyseCoverage,
+  AnalysisOutcome,
   AnalysisRequest,
 } from "./analyser";
 import { readAnalysisResponse, runAnalysisResponse } from "./api";
@@ -99,6 +100,10 @@ const KUBERNETES_MISSING: AnalysedReading = {
 };
 const READ_BOTH = [REACT_PARTIAL, KUBERNETES_MISSING];
 
+/** The overall opinion the stand-in gives, unless a test wants something else. */
+const RATING = 6;
+const FEEDBACK = "Quantify the React experience and add Kubernetes work.";
+
 /** Everything this file has written, so it can be taken away again. */
 const saved: { userId: string; id: string }[] = [];
 
@@ -127,7 +132,13 @@ afterEach(async () => {
  */
 type FakeAnalyser = { analyse: AnalyseCoverage; asked: AnalysisRequest[] };
 
-function analysing(reply: AnalysedReading[] | Error): FakeAnalyser {
+function analysing(
+  reply: AnalysedReading[] | Error,
+  outcome: Pick<AnalysisOutcome, "rating" | "feedback"> = {
+    rating: RATING,
+    feedback: FEEDBACK,
+  },
+): FakeAnalyser {
   const asked: AnalysisRequest[] = [];
 
   return {
@@ -135,7 +146,7 @@ function analysing(reply: AnalysedReading[] | Error): FakeAnalyser {
     analyse: async (request) => {
       asked.push(request);
       if (reply instanceof Error) throw reply;
-      return reply;
+      return { readings: reply, ...outcome };
     },
   };
 }
@@ -264,6 +275,34 @@ describe("running an Analysis", () => {
       },
     ]);
     expect(result.analysis.stale).toBe(false);
+    expect(result.analysis.rating).toBe(RATING);
+    expect(result.analysis.feedback).toBe(FEEDBACK);
+  });
+
+  it("keeps the rating and feedback, so reopening the Job Application shows them again", async () => {
+    const { id } = await save(TEST_USER);
+    await run(TEST_USER, id);
+
+    await expect(ranAnalysis(TEST_USER, id)).resolves.toMatchObject({
+      rating: RATING,
+      feedback: FEEDBACK,
+    });
+  });
+
+  it("replaces the rating and feedback on a re-run", async () => {
+    const { id } = await save(TEST_USER);
+    await run(TEST_USER, id);
+
+    await run(
+      TEST_USER,
+      id,
+      analysing(READ_BOTH, { rating: 9, feedback: "Now add Terraform." }),
+    );
+
+    await expect(ranAnalysis(TEST_USER, id)).resolves.toMatchObject({
+      rating: 9,
+      feedback: "Now add Terraform.",
+    });
   });
 
   it("answers `partial`, which is the reading the whole feature exists for", async () => {
@@ -438,6 +477,30 @@ describe("when the model cannot be reached", () => {
 
     expect(response.status).toBe(502);
     await expect(analysisOfOne(TEST_USER, id)).resolves.toBe(null);
+  });
+});
+
+describe("when the model gives no usable rating", () => {
+  it("still records the readings, with the rating and feedback left null", async () => {
+    // A bad overall opinion is not the same failure as an unreadable reply
+    // about the Requirements: the readings the model did get right are not
+    // thrown away for it (analyser.ts's `readOutcome`).
+    const { id } = await save(TEST_USER);
+
+    const response = await run(
+      TEST_USER,
+      id,
+      analysing(READ_BOTH, { rating: null, feedback: null }),
+    );
+
+    expect(response.status).toBe(200);
+    const result: AnalysisResult = await response.json();
+    expect(result.requirements).toMatchObject([
+      { analysedCoverage: "partial" },
+      { analysedCoverage: "missing" },
+    ]);
+    expect(result.analysis.rating).toBe(null);
+    expect(result.analysis.feedback).toBe(null);
   });
 });
 

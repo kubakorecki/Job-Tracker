@@ -1,5 +1,6 @@
 import { RequirementWithCoverage } from "@repo/schema";
 import { z } from "zod";
+import { Rating } from "./analyser";
 
 /**
  * What an Analysis looks like to a client. It lives here rather than in
@@ -25,6 +26,14 @@ import { z } from "zod";
 export const Analysis = z.object({
   ranAt: z.iso.datetime(),
   stale: z.boolean(),
+  /**
+   * The HR reading of the run as a whole: a rating out of ten of the
+   * candidate's chance of an interview, and what would raise it. `null` for
+   * an Analysis recorded before this was asked for, or where the model's
+   * readings came back usable but its overall opinion did not.
+   */
+  rating: Rating.nullable(),
+  feedback: z.string().nullable(),
 });
 export type Analysis = z.infer<typeof Analysis>;
 

@@ -58,18 +58,49 @@ export type AnalysedReading = {
   reason: string;
 };
 
+/** A rating out of ten of how likely a CV is to earn an interview. */
+export const Rating = z.number().int().min(1).max(10);
+export type Rating = z.infer<typeof Rating>;
+
 /**
- * Reads the Requirements against the CV and answers with a verdict for each.
+ * How many characters of the improvement feedback are worth keeping. It is a
+ * paragraph under the rating, not a rewrite of the CV.
+ */
+export const MAX_FEEDBACK_LENGTH = 600;
+
+/**
+ * What one run answers with: a verdict for every Requirement it could form an
+ * opinion about, and its one overall read of the CV against the Posting —
+ * an HR reader's rating of the candidate's chance of an interview, and what
+ * would raise it.
+ *
+ * `rating` and `feedback` are `null` where the reply carried the readings but
+ * nothing usable for the overall opinion — the same "this source has not
+ * spoken" reading the three Coverage columns give a Requirement it could not
+ * answer about. Discarding good readings over one bad field would waste a
+ * reply that mostly worked; only a reply with no readings at all rejects the
+ * run outright, which the endpoint turns into its own distinct answer.
+ */
+export type AnalysisOutcome = {
+  readings: AnalysedReading[];
+  rating: Rating | null;
+  feedback: string | null;
+};
+
+/**
+ * Reads the Requirements against the CV and answers with a verdict for each,
+ * plus the run's own rating and improvement feedback.
  *
  * Fewer verdicts than Requirements is a real answer: a Requirement the model
  * could not word an opinion about is left unread rather than guessed at, and
- * whatever an earlier run said about it stands. So this rejects only when the
- * provider could not be asked or could not be understood at all, which the
- * endpoint turns into its own distinct answer.
+ * whatever an earlier run said about it stands. This rejects only when the
+ * provider could not be asked or could not be understood about any
+ * Requirement at all — never for a bad rating or feedback alone, which come
+ * back `null` instead.
  */
 export type AnalyseCoverage = (
   request: AnalysisRequest,
-) => Promise<AnalysedReading[]>;
+) => Promise<AnalysisOutcome>;
 
 /**
  * How many characters of a Requirement's reason are worth keeping. It is a
@@ -87,7 +118,7 @@ export const MAX_REASON_LENGTH = 200;
  * A list of `{ skill, coverage, reason }` objects is precisely the nested
  * shape that cannot be asked for, so the pairing is carried by position, the
  * way extraction carries a Necessity by which array a skill arrived in.
- * `readReadings` below is the other half, zipping the two back into verdicts.
+ * `readOutcome` below is the other half, zipping the two back into verdicts.
  */
 const ANALYSIS_PROPERTIES = {
   coverages: {
@@ -100,6 +131,15 @@ const ANALYSIS_PROPERTIES = {
     type: "array",
     items: { type: "string" },
     description: `One sentence per numbered requirement, in the same order, saying what in the CV led to the verdict beside it. At most ${MAX_REASON_LENGTH} characters each.`,
+  },
+  rating: {
+    type: "integer",
+    description:
+      "An HR expert's rating, from 1 to 10, of how likely this CV is to earn the candidate an interview for this posting.",
+  },
+  feedback: {
+    type: "string",
+    description: `The HR expert's opinion on what the candidate could do to improve that rating — concrete and specific to what the CV is missing or underselling. At most ${MAX_FEEDBACK_LENGTH} characters.`,
   },
 };
 
@@ -115,12 +155,14 @@ const ANALYSIS_SCHEMA = {
  * nothing" — one rejection for every way of not being understood — rather than
  * as a parse error in one place and an empty answer in another.
  */
-const ProviderReadings = z.object({
+const ProviderReply = z.object({
   coverages: z.array(z.string()).catch([]),
   reasons: z.array(z.string()).catch([]),
+  rating: z.unknown().optional(),
+  feedback: z.string().catch(""),
 });
 
-const INSTRUCTIONS = `You judge how well one CV answers what a job posting asks for, for a job application tracker.
+const INSTRUCTIONS = `You are an HR expert judging how well one CV answers what a job posting asks for, for a job application tracker.
 
 You are given the text of a CV and a numbered list of requirements. Answer every one of them, in order, with a verdict and one sentence of your reasoning:
 
@@ -132,7 +174,12 @@ Judge only from the CV's own words. Do not assume a skill from a job title, an e
 
 Each reason is one sentence, at most ${MAX_REASON_LENGTH} characters, naming what in the CV decided it — "Four years of React across two roles, against the five asked for", not "Partially covered". Write it to the person whose CV it is: it is what they will read to know what to change.
 
-Return exactly as many verdicts as there were requirements, and exactly as many reasons, in the order they were listed. Never reorder them, never merge two requirements into one answer, and never add an entry for a requirement that was not listed.`;
+Return exactly as many verdicts as there were requirements, and exactly as many reasons, in the order they were listed. Never reorder them, never merge two requirements into one answer, and never add an entry for a requirement that was not listed.
+
+Then, having read the whole CV against the whole posting, give your overall opinion as the hiring manager screening this application:
+
+- rating — an integer from 1 to 10 for how likely this CV is to earn the candidate an interview for this posting. 1 is no realistic chance; 10 is a near-certain interview. Weigh the required requirements far more heavily than the preferred ones.
+- feedback — at most ${MAX_FEEDBACK_LENGTH} characters of concrete advice on what the candidate could change to raise that rating: what to add, quantify, reword or move higher up the CV. Write it to the candidate, not about them, and ground every point in a specific requirement above rather than generic advice.`;
 
 /**
  * The Gemini implementation. Everything that can go wrong here — no key, no
@@ -159,7 +206,7 @@ export const analyseWithGemini: AnalyseCoverage = async ({
     throw new Error(`${ANALYSIS_MODEL} answered with no content.`);
   }
 
-  return readReadings(text, requirements.length);
+  return readOutcome(text, requirements.length);
 };
 
 /**
@@ -177,21 +224,24 @@ function asked(requirements: readonly Requirement[]): string {
 }
 
 /**
- * The model's two arrays as verdicts, paired by position and dropping anything
- * that is not one.
+ * The whole of a run: the per-Requirement verdicts, paired by position and
+ * dropping anything that is not one, plus the rating and feedback the same
+ * reply carries.
  *
- * A pair survives only if the verdict is one of the three Coverages and the
- * reason says something: a Requirement the model answered with a word we do
- * not have, or with a verdict and no reasoning, is left unread rather than
- * recorded with half an answer. `asked` bounds the zip, so a reply longer than
- * the list cannot invent a verdict about a Requirement nobody named.
+ * A verdict survives only if its Coverage is one of the three and the reason
+ * says something: a Requirement the model answered with a word we do not
+ * have, or with a verdict and no reasoning, is left unread rather than
+ * recorded with half an answer. `asked` bounds the pairing, so a reply longer
+ * than the list cannot invent a verdict about a Requirement nobody named.
  *
- * Answering about nothing at all rejects, because that is a provider which
- * could not be understood rather than a reading — and the endpoint has a
- * different thing to say about each.
+ * The rating and feedback are read the same way — `null` where the reply did
+ * not carry a usable one, rather than discarding the readings alongside them.
+ * Only a reply that answered about no Requirement at all rejects the run,
+ * because that is a provider which could not be understood rather than a
+ * reading — and the endpoint has a different thing to say about each.
  */
-export function readReadings(json: string, count: number): AnalysedReading[] {
-  const raw = ProviderReadings.parse(JSON.parse(json));
+export function readOutcome(json: string, count: number): AnalysisOutcome {
+  const raw = ProviderReply.parse(JSON.parse(json));
 
   const readings: AnalysedReading[] = [];
   for (let index = 0; index < count; index++) {
@@ -211,7 +261,14 @@ export function readReadings(json: string, count: number): AnalysedReading[] {
     throw new Error(`${ANALYSIS_MODEL} answered about no Requirement.`);
   }
 
-  return readings;
+  const rating = Rating.safeParse(raw.rating);
+  const feedback = raw.feedback.trim();
+
+  return {
+    readings,
+    rating: rating.success ? rating.data : null,
+    feedback: feedback === "" ? null : feedback.slice(0, MAX_FEEDBACK_LENGTH),
+  };
 }
 
 let client: GoogleGenAI | null = null;

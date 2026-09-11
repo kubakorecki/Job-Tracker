@@ -42,6 +42,8 @@ export async function readAnalysis(
 
   return {
     ranAt: analysis.ranAt.toISOString(),
+    rating: analysis.rating,
+    feedback: analysis.feedback,
     stale: isStale({
       ranAt: analysis.ranAt,
       profileChangedAt: profileAt,

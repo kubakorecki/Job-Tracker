@@ -234,6 +234,17 @@ export const analyses = pgTable(
     ranAt: timestamp("ran_at", { withTimezone: true, mode: "date" })
       .notNull()
       .defaultNow(),
+    /**
+     * An HR reader's verdict on the run as a whole: how likely this CV is to
+     * earn an interview for this Posting, 1 to 10, and one paragraph on what
+     * would raise it. Nullable for a row written before this column existed,
+     * and for a run whose per-Requirement readings came back usable but whose
+     * overall opinion did not — the same "this source has not spoken" reading
+     * the three Coverage columns above use, and it clears the same way: a
+     * re-run overwrites both.
+     */
+    rating: integer("rating"),
+    feedback: text("feedback"),
   },
   (table) => [primaryKey({ columns: [table.jobApplicationId, table.basis] })],
 );

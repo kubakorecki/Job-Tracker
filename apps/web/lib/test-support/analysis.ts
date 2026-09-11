@@ -21,7 +21,13 @@ export async function giveAnalysedCoverage(
   requirementId: string,
   reading: { coverage: Coverage; reason: string },
 ): Promise<void> {
-  await recordAnalysis(user.id, jobApplicationId, [
-    { requirementId, ...reading },
-  ]);
+  await recordAnalysis(
+    user.id,
+    jobApplicationId,
+    [{ requirementId, ...reading }],
+    {
+      rating: null,
+      feedback: null,
+    },
+  );
 }

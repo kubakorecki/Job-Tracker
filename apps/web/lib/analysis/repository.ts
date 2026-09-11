@@ -66,24 +66,32 @@ export async function getAnalysis(
  * a history of runs is a feature nothing has asked for. A re-run therefore
  * un-stales itself by moving the stamp past whatever had moved under it.
  */
+
+/** The run's own opinion, as opposed to any one Requirement's reading. */
+export type AnalysisOpinion = {
+  rating: number | null;
+  feedback: string | null;
+};
+
 export async function recordAnalysis(
   userId: string,
   jobApplicationId: string,
   readings: readonly AnalysedRequirement[],
+  { rating, feedback }: AnalysisOpinion,
 ): Promise<void> {
   await db().transaction(async (tx) => {
     await recordAnalysedCoverage(tx, userId, jobApplicationId, readings);
 
     await tx
       .insert(analyses)
-      .values({ userId, jobApplicationId, basis: PROFILE })
+      .values({ userId, jobApplicationId, basis: PROFILE, rating, feedback })
       .onConflictDoUpdate({
         target: [analyses.jobApplicationId, analyses.basis],
         // Written out rather than left to the column default, because the
         // conflict branch of an upsert takes no default at all — a re-run
         // would otherwise keep the first run's stamp and read as stale for as
         // long as the Job Application lived.
-        set: { ranAt: sql`now()` },
+        set: { ranAt: sql`now()`, rating, feedback },
         // Scoped by owner like every other statement here. The id came from a
         // scoped read, but a statement that names the owner itself is what
         // makes that reviewable (ADR-0001).

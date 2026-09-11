@@ -114,9 +114,21 @@ _Avoid_: score, match percentage, rating, strength
 **Analysis**:
 The model's reading of a Posting's Requirements against one Basis, run only
 when the user asks for it, producing a Coverage and a one-line reason for each
-Requirement. Stored, and marked stale when the Requirements or the CV it was
-measured against move underneath it.
+Requirement, and one overall Rating and its Feedback for the run as a whole.
+Stored, and marked stale when the Requirements or the CV it was measured
+against move underneath it.
 _Avoid_: comparison, evaluation, check, scan
+
+**Rating**:
+An Analysis's own verdict on the run as a whole, read as an HR screener would:
+an integer from 1 to 10 for how likely the CV is to earn an interview for the
+Posting. It is a different number from the Fit Fraction above — the Fraction
+counts Requirements met and is free and automatic; the Rating is the model's
+judgement of the whole application and costs the Model Call an Analysis
+already spends. Its Feedback is the one paragraph, alongside it, on what would
+raise it. Both are stored on the Analysis, not on any one Requirement, and
+both are replaced whole by a re-run.
+_Avoid_: score, interview probability
 
 **Tailored CV**:
 The one CV attached to one Job Application — generated from the Profile or

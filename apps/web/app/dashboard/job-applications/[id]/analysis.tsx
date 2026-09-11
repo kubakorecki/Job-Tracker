@@ -96,6 +96,13 @@ export function AnalysisSection({
           )}
         </p>
 
+        {analysis !== null && analysis.rating !== null && (
+          <InterviewChance
+            feedback={analysis.feedback}
+            rating={analysis.rating}
+          />
+        )}
+
         <p className="text-[12.5px] leading-[1.55] text-ink-faint">
           Analysing spends one call from today&rsquo;s allowance.
         </p>
@@ -124,6 +131,39 @@ export function AnalysisSection({
         <Problems problems={problems} />
       </div>
     </Panel>
+  );
+}
+
+/**
+ * The HR reading of the run as a whole: a rating out of ten of the
+ * candidate's chance of an interview, and the one paragraph on what would
+ * raise it. It sits under the per-Requirement badges and stays as long as the
+ * Analysis does, stale or not — the same reasoning a re-run overwrites either
+ * way.
+ */
+function InterviewChance({
+  feedback,
+  rating,
+}: {
+  rating: number;
+  feedback: string | null;
+}) {
+  return (
+    <div className="flex flex-col gap-2 rounded-card border border-line bg-paper-raised px-3 py-3">
+      <p className="flex items-baseline gap-1.5 text-[12.5px] leading-[1.55] text-ink-muted">
+        <span>Chance of an interview:</span>
+        <span className="font-display text-[17px] leading-[1.2] text-ink">
+          {rating}
+          <span className="text-[12.5px] text-ink-faint">/10</span>
+        </span>
+      </p>
+
+      {feedback !== null && feedback !== "" && (
+        <p className="text-[12.5px] leading-[1.55] text-ink-muted">
+          {feedback}
+        </p>
+      )}
+    </div>
   );
 }
 
