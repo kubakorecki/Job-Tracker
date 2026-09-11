@@ -41,9 +41,9 @@ banner look muddier than they should. Use `ink-muted` / `ink-faint`.
 | Token | Value | Carries |
 | --- | --- | --- |
 | `--color-spectre` | `oklch(0.520 0.120 298)` | Brand, Applied, links, focus ring |
-| `--color-ember` | `oklch(0.520 0.120 62)` | Interviewing, going cold, partial Coverage, excitement |
+| `--color-ember` | `oklch(0.520 0.120 62)` | Interviewing, going cold, partial Coverage |
 | `--color-vital` | `oklch(0.520 0.120 152)` | Offer, Coverage you have |
-| `--color-rose` | `oklch(0.520 0.120 18)` | Rejected, missing Coverage, closing date, destructive |
+| `--color-rose` | `oklch(0.520 0.120 18)` | Rejected, missing Coverage, closing date, destructive, Excitement |
 
 Each has a `-tint` companion used as a fill behind it:
 `--color-spectre-tint` `oklch(0.945 0.032 298)`,
@@ -231,11 +231,22 @@ event log behind it.
 
 ### Excitement
 
-Nought to five, in flames rather than stars — the app already speaks in
-temperature, so a heat rating belongs to the system instead of being borrowed
-from it. 36px targets, `line-strong` unlit and `ember` lit, filled only when
-lit. The rating is said in words beside the row: *Not fussed. · Worth a punt. ·
-Mildly keen. · Would be pleased. · Really want this one.*
+Nought to five, in hearts — not stars, which is the rating control from every
+other website, and no longer flames: a flame is an outline shape, and filling
+one read as a blot rather than as a rating. A heart is solid to begin with, so
+three of five reads as three of five at 13px as well as at 22px. 36px targets,
+`line-strong` unlit and `rose` lit, filled only when lit. The rating is said in
+words beside the row: *Not fussed. · Worth a punt. · Mildly keen. · Would be
+pleased. · Really want this one.*
+
+It saves on the press rather than on the page's Save button — it is a
+judgement rather than a correction, and there is nothing about it to get
+wrong. The Coverage override is the only other control on that page that does.
+
+The table draws the same five hearts at 13px, unpressable, with a dash where
+nobody has rated it. All five are always drawn, as the fit ring always draws
+its whole track: two hearts and five hearts are the same picture at different
+lengths, and nothing would say what the rating is out of.
 
 ### Buttons
 
@@ -261,7 +272,9 @@ Selects draw their own caret from two CSS gradients; no icon font, no SVG.
 ### Icons
 
 24px grid, 1.7px stroke, round caps and joins, `currentColor`, no fills —
-the ghost's eyes are the single exception. **Never emoji.**
+the ghost's eyes and the Excitement heart are the two exceptions. An unlit
+heart scales its stroke against its size, so the outline weighs the same in a
+table cell as in the control. **Never emoji.**
 
 The ghost mark is the wordmark's own glyph reused at three sizes: 21px in the
 bar, 34px dashed in empty states, 86px at 5% opacity bleeding off a ghosted

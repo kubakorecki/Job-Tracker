@@ -17,7 +17,13 @@ import { JOB_STATUS_LABELS, StatusBadge } from "@repo/ui/status-badge";
 import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useId, useState, type ChangeEvent, type FormEvent } from "react";
+import {
+  useId,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+} from "react";
 import { dayOf } from "../../../../lib/day";
 import { describeFailure } from "../../../../lib/api/client";
 import { fetchAnalysis, runAnalysis } from "../../../../lib/analysis/client";
@@ -32,6 +38,7 @@ import {
   patchJobApplication,
 } from "../../../../lib/job-applications/client";
 import {
+  changeFrom,
   changesFrom,
   editsFrom,
   type JobApplicationEdits,
@@ -138,6 +145,17 @@ export function JobApplicationDetail({
   const [saving, setSaving] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  // What the last press of a heart went wrong with, kept apart from the form's
+  // own problems: the rating saves itself, so its refusal is not about the
+  // Save button and must not clear what the Save button is still complaining
+  // about.
+  const [excitementProblems, setExcitementProblems] = useState<string[]>([]);
+  // How many ratings have been sent. Two presses in quick succession are two
+  // requests in flight and they can come back in either order, so each counts
+  // itself out and an answer only touches the page while it is still the
+  // newest — counting rather than comparing the rating, because pressing 3, 5
+  // and 3 again sends two requests that would otherwise look identical.
+  const excitementSaves = useRef(0);
   // The Save button stands in the header, beside the title, rather than at the
   // foot of a page this tall — so the form it submits is named rather than
   // wrapped around it.
@@ -294,6 +312,71 @@ export function JobApplicationDetail({
     // behind this page, so it would otherwise go on showing the verdict the
     // user has just overruled — and it is what issue 15's fit ring will draw.
     await queryClient.invalidateQueries({ queryKey: JOB_APPLICATIONS_KEY });
+  }
+
+  /**
+   * The rating, saved on the press rather than on the page's button. It is the
+   * one field here that is a judgement rather than a correction: there is
+   * nothing to get wrong, nothing to check before it goes, and asking someone
+   * to press Save after clicking a heart is asking them to confirm an opinion.
+   * The Coverage override above it is the same decision made against its own
+   * endpoint.
+   *
+   * The patch names the rating and nothing else (`changeFrom`), so a page full
+   * of boxes the user has opened and not yet saved does not go with it.
+   *
+   * It does not re-read the Analysis the way a whole-form save does: a rating
+   * is no part of what a run describes, and this fires on every click, where
+   * that fires once on a button.
+   *
+   * A refusal puts the old rating back and reports it with the page's other
+   * problems, which is where the user is already looking for what a save did.
+   */
+  async function onExcitement(excitement: string): Promise<void> {
+    // Parsed before it is shown rather than after, as every other patch this
+    // page sends is parsed: the contract is where a value that is not a step
+    // of the scale gets refused by name, and nothing is put on screen that the
+    // page is not about to send.
+    const change = UpdateJobApplication.safeParse(
+      changeFrom("excitement", excitement),
+    );
+    if (!change.success) {
+      setExcitementProblems(describeIssues(change.error));
+      return;
+    }
+
+    // Where a refusal has to put the rating back to: what the server holds,
+    // not what the form is showing — the form may be showing an earlier press
+    // that has not landed yet.
+    const persisted = editsFrom(saved).excitement;
+    const save = (excitementSaves.current += 1);
+
+    setExcitementProblems([]);
+    // A rating is a save, so whatever the header was saying about the last one
+    // is now out of date. Only cleared, never set: the hearts moving under the
+    // hand is the whole of the confirmation, and "Saved." beside a Save button
+    // with half a form still dirty behind it would be saying more than
+    // happened.
+    setNotice(null);
+    setEdits((current) => ({ ...current, excitement }));
+
+    try {
+      const updated = await patchJobApplication(saved.id, change.data);
+      // Pressed again while this was in flight: the page is already showing a
+      // rating the user meant more recently than this one, and this answer is
+      // about a row that has since moved.
+      if (excitementSaves.current !== save) return;
+
+      setSaved(updated);
+      // The table draws this rating in a column of its own, off the one cached
+      // list, and that list is still alive behind this page.
+      await queryClient.invalidateQueries({ queryKey: JOB_APPLICATIONS_KEY });
+    } catch (error) {
+      if (excitementSaves.current !== save) return;
+
+      setEdits((current) => ({ ...current, excitement: persisted }));
+      setExcitementProblems(describeFailure(error));
+    }
   }
 
   async function onDelete() {
@@ -610,12 +693,12 @@ export function JobApplicationDetail({
             </div>
           </Panel>
 
+          {/* Saves on the press, like the Coverage overrides and unlike
+              every other box on this page — see `onExcitement`. */}
           <Panel title="Excitement">
             <Excitement
-              onChange={(excitement) => {
-                setNotice(null);
-                setEdits((current) => ({ ...current, excitement }));
-              }}
+              onChange={onExcitement}
+              problems={excitementProblems}
               value={edits.excitement}
             />
           </Panel>

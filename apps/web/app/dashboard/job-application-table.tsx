@@ -4,6 +4,7 @@ import type { JobApplication } from "@repo/schema";
 import { StatusBadge } from "@repo/ui/status-badge";
 import Link from "next/link";
 import { ClosingBadge } from "./closing-badge";
+import { ExcitementMarks } from "./excitement-marks";
 import { FitRing } from "./fit-ring";
 import { SilenceOf } from "./silence-tag";
 
@@ -22,6 +23,12 @@ const CELL = "px-3.5 py-[11px] align-middle";
  * Applied has gone. The date it showed was being read as "how long have they
  * had this", which is the question Silence answers properly; the date itself
  * is a field on the Job Application's own page.
+ *
+ * Excitement comes last, after the record rather than inside it. Everything
+ * before it is what happened — how well the user fits, where it stands, who
+ * has gone quiet, when it shuts. Excitement is the one column that is the
+ * user's own opinion, and putting it among the others would have it read as
+ * another thing the pipeline decided about them.
  */
 const COLUMNS = [
   "Company",
@@ -31,6 +38,7 @@ const COLUMNS = [
   "Status",
   "Silence",
   "Closes",
+  "Excitement",
 ];
 
 /**
@@ -118,6 +126,9 @@ export function JobApplicationTable({
                   status={jobApplication.status}
                   unrecorded={<span className="text-ink-faint">—</span>}
                 />
+              </td>
+              <td className={CELL}>
+                <ExcitementMarks excitement={jobApplication.excitement} />
               </td>
             </tr>
           ))}

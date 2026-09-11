@@ -1,7 +1,7 @@
 import type { JobApplication } from "@repo/schema";
 import { describe, expect, it } from "vitest";
 import { asked } from "../test-support/requirements";
-import { changesFrom, editsFrom } from "./edits";
+import { changeFrom, changesFrom, editsFrom } from "./edits";
 
 /**
  * The detail view's arithmetic, with no form and no database in sight: what a
@@ -167,5 +167,22 @@ describe("changesFrom", () => {
     expect(changesFrom({ ...editsFrom(SAVED), company: "" }, SAVED)).toEqual({
       company: "",
     });
+  });
+});
+
+describe("changeFrom", () => {
+  it("names the one field, so a control that saves itself cannot carry the rest of the form with it", () => {
+    expect(changeFrom("excitement", "4")).toEqual({ excitement: 4 });
+  });
+
+  it("puts a cleared rating back to nothing rather than leaving it out", () => {
+    expect(changeFrom("excitement", "")).toEqual({ excitement: null });
+  });
+
+  it("converts through the same table a whole-form save does", () => {
+    expect(changeFrom("company", "  Basecamp  ")).toEqual({
+      company: "Basecamp",
+    });
+    expect(changeFrom("location", "   ")).toEqual({ location: null });
   });
 });

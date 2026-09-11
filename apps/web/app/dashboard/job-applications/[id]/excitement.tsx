@@ -2,31 +2,47 @@
 
 import { EXCITEMENT_SCALE } from "@repo/schema";
 import { useState } from "react";
+import {
+  excitementSays,
+  excitementStepLabel,
+} from "../../../../lib/job-applications/excitement";
+import { Heart } from "../../../heart";
+import { Problems } from "../../../form";
 
 /**
- * How much the user wants this one, nought to five, rated in flames.
- *
- * Flames rather than stars because the app already speaks in temperature — a
- * silence goes cold, `ember` is one of the four accents — so a heat rating
- * belongs to the system instead of being borrowed from every other rating
- * control on the internet.
+ * How much the user wants this one, nought to five, rated in hearts — why a
+ * heart and not the flame this used to draw is `app/heart.tsx`. `rose` rather
+ * than the `ember` the rest of the temperature language runs at: this is what
+ * the user wants, not how long anybody has been quiet.
  *
  * Colour is never the only carrier: the line beside the row says the rating in
- * words, and each flame is a button that names its own value.
+ * words, and each heart is a button that names its own value.
  *
- * Pressing the flame already lit puts it out, which is how a rating gets back
+ * Pressing the heart already lit puts it out, which is how a rating gets back
  * to nothing — where every Job Application starts, and where an accidental
  * click has to be able to return it.
+ *
+ * It saves as it is set, as the Coverage override does: `onChange` persists
+ * it, the rating shown is whatever the form is holding, and a refusal arrives
+ * back as `problems` beside the hearts — which is where the user is looking,
+ * and not the top of a form they did not submit.
+ *
+ * There is no in-flight state on the hearts. A rating is one press and the
+ * press is the feedback; greying five buttons out for the length of a request
+ * would make the fastest thing on the page feel like the slowest.
  */
 export function Excitement({
   value,
   onChange,
+  problems,
 }: {
   /** The rating as the form holds it: the digit, or "" for none. */
   value: string;
   onChange: (excitement: string) => void;
+  /** What went wrong with the last press, in the words the endpoint used. */
+  problems: string[];
 }) {
-  // Pointing at a flame previews the rating without committing it, the way any
+  // Pointing at a heart previews the rating without committing it, the way any
   // star control does; the committed value comes back on the way out.
   const [previewing, setPreviewing] = useState<number | null>(null);
 
@@ -34,75 +50,43 @@ export function Excitement({
   const showing = previewing ?? rated;
 
   return (
-    <div
-      className="flex items-center"
-      onMouseLeave={() => setPreviewing(null)}
-      role="group"
-      aria-label="How much you want this one, nought to five"
-    >
-      {EXCITEMENT_SCALE.map((step) => (
-        <button
-          aria-label={step === 1 ? "One flame" : `${step} flames`}
-          aria-pressed={step === rated}
-          className={`flex h-9 w-9 items-center justify-center rounded-[7px] hover:bg-paper-sunk ${
-            step <= showing ? "text-ember" : "text-line-strong"
-          }`}
-          key={step}
-          onBlur={() => setPreviewing(null)}
-          onClick={() => onChange(step === rated ? "" : String(step))}
-          onFocus={() => setPreviewing(step)}
-          onMouseEnter={() => setPreviewing(step)}
-          type="button"
-        >
-          <Flame lit={step <= showing} />
-        </button>
-      ))}
-
-      <span
-        // The rating in words, which is the reading. It changes as the user
-        // points at a flame, so it is announced when it settles rather than
-        // once per pixel of travel.
-        aria-live="polite"
-        className="ml-2.5 text-[12.5px] leading-[1.4] text-ink-muted"
+    <div className="flex flex-col gap-2.5">
+      <div
+        aria-label="How much you want this one, nought to five"
+        className="flex items-center"
+        onMouseLeave={() => setPreviewing(null)}
+        role="group"
       >
-        {SAYS[showing]}
-      </span>
+        {EXCITEMENT_SCALE.map((step) => (
+          <button
+            aria-label={excitementStepLabel(step)}
+            aria-pressed={step === rated}
+            className={`flex h-9 w-9 items-center justify-center rounded-[7px] hover:bg-paper-sunk ${
+              step <= showing ? "text-rose" : "text-line-strong"
+            }`}
+            key={step}
+            onBlur={() => setPreviewing(null)}
+            onClick={() => onChange(step === rated ? "" : String(step))}
+            onFocus={() => setPreviewing(step)}
+            onMouseEnter={() => setPreviewing(step)}
+            type="button"
+          >
+            <Heart filled={step <= showing} size={22} />
+          </button>
+        ))}
+
+        <span
+          // The rating in words, which is the reading. It changes as the user
+          // points at a heart, so it is announced when it settles rather than
+          // once per pixel of travel.
+          aria-live="polite"
+          className="ml-2.5 text-[12.5px] leading-[1.4] text-ink-muted"
+        >
+          {excitementSays(showing)}
+        </span>
+      </div>
+
+      <Problems problems={problems} />
     </div>
-  );
-}
-
-/**
- * What each rating means in words. Nought is a rating too — it is where every
- * Job Application starts, and "not rated" would be about the control rather
- * than about the job.
- */
-const SAYS = [
-  "Not rated.",
-  "Not fussed.",
-  "Worth a punt.",
-  "Mildly keen.",
-  "Would be pleased.",
-  "Really want this one.",
-];
-
-/**
- * The one icon in the app that fills: 24px grid, 1.7px stroke, and the same
- * shape whether it is lit or not, so a rating of three reads as three of five
- * rather than as three of nothing.
- */
-function Flame({ lit }: { lit: boolean }) {
-  return (
-    <svg
-      aria-hidden="true"
-      fill={lit ? "currentColor" : "none"}
-      height="24"
-      stroke="currentColor"
-      strokeLinejoin="round"
-      strokeWidth="1.5"
-      viewBox="0 0 24 24"
-      width="24"
-    >
-      <path d="M12 2.6c3.5 3.6 5.6 6.4 5.6 9.8a5.6 5.6 0 1 1-11.2 0c0-2.1.8-3.9 2.1-5.4.3 1.4 1 2.3 1.9 2.8C9.7 7.2 10.4 4.8 12 2.6Z" />
-    </svg>
   );
 }

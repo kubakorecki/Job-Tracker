@@ -62,6 +62,14 @@ contract work — and a bare figure means nothing without it. A Posting's own
 period is kept as stated and never converted (ADR-0006).
 _Avoid_: frequency, interval, per, cadence
 
+**Excitement**:
+How much the user wants one Job Application, nought to five. Their own opinion
+and nothing the model or the pipeline has a say in — it is never read off a
+Posting, never inferred, and means nothing beyond what the user meant by it.
+Nought is a rating rather than a blank: it is where every Job Application
+starts.
+_Avoid_: rating, score, priority, interest
+
 **Closing Date**:
 The day a Posting stops accepting applications, as the Posting states it. A
 calendar day rather than an instant, because that is what a Posting states and

@@ -74,6 +74,28 @@ const TO_STORED: ToStored = {
 
 const EDITABLE_FIELDS = Object.keys(TO_STORED) as (keyof JobApplicationEdits)[];
 
+/**
+ * One field's change on its own, for a control that saves as it is set rather
+ * than waiting for the page's button, as the Excitement rating does.
+ *
+ * It goes through the same table a whole-form save does, so a rating recorded
+ * by pressing a heart and one recorded by pressing Save cannot convert
+ * differently — which is the whole of why this exists rather than each such
+ * control converting its own value. What it deliberately does not do is compare anything: the patch
+ * names this field whether or not the value moved, because the control that
+ * calls it already knows the user just set it, and a diff against the form
+ * would drag in every other box the user has open and not yet saved.
+ */
+export function changeFrom<K extends keyof JobApplicationEdits>(
+  field: K,
+  text: string,
+): UpdateJobApplication {
+  // As in `changesFrom`: each converter returns its own field's stored type,
+  // and indexing loses which one. The caller parses the patch against the
+  // contract before sending it, which is where a bad value is named.
+  return { [field]: TO_STORED[field](text) } as UpdateJobApplication;
+}
+
 /** A Job Application as a form's worth of text. Nothing unset reads as "null". */
 export function editsFrom(jobApplication: JobApplication): JobApplicationEdits {
   const number = (value: number | null) =>
