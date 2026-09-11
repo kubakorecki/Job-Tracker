@@ -162,7 +162,10 @@ _Avoid_: chat, thread, session, history
 One thing said in a Conversation, by the user or by the model. The model's are
 prose and nothing else: there is no Draft here and nothing a Message becomes.
 A cover letter is a Message the user reads and copies out, not a document the
-product stores a second time under another name.
+product stores a second time under another name. A reply whose stream broke off
+keeps the prose that arrived and is marked incomplete, so what the panel shows
+tomorrow says what it said at the time; a reply that never began is no Message
+at all, because nothing was said.
 _Avoid_: turn, exchange, reply, completion
 
 **Model Call**:

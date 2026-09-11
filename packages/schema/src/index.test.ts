@@ -403,6 +403,7 @@ describe("Message", () => {
     conversationId: "00000000-0000-4000-8000-00000000000a",
     role: "user",
     text: "Help me write a cover letter for this one.",
+    incomplete: false,
     saidAt: "2026-01-01T00:00:00.000Z",
   };
 
@@ -415,7 +416,18 @@ describe("Message", () => {
     expect(Message.safeParse({ ...said, role: "system" }).success).toBe(false);
   });
 
-  it("accepts empty text, which is what a reply that failed at once left", () => {
+  it("accepts empty text, which the contract allows and no turn writes", () => {
     expect(Message.safeParse({ ...said, text: "" }).success).toBe(true);
+  });
+
+  it("says when it is less than what was meant to be said", () => {
+    const brokeOff = { ...said, role: "model", incomplete: true };
+    expect(Message.safeParse(brokeOff).success).toBe(true);
+
+    // Stated rather than inferred from a short reply, and stated on every
+    // Message rather than only the ones that broke: a panel reading it as
+    // optional would read a missing field as a reply that finished.
+    const { incomplete: _, ...unsaid } = said;
+    expect(Message.safeParse(unsaid).success).toBe(false);
   });
 });

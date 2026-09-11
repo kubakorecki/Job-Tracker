@@ -10,6 +10,7 @@ import {
 import { sql } from "drizzle-orm";
 import {
   bigint,
+  boolean,
   date,
   index,
   numeric,
@@ -528,11 +529,25 @@ export const messages = pgTable(
       .references(() => conversations.id, { onDelete: "cascade" }),
     role: messageRole("role").notNull(),
     /**
-     * What was said. A model Message that failed partway keeps the text that
-     * arrived, so this may be shorter than the reply meant to be, and may be
-     * empty where a stream failed before its first chunk.
+     * What was said. A model Message whose stream failed partway keeps the
+     * text that arrived, so this may be shorter than the reply meant to be —
+     * and the column beside it is what says so. A reply that said nothing at
+     * all, whether it broke before its first word or arrived as nothing but
+     * whitespace, is no Message at all rather than an empty one.
      */
     text: text("text").notNull(),
+    /**
+     * Whether the text above is less than what was meant to be said. True on a
+     * model Message whose stream broke off partway, so that what arrived is
+     * kept and the panel can show the failure against it rather than leaving a
+     * truncated reply looking like a short one (the spec's story 23).
+     *
+     * A column rather than a thing the panel is told once, in the response
+     * that broke: the Conversation is reopened tomorrow, and a reply that
+     * silently lost its warning would read as the model's own considered
+     * answer.
+     */
+    incomplete: boolean("incomplete").notNull().default(false),
     /**
      * When it was said. The name a Message's own timestamp deserves: this is
      * not a row's creation stamp used for ordering by accident, it is the

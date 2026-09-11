@@ -25,8 +25,20 @@ import {
  * (`CONTEXT.md`).
  */
 
-/** What a Message carries when it is appended: who said it, and what. */
-export type Said = { role: MessageRole; text: string };
+/**
+ * What a Message carries when it is appended: who said it, what, and whether
+ * that is all of what was meant to be said.
+ *
+ * `incomplete` is the model's alone in practice — a reply whose stream broke
+ * off keeps the prose that arrived and is marked so the panel can say so
+ * (the spec's story 23) — and it defaults to false, which is the truth about
+ * everything the user says and about every reply that ran to its end.
+ */
+export type Said = {
+  role: MessageRole;
+  text: string;
+  incomplete?: boolean;
+};
 
 /**
  * The Conversation for one scope, creating it if this is the first time the
@@ -107,7 +119,7 @@ export async function messagesIn(
 export async function appendMessage(
   userId: string,
   conversationId: string,
-  { role, text }: Said,
+  { role, text, incomplete = false }: Said,
 ): Promise<MessageRow> {
   const conversation = await getConversation(userId, conversationId);
   if (conversation === null) {
@@ -116,7 +128,7 @@ export async function appendMessage(
 
   const [row] = await db()
     .insert(messages)
-    .values({ userId, conversationId, role, text })
+    .values({ userId, conversationId, role, text, incomplete })
     .returning();
 
   if (row === undefined) {

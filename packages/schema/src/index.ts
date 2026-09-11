@@ -417,6 +417,14 @@ export const Message = z.object({
   conversationId: z.uuid(),
   role: MessageRole,
   text: z.string(),
+  /**
+   * Whether this is less than what was meant to be said: a reply that broke
+   * off partway keeps the prose that arrived and is marked here, so the panel
+   * can show the failure against the text rather than beside a Message
+   * indistinguishable from a short answer. Always false on the user's own
+   * Messages — what a user said arrived whole or did not arrive.
+   */
+  incomplete: z.boolean(),
   saidAt: z.iso.datetime(),
 });
 export type Message = z.infer<typeof Message>;
