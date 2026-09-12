@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { describeFailure } from "../../../lib/api/client";
 import { dayOf } from "../../../lib/day";
@@ -48,11 +49,19 @@ import { Empty } from "../../states";
  * anywhere to be read back from. A `router.refresh()` would fetch the half the
  * response already carried and could not fetch the other.
  *
+ * It refreshes anyway, after an upload and only then, for something that is
+ * not the Profile at all: reading a CV spends from the month's AI Usage, and
+ * the meter below this is drawn on the server from a figure that upload has
+ * just moved. What is held here is untouched by it — this state is what the
+ * page goes on measuring against, and the refresh is for the one thing on the
+ * page that has no other way to hear the news.
+ *
  * The Draft is the whole reason this page exists in two states. It is held
  * here and nowhere else: nothing persisted it, so closing the page or pressing
  * Discard is the discard, and the accepted list is untouched either way.
  */
 export function YourProfile({ profile: uploaded }: { profile: ProfileOrNone }) {
+  const router = useRouter();
   // The Profile as last read or written. Every accepted list and every upload
   // replaces it, so the page is never measuring against something older than
   // the server's answer.
@@ -68,6 +77,11 @@ export function YourProfile({ profile: uploaded }: { profile: ProfileOrNone }) {
 
   function onUploaded(next: Profile, proposal: string[]) {
     setProfile(next);
+    // The reading that just happened spent tokens, so the AI Usage meter on
+    // this page is now a figure from before it. Nothing in this answer says
+    // what it cost — a provider tells the endpoint, and the endpoint tells the
+    // meter — so the only honest way to catch up is to ask the server again.
+    router.refresh();
     // The accepted rows are deliberately left where they are. An upload
     // replaces the document and proposes a Draft; it does not touch the skill
     // list, on the server or here — so a user who was midway through

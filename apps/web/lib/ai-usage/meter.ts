@@ -39,14 +39,19 @@ export const MONTHLY_AI_USAGE_LIMIT = 3_000_000;
 export const AI_USAGE_LIMIT_STATUS = 429;
 
 /**
- * What a user is told when the month's allowance is gone. Shared so that it
+ * What a user is told when the month's AI Usage is gone. Shared so that it
  * reads the same from every endpoint, and deliberately unlike the daily
  * ceiling's sentence next to it: this one is an ordinary end of an ordinary
- * allowance and says when it comes back, and that one is a fault the user
- * should never see (ADR-0009).
+ * month and says when it comes back, and that one is a fault the user should
+ * never see (ADR-0009).
+ *
+ * It points at the Profile because ADR-0009 asks this refusal to show the
+ * meter, and every endpoint that says this renders it as plain words — so the
+ * pointer is words too, rather than a link one of them could offer and the
+ * extension could not.
  */
 export const AI_USAGE_SPENT_MESSAGE =
-  "You have spent this month's AI Usage. It starts again on the first of next month.";
+  "You have spent this month's AI Usage. It starts again on the first of next month; your Profile shows the meter.";
 
 /** Whether a call may start, or the month's allowance is already gone. */
 export type AiUsageCheck = "within-limit" | "over-limit";
@@ -64,7 +69,18 @@ export type AiUsageCheck = "within-limit" | "over-limit";
  * spend, because what it will spend is not knowable until it has.
  */
 export async function mayStartAiCall(userId: string): Promise<AiUsageCheck> {
-  return (await aiUsageSoFar(userId)) >= MONTHLY_AI_USAGE_LIMIT
-    ? "over-limit"
-    : "within-limit";
+  return aiUsageAt(await aiUsageSoFar(userId));
+}
+
+/**
+ * The comparison itself, over a total already in hand.
+ *
+ * It is here, apart from the read above it, because the Profile's meter asks
+ * the same question of a total it has already read and must not answer it
+ * differently — a page saying the month has room while the next call refuses
+ * would be two limits wearing one name. Everything that starts a call goes
+ * through `mayStartAiCall`; this is for whatever is only describing a month.
+ */
+export function aiUsageAt(spent: number): AiUsageCheck {
+  return spent >= MONTHLY_AI_USAGE_LIMIT ? "over-limit" : "within-limit";
 }

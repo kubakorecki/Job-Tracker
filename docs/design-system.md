@@ -220,6 +220,29 @@ carries the whole reading; the meter is reinforcement under it. Both are absent
 in exactly the cases the ring is, so a card that draws no ring never sits under
 a page claiming a fit.
 
+### AI Usage meter
+
+The Profile's last panel, and the only place the product says anything about
+cost: the share spent in the display face at 42px, the sentence beside it in
+13/400 `ink-muted`, and one 6px bar under it on a `line-strong` track. The
+sentence carries the whole reading — what was spent, of what, in tokens — and
+the bar is `aria-hidden`, exactly as the fit banner's is.
+
+The fill is `spectre`, and `ember` once the month is spent. Spectre because
+spending is neither good news nor bad and the brand hue is the one accent that
+carries no verdict — the same use the tally makes of it for the quiet number.
+Ember rather than rose because a month that ran out is an ordinary end: rose is
+what this system says errors, destruction and a missed closing date in, and a
+meter that turned red would read as a fault the user had committed.
+
+The figure is rounded up and stops at 99% while any of the month is left, so
+that it never says a month is over while a Conversation would still answer. It
+goes above 100 where a call admitted inside the limit overshot it
+(ADR-0009); the bar stops at its own end and the figure does not.
+
+The daily Model Call count is nowhere on it, and there is nowhere in this
+system for it to be.
+
 ### Silence thread
 
 The right column's first panel on a Job Application: what has happened, in

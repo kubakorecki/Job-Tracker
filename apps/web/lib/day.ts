@@ -14,6 +14,22 @@ export function dayOf(iso: string): string {
   return DAY.format(new Date(iso));
 }
 
+const MONTH = new Intl.DateTimeFormat("en-GB", {
+  month: "long",
+  year: "numeric",
+  timeZone: "UTC",
+});
+
+/**
+ * Any of the contract's instants, as the month it falls in: "September 2026".
+ * Here rather than beside the one thing that says a month — AI Usage's meter —
+ * because this file is where every date the app shows is formatted, and a
+ * second fixed-locale formatter elsewhere is how two of them come to disagree.
+ */
+export function monthOf(iso: string): string {
+  return MONTH.format(new Date(iso));
+}
+
 /**
  * Today, as the app counts days: a UTC calendar day. Read from the clock here
  * and nowhere else, so every function that reasons about a date takes the day
