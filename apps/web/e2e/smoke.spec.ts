@@ -47,6 +47,20 @@ test("a Job Application added by hand keeps the Status it was moved to", async (
 
   await page.goto("/dashboard");
 
+  // The form is opened from the bar rather than standing under it: recording a
+  // job by hand is the rarer of the two ways one arrives, and the board is what
+  // the user came for. Scoped to the bar because a board with nothing on it
+  // offers the same invitation in its empty state, and this test would take
+  // either without saying which it meant.
+  //
+  // By the element rather than the `banner` role: the bar is drawn inside the
+  // page's `<main>`, so its `<header>` is not a landmark, which is a fact
+  // about the page rather than about this test.
+  await page
+    .locator("header")
+    .getByRole("button", { name: "Track a job" })
+    .click();
+
   const addForm = page
     .locator("form")
     .filter({ has: page.getByRole("button", { name: "Add Job Application" }) });

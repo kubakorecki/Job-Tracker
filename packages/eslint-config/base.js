@@ -19,6 +19,22 @@ export const config = [
     },
     rules: {
       "turbo/no-undeclared-env-vars": "warn",
+
+      /**
+       * Destructuring a key out in order to drop it leaves a binding nobody
+       * reads, and that is the point of writing it: `const { incomplete: _,
+       * ...rest } = row` is how a test says "the same record without this
+       * field". The rest sibling is what marks it as an omission rather than
+       * an oversight, which is exactly what this option keys on.
+       *
+       * Everything else the rule catches is left alone, including an unused
+       * argument that nothing follows — the `_request` in the endpoints is
+       * allowed by `args: "after-used"` and needs nothing from here.
+       */
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        { ignoreRestSiblings: true },
+      ],
     },
   },
   {
