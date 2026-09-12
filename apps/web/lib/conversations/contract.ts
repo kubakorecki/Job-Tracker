@@ -14,7 +14,18 @@ import { z } from "zod";
  * Newline-delimited JSON rather than Server-Sent Events: a turn is a `POST`,
  * which `EventSource` cannot make, so the panel is reading the body itself
  * either way — and a line of JSON needs no framing rules of its own.
+ *
+ * Everything here is read by both ends, so nothing here may reach the
+ * database. The panel imports this module into the browser, and a constant
+ * kept beside the endpoint that uses it would drag a repository in with it.
  */
+
+/**
+ * The one scope that is not an id. A literal rather than an empty segment or a
+ * separate address, so that the three routes have one shape between them and a
+ * client builds a URL the same way wherever the user is standing.
+ */
+export const GENERAL_SCOPE = "general";
 
 /**
  * How much one Message may carry. A Message is a question, an instruction or
@@ -68,5 +79,46 @@ export const ConversationEvent = z.discriminatedUnion("event", [
 ]);
 export type ConversationEvent = z.infer<typeof ConversationEvent>;
 
+/**
+ * Whether this event is the one that ends a turn.
+ *
+ * Stated here because "exactly one ending" is a rule of the wire rather than
+ * of either end: the endpoint promises to send one, and the panel is entitled
+ * to treat a stream that stopped without one as a turn that broke off.
+ */
+export function isEnding(event: ConversationEvent): boolean {
+  return event.event === "finished" || event.event === "broke-off";
+}
+
 /** The media type the stream of events is sent as. */
 export const CONVERSATION_STREAM_MEDIA_TYPE = "application/x-ndjson";
+
+/**
+ * What the user is told when a reply stopped partway through.
+ *
+ * One sentence for the two ways it happens — the endpoint watching the
+ * provider stop, and the panel watching the stream stop — because they are the
+ * same thing to the person reading the half-written paragraph. It is also what
+ * the panel says beside an incomplete Message read back tomorrow, which is why
+ * it is agreed here rather than sent only in the event that broke.
+ */
+export const REPLY_BROKE_OFF_MESSAGE =
+  "The reply broke off before it was finished. What arrived is kept below; ask again for the rest.";
+
+/**
+ * A Conversation as the panel opens it: everything said in it, oldest first,
+ * and whether there is a CV for it to have read.
+ *
+ * The CV is here rather than asked for separately because it is a fact about
+ * what this Conversation can see, and the panel needs both at the one moment —
+ * it has to be able to say plainly that no CV is attached before the user
+ * trusts an answer, rather than after (the spec's story 19). It is a boolean
+ * and not the Profile: what the document says is the model's to read, and a
+ * panel that asked for the Profile would mint a signed URL to answer a
+ * yes-or-no question.
+ */
+export const ConversationView = z.object({
+  messages: z.array(Message),
+  cvAttached: z.boolean(),
+});
+export type ConversationView = z.infer<typeof ConversationView>;

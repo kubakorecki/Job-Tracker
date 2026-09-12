@@ -83,51 +83,82 @@ export function Failure({
   onDismiss?: () => void;
 }) {
   return (
+    <FailureBanner heading={`Could not load ${what}.`}>
+      {standing !== undefined && (
+        <p className="mt-1.5 text-xs leading-[1.55] text-ink-muted">
+          {standing}
+        </p>
+      )}
+
+      <Reasons problems={problems} />
+
+      <div className="mt-2.5 flex flex-wrap gap-2">
+        <button
+          className={SECONDARY_BUTTON_SMALL}
+          onClick={onRetry}
+          type="button"
+        >
+          Try again
+        </button>
+        {onDismiss !== undefined && (
+          <button
+            className={SECONDARY_BUTTON_SMALL}
+            onClick={onDismiss}
+            type="button"
+          >
+            Dismiss
+          </button>
+        )}
+      </div>
+    </FailureBanner>
+  );
+}
+
+/**
+ * The treatment every failure in this app takes: a `rose` border on
+ * `rose-tint`, the mark, and a 13.5/600 `rose` heading over whatever the
+ * failure has to say for itself.
+ *
+ * It is a shell rather than part of `Failure` above because not every failure
+ * is a load that can be retried — the Conversation panel refuses a turn under
+ * a heading of its own and offers no button, because the words the user typed
+ * are already back in the box. Both still have to look like the same kind of
+ * event, which is the whole reason this is one component.
+ */
+export function FailureBanner({
+  heading,
+  children,
+}: {
+  /** What happened, said plainly. Never a joke; this one is a problem to solve. */
+  heading: string;
+  children?: ReactNode;
+}) {
+  return (
     <div
       className="flex items-start gap-3 rounded-card border border-rose bg-rose-tint px-4 py-3.5"
       role="alert"
     >
       <Alert />
-
       <div className="flex-1">
         <h2 className="text-[13.5px] leading-[1.4] font-semibold text-rose">
-          Could not load {what}.
+          {heading}
         </h2>
-
-        {standing !== undefined && (
-          <p className="mt-1.5 text-xs leading-[1.55] text-ink-muted">
-            {standing}
-          </p>
-        )}
-
-        {problems.length > 0 && (
-          <ul className="mt-1.5 text-xs leading-[1.55] text-ink-muted">
-            {problems.map((problem) => (
-              <li key={problem}>{problem}</li>
-            ))}
-          </ul>
-        )}
-
-        <div className="mt-2.5 flex flex-wrap gap-2">
-          <button
-            className={SECONDARY_BUTTON_SMALL}
-            onClick={onRetry}
-            type="button"
-          >
-            Try again
-          </button>
-          {onDismiss !== undefined && (
-            <button
-              className={SECONDARY_BUTTON_SMALL}
-              onClick={onDismiss}
-              type="button"
-            >
-              Dismiss
-            </button>
-          )}
-        </div>
+        {children}
       </div>
     </div>
+  );
+}
+
+/** What the endpoint said went wrong, under a failure's heading. */
+export function Reasons({ problems }: { problems: string[] }) {
+  if (problems.length === 0) return null;
+
+  return (
+    <ul className="mt-1.5 text-xs leading-[1.55] text-ink-muted">
+      {problems.map((problem) => (
+        <li key={problem}>{problem}</li>
+      ))}
+    </ul>
   );
 }
 
@@ -170,8 +201,15 @@ export function Empty({
   );
 }
 
-/** The one icon a failure carries: 24px grid, 1.7px stroke, no fill. */
-function Alert() {
+/**
+ * The one icon a failure carries: 24px grid, 1.7px stroke, no fill.
+ *
+ * Exported because the Conversation panel refuses a turn in this treatment
+ * under a heading of its own — a spent AI Usage allowance is not "could not
+ * load" anything — and two hand-drawn alert marks would be two marks to keep
+ * in step.
+ */
+export function Alert() {
   return (
     <svg
       aria-hidden="true"

@@ -3,6 +3,7 @@ import { recordAiUsage } from "../ai-usage/repository";
 import type { MessageRow } from "../db/schema";
 import {
   CONVERSATION_STREAM_MEDIA_TYPE,
+  REPLY_BROKE_OFF_MESSAGE,
   type ConversationEvent,
 } from "./contract";
 import type { StreamedReply } from "./provider";
@@ -23,10 +24,6 @@ import { messageFrom } from "./view";
  * own loop goes down with it: the generator below is what is left to keep the
  * paragraph that had arrived (the spec's story 23).
  */
-
-/** What the user is told when a reply stopped partway through. */
-export const REPLY_BROKE_OFF_MESSAGE =
-  "The reply broke off before it was finished. What arrived is kept below; ask again for the rest.";
 
 /** One turn, as everything it takes to write it down and send it on. */
 export type StreamedTurn = {

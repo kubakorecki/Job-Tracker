@@ -7,7 +7,7 @@
 **Status:** ready-for-agent
 
 - [x] `POST /api/conversations/:scope/messages` streams a reply
-- [x] `GET /api/conversations/:scope` returns the Messages oldest-first
+- [x] `GET /api/conversations/:scope` returns the Messages oldest-first (ticket 06 widened this to `{ messages, cvAttached }`; see its comments)
 - [x] `DELETE /api/conversations/:scope/messages` clears the Conversation, keeping the row
 - [x] `:scope` is a Job Application id or the literal `general`. Anything else is a 404, as is a Job Application id the user does not own — the same not-found-rather-than-forbidden shape the Tailored CV endpoints already use
 - [x] Turn order is: authenticate, resolve the Conversation, check AI Usage, spend the Model Call, persist the user's Message, assemble, stream, persist the model's reply, record tokens
@@ -88,3 +88,8 @@ which is the pure half that decides what the model is told. Both are arguments
 to the endpoint, as the provider is. The tests leave them real unless the test
 is about them — what the prompt says is `context.test.ts`'s business, and
 asserting it twice would be two places to change when a sentence moves.
+
+Ticket 06 widened the read: `GET /api/conversations/:scope` answers
+`{ messages, cvAttached }` rather than a bare `Message[]`. The panel has to say
+plainly that no CV is attached at the moment it opens, and that is a fact about
+what the Conversation can see rather than a second thing to go and ask for.

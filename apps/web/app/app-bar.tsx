@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { signOut } from "../lib/auth/actions";
 import { DASHBOARD_PATH } from "../lib/auth/route-access";
+import { ConversationPanel } from "./conversation-panel";
 import { SECONDARY_BUTTON } from "./form";
 import { Ghost, Wordmark } from "./ghost";
 
@@ -16,6 +17,12 @@ import { Ghost, Wordmark } from "./ghost";
  * `action` is the page's own primary thing to do, which only the board has.
  * It is a slot rather than a prop the bar interprets, because whether a page
  * has such a thing, and what it is, is that page's business.
+ *
+ * The Conversation hangs off the bar rather than off any page, and for the
+ * same reason the bar itself does: it is on every signed-in page, and asking
+ * a question should never cost the user their place. It is deliberately not
+ * the `action` slot — that belongs to one page, and this belongs to all of
+ * them.
  */
 export function AppBar({
   email,
@@ -42,6 +49,8 @@ export function AppBar({
         </Link>
 
         {action}
+
+        <ConversationPanel />
 
         {/* Identity, not a control. Signing out is the button beside it and
             says so — an avatar that logged you out because you went looking

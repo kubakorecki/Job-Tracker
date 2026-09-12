@@ -41,7 +41,7 @@ export async function send<Result = void>(
         },
   );
 
-  if (!response.ok) throw new ApiRequestError(await problems(response));
+  if (!response.ok) throw await refusalIn(response);
 
   // A delete answers 204 and says nothing more; everything else answers with
   // the record it wrote.
@@ -63,9 +63,22 @@ export async function upload<Result>(
 ): Promise<Result> {
   const response = await fetch(url, { method: "POST", body });
 
-  if (!response.ok) throw new ApiRequestError(await problems(response));
+  if (!response.ok) throw await refusalIn(response);
 
   return response.json();
+}
+
+/**
+ * An unsuccessful response as the error every client in this app throws.
+ *
+ * Beside `send` rather than inside it because one response in the app is not a
+ * JSON document: a Conversation turn is read as a stream, so it cannot go
+ * through `send` — but a turn that was refused is refused in exactly the same
+ * shape as everything else, and reading that shape twice is how the panel
+ * comes to report a spent allowance differently from the rest of the app.
+ */
+export async function refusalIn(response: Response): Promise<ApiRequestError> {
+  return new ApiRequestError(await problems(response));
 }
 
 /**

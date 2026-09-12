@@ -1,4 +1,4 @@
-import type { JobApplication, Message } from "@repo/schema";
+import type { JobApplication } from "@repo/schema";
 import {
   AI_USAGE_LIMIT_STATUS,
   AI_USAGE_SPENT_MESSAGE,
@@ -16,9 +16,10 @@ import {
   MODEL_CALL_LIMIT_STATUS,
   spendModelCall,
 } from "../model-calls/budget";
+import { getProfile } from "../profile/repository";
 import { describeIssues } from "../zod-issues";
 import { ASSEMBLERS, type Assemblers } from "./assembly";
-import { SaidMessage } from "./contract";
+import { GENERAL_SCOPE, SaidMessage, type ConversationView } from "./contract";
 import {
   streamConversationWithGemini,
   type StreamConversation,
@@ -51,13 +52,6 @@ import { messageFrom } from "./view";
 
 /** The scope in the path: a Job Application's id, or the general Conversation. */
 export type ConversationParams = { scope: string };
-
-/**
- * The one scope that is not an id. A literal rather than an empty segment or a
- * separate address, so that the three routes have one shape between them and a
- * client builds a URL the same way wherever the user is standing.
- */
-export const GENERAL_SCOPE = "general";
 
 /**
  * What the user is told when nothing of the reply arrived — an outage, an
@@ -182,13 +176,20 @@ export function sendMessageResponse(
 
 /**
  * `GET /api/conversations/:scope`. Everything said in this scope's
- * Conversation, oldest first, which is the only order a conversation can be
- * read back in.
+ * Conversation, oldest first — which is the only order a conversation can be
+ * read back in — and whether there is a CV for it to have read.
  *
- * An empty array is the ordinary answer for a scope the user has not spoken in
+ * An empty list is the ordinary answer for a scope the user has not spoken in
  * yet rather than a 404 — the Conversation is there to be found, and a client
  * made to read "nothing said yet" out of a failure would handle the common
  * case in a catch block.
+ *
+ * The CV travels with the Messages because the panel needs both at the moment
+ * it opens: a Conversation with no CV behind it still answers, and has to say
+ * so before the user trusts the answer rather than after (the spec's stories
+ * 19 and 20). Whether one is attached is asked of the same row the assemblers
+ * ask — a Profile the user has uploaded a CV to — so what the panel claims the
+ * model can see and what it was actually shown cannot drift apart.
  *
  * A plain function rather than a factory, unlike the turn above: reading a
  * Conversation reaches no provider, so there is nothing here to substitute.
@@ -201,10 +202,17 @@ export async function readConversationResponse(
   const conversation = await conversationIn(user.id, scope);
   if (conversation === null) return notFound();
 
-  const messages = await messagesIn(user.id, conversation.id);
+  const [messages, profile] = await Promise.all([
+    messagesIn(user.id, conversation.id),
+    getProfile(user.id),
+  ]);
 
-  const said: Message[] = messages.map(messageFrom);
-  return Response.json(said);
+  const view: ConversationView = {
+    messages: messages.map(messageFrom),
+    cvAttached: profile !== null,
+  };
+
+  return Response.json(view);
 }
 
 /**

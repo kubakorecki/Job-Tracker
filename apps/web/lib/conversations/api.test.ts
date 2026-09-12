@@ -33,14 +33,18 @@ import {
 import { OTHER_TEST_USER, TEST_USER } from "../test-support/users";
 import {
   clearConversationResponse,
-  GENERAL_SCOPE,
   MODEL_UNREACHABLE_MESSAGE,
   readConversationResponse,
   sendMessageResponse,
   type ConversationParams,
 } from "./api";
 import type { Assemblers } from "./assembly";
-import { ConversationEvent } from "./contract";
+import {
+  ConversationEvent,
+  GENERAL_SCOPE,
+  REPLY_BROKE_OFF_MESSAGE,
+  type ConversationView,
+} from "./contract";
 import {
   replyFrom,
   type ConversationTurn,
@@ -48,7 +52,6 @@ import {
   type StreamConversation,
 } from "./provider";
 import { conversationFor, deleteConversation } from "./repository";
-import { REPLY_BROKE_OFF_MESSAGE } from "./stream";
 
 /**
  * The three Conversation endpoints, exercised the way the rest of the backend
@@ -228,10 +231,17 @@ async function read(user: CurrentUser, scope: string): Promise<Response> {
   );
 }
 
-async function saidIn(user: CurrentUser, scope: string): Promise<Message[]> {
+async function viewOf(
+  user: CurrentUser,
+  scope: string,
+): Promise<ConversationView> {
   const response = await read(user, scope);
   expect(response.status).toBe(200);
   return response.json();
+}
+
+async function saidIn(user: CurrentUser, scope: string): Promise<Message[]> {
+  return (await viewOf(user, scope)).messages;
 }
 
 /** Clears one Conversation, as the panel's confirmed press does. */
@@ -689,6 +699,18 @@ describe("which Conversation the path names", () => {
 describe("reading a Conversation back", () => {
   it("answers an empty Conversation for a scope nothing has been said in", async () => {
     expect(await saidIn(TEST_USER, GENERAL_SCOPE)).toEqual([]);
+  });
+
+  it("says a CV is attached where the Profile has one", async () => {
+    expect((await viewOf(TEST_USER, GENERAL_SCOPE)).cvAttached).toBe(true);
+  });
+
+  it("says one is not where the user has uploaded none", async () => {
+    // The panel has to be able to say so plainly before the user trusts an
+    // answer rather than after, and a Conversation is not gated behind it.
+    await forgetTestProfiles(TEST_USER);
+
+    expect((await viewOf(TEST_USER, GENERAL_SCOPE)).cvAttached).toBe(false);
   });
 
   it("answers oldest first, over more than one turn", async () => {
