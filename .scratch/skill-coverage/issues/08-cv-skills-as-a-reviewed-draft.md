@@ -90,3 +90,26 @@ a list they could not have accepted.
 
 The Profile page (issue 09) is what puts a review in front of the user; until
 it exists the Draft is reachable only through the API.
+
+---
+
+**The proposal was asked for too few skills.** A real CV — a two-column one
+with a technical-skills sidebar grouped under Frontend, Backend, Testing,
+Infrastructure and so on — names around seventy technologies individually. The
+reader asked for thirty, and told the model that "the shortest list that still
+covers the document is the best one". Between the cap and that sentence the
+model did the only thing it could: it kept the famous names and dropped the
+rest, so Prisma, Drizzle ORM, Zustand, Webpack, Spring and Storybook were all
+missing from the Draft — the specific, matchable skills a Coverage comparison
+is most useful on.
+
+`PROPOSED_SKILL_LIMIT` is now 100, still under `SKILL_LIST_LIMIT` so a proposal
+is always a list the accept request could take, and the brevity sentence is
+replaced by its opposite: every item a skills column names is its own entry,
+do not summarise, do not keep the well-known ones and drop the rest, do not
+fold several under the heading they sit below, and read the job bullets too.
+
+The original reasoning for thirty — that a long list is accepted blindly rather
+than reviewed — bought the wrong thing. A long list is skimmed; a short one has
+to be retyped from the document, and the user cannot even see what is missing
+without reading their own CV alongside it.

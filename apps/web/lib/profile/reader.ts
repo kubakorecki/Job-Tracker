@@ -35,12 +35,21 @@ import type { CvMediaType } from "./contract";
 export const CV_READING_MODEL = "gemini-2.5-pro";
 
 /**
- * How many skills the model is asked for. Well under what a Profile may hold
- * (`SKILL_LIST_LIMIT`), because a proposal is something a person has to read
- * through and correct: a list of eighty is not reviewed, it is accepted
- * blindly, which is the one thing this Draft exists to prevent.
+ * How many skills the model is asked for. Under what a Profile may hold
+ * (`SKILL_LIST_LIMIT`), so that a proposal is always a list the accept request
+ * could take — but only just, because the ceiling is here to stop a runaway
+ * answer and nothing else.
+ *
+ * It was thirty, on the reasoning that a short list is a list somebody
+ * actually reviews. That was the wrong thing to buy: a CV with a skills column
+ * naming sixty technologies one by one does not have thirty skills in it, and
+ * a model told to fit thirty drops half of them — the ones it judges less
+ * famous, which is precisely the Prisma and the Storybook the user wanted
+ * matched. A long list is skimmed; a short one has to be retyped from the
+ * document, and the user cannot even see what is missing without reading their
+ * own CV alongside it.
  */
-export const PROPOSED_SKILL_LIMIT = 30;
+export const PROPOSED_SKILL_LIMIT = 100;
 
 /** One uploaded CV, as it arrives: the bytes, and what they were accepted as. */
 export type CvFile = { bytes: Uint8Array; mediaType: CvMediaType };
@@ -142,7 +151,9 @@ const SkillsReply = z.object({ skills: ProviderSkills });
  * used by both instructions, because the skills half of the question does not
  * change with the format the document arrived in.
  */
-const SKILLS_INSTRUCTION = `List the skills the CV states its subject has: technologies, tools, practices, qualifications, languages, and anything else the document offers as something they can do. Word each one as the document words it, one skill per entry, and never more than ${PROPOSED_SKILL_LIMIT} — the shortest list that still covers the document is the best one.
+const SKILLS_INSTRUCTION = `List the skills the CV states its subject has: technologies, tools, libraries, frameworks, platforms, practices, qualifications, languages, and anything else the document offers as something they can do. Word each one as the document words it, one skill per entry, and never more than ${PROPOSED_SKILL_LIMIT}.
+
+Take every one of them. A document that names sixty skills has sixty skills in it, and a list of thirty is then half a reading, not a tidy one. Where a CV lists its technologies one by one — a skills column, a grouped sidebar, a comma-separated line — every item named is its own entry: do not summarise the list, do not keep the well-known ones and drop the rest, and do not fold several under the heading they sit below. Read the whole document rather than only its skills section; a technology named in a job's bullets and nowhere else is still stated.
 
 Record only what the document states. Do not infer a skill from an employer, a job title or a degree, do not add what a person in this role usually knows, and do not split one skill into its parts. Leave the list empty rather than filling it with guesses: the user reviews this list and adds what is missing, so a skill you left out costs them a moment and a skill you invented costs them their trust in it.`;
 
