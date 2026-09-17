@@ -85,6 +85,13 @@
       "when": 1789148771713,
       "tag": "0011_exotic_the_order",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1789670106246,
+      "tag": "0012_charming_vermin",
+      "breakpoints": true
     }
   ]
 }

@@ -19,8 +19,8 @@ a name or a constraint here looks arbitrary; they are where the reasons live.
   it directly. It asks for a Personal Access Token and an API base URL on first
   run, then offers to save the Posting in the active tab and lists the most
   recent Job Applications.
-- `packages/schema` — Zod schemas (`JobApplication`, `Contact`,
-  `ActivityEvent`, ...). The single source of truth for data shapes, consumed
+- `packages/schema` — Zod schemas (`JobApplication`, `StatusChange`,
+  `Contact`, ...). The single source of truth for data shapes, consumed
   by both apps.
 - `packages/ui` — Shared React components (`Card`, `StatusBadge`, ...) built
   with Tailwind v4, consumed by both `web` and the extension's side panel.

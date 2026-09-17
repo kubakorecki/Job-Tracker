@@ -23,6 +23,15 @@ Where a Job Application sits in the user's pipeline: bookmarked, applied,
 interviewing, offer, rejected, withdrawn. Set by the user, never inferred.
 _Avoid_: stage, state, phase
 
+**Status Change**:
+That one Job Application came to stand at a Status, and when — moved there
+from another, or saved there in the first place. Recorded at the moment it
+happens and never edited afterwards, so the history says when things happened
+rather than only where they stand. Nothing before
+recording began can be recovered; that stretch has no Status Changes, not
+invented ones.
+_Avoid_: event, activity, transition, log entry
+
 **Draft**:
 Something the model proposes and the user reviews before it becomes real. Never
 persisted as itself — it becomes the thing it proposes when the user accepts
@@ -71,6 +80,23 @@ months, 260 days, 2080 hours — and never a fact about the Job Application
 (ADR-0006). It restates the period only, never the currency: two Salary
 Equivalents in different currencies are still not comparable.
 _Avoid_: normalised salary, converted salary, annualised salary
+
+**Interview**:
+One meeting in one Job Application's recruitment, from the day it was arranged
+to the day it is held — a day, an optional time, the user's own word for the
+stage it is, where it happens, and whatever they noted. Several belong to one
+Job Application, because a recruitment is several meetings. Arranging one never
+moves the Status: the user is asked and answers (ADR-0011). A meeting called
+off keeps its place, marked, because it was still something the employer did.
+_Avoid_: meeting, call, round, stage
+
+**Activity Report**:
+The monthly account of the user's job search they hand to the labour office:
+one row per Job Application something happened on that month — what the user
+did and what the employer answered. Proposed from the Job Applications and
+their Status Changes, then the user's to reword before printing. Never stored:
+it is written for the month, sent, and remembered only by the office.
+_Avoid_: report, IPD, contact report, job search report
 
 **Excitement**:
 How much the user wants one Job Application, nought to five. Their own opinion

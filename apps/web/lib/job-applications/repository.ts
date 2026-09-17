@@ -20,6 +20,7 @@ import {
   type JobApplicationRow,
 } from "../db/schema";
 import { acceptedSkills } from "../profile/repository";
+import { recordStatusChange } from "../status-changes/repository";
 
 /**
  * Every read and write of a Job Application. Nothing else in the app builds a
@@ -70,6 +71,14 @@ export async function createJobApplication(
       if (row === undefined) {
         throw new Error("The insert returned no Job Application.");
       }
+
+      // Being saved somewhere is how a Job Application came to stand there, so
+      // creation records a Status Change like any other move — an extension
+      // save that lands in `applied` above all, which is the one the Activity
+      // Report is most often made of. A bookmark records one too: `bookmarked`
+      // is where the user put it, and a history that began only once something
+      // interesting happened could not say when the rest began.
+      await recordStatusChange(tx, userId, row.id, row.status);
 
       return {
         row,
@@ -183,6 +192,15 @@ export async function updateJobApplication(
 
   const updated = await db()
     .transaction(async (tx) => {
+      // Where it stood before this patch, read under a lock so that nothing
+      // can move it between the reading and the write — which is what makes
+      // "it moved" a fact rather than a guess. Only a patch that names a
+      // Status pays for the statement.
+      const stood =
+        patch.status === undefined
+          ? undefined
+          : await statusBefore(tx, userId, id);
+
       const rows = await tx
         .update(jobApplications)
         .set(
@@ -202,6 +220,16 @@ export async function updateJobApplication(
 
       const [row] = rows;
       if (row === undefined) return null;
+
+      // One row per move, and only where the Job Application actually moved: a
+      // form saved with the Status it already had, or a card dropped back into
+      // the column it came from, has moved nothing, and a row for it would
+      // print in the Activity Report as something that happened. A move back
+      // to a Status the Job Application has stood at before is a move, and
+      // gets its own row.
+      if (patch.status !== undefined && row.status !== stood) {
+        await recordStatusChange(tx, userId, row.id, row.status);
+      }
 
       // A patch that never named the Requirements leaves them alone; one that
       // named them states the whole list, so what it does not carry is gone.
@@ -246,6 +274,31 @@ export async function deleteJobApplication(
     .returning({ id: jobApplications.id });
 
   return deleted.length > 0;
+}
+
+/**
+ * Where one Job Application stands, read inside the transaction that is about
+ * to move it and locked until that transaction ends — so the Status recorded
+ * as having been left is the one the update actually leaves.
+ *
+ * `undefined` means there is no such row of this user's, which the update then
+ * answers as a 404 on its own; it is never asked at all for a patch that names
+ * no Status, and the caller asks `patch.status` rather than this to tell those
+ * two apart.
+ */
+async function statusBefore(
+  tx: Transaction,
+  userId: string,
+  id: string,
+): Promise<JobStatus | undefined> {
+  const rows = await tx
+    .select({ status: jobApplications.status })
+    .from(jobApplications)
+    .where(and(eq(jobApplications.userId, userId), eq(jobApplications.id, id)))
+    .limit(1)
+    .for("update");
+
+  return rows[0]?.status;
 }
 
 /**

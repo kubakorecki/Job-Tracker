@@ -137,6 +137,63 @@ export const jobApplications = pgTable(
 export type JobApplicationRow = typeof jobApplications.$inferSelect;
 
 /**
+ * A Status Change: that one Job Application came to stand at a Status, and
+ * when. One row per move, appended in the same transaction as the update that
+ * moves the Job Application, so a Status can never be recorded as having moved
+ * somewhere the row did not go, nor the row move somewhere unrecorded.
+ *
+ * Append-only. Nothing updates or deletes a row here, and there is no
+ * `updated_at` to make it look as though something might: a Status Change says
+ * what happened at a moment, so a mistaken move and the move back are two rows
+ * rather than one row corrected (ADR-0010). The history begins the day
+ * recording began — nothing was backfilled from `applied_at`, because an
+ * invented row could never afterwards be told from a remembered one.
+ *
+ * Carries `user_id` like every other table, so a query for a Status Change can
+ * name its owner rather than inheriting one from the Job Application it hangs
+ * off (ADR-0001). The foreign key into the Job Application cascades: deleting
+ * one takes its history with it, which is why withdrawing rather than deleting
+ * is what keeps a month's report reproducible.
+ */
+export const statusChanges = pgTable(
+  "status_changes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** No foreign key into `auth.users`, for the same reason as above. */
+    userId: uuid("user_id").notNull(),
+    jobApplicationId: uuid("job_application_id")
+      .notNull()
+      .references(() => jobApplications.id, { onDelete: "cascade" }),
+    status: jobStatus("status").notNull(),
+    /**
+     * When it happened. Its own name rather than `created_at`, because the
+     * moment is what the row is about rather than bookkeeping about when it
+     * was written — the same distinction `said_at` draws on a Message.
+     */
+    changedAt: timestamp("changed_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    /**
+     * One user's history for one Job Application, oldest first, which is how
+     * it is read. It deliberately does not serve the Activity Report's own
+     * question — a month of one user's moves across every Job Application —
+     * because a btree cannot range-scan `changed_at` while skipping the column
+     * before it. That query belongs to the report, and so does the index it
+     * wants; adding one here now would be guessing at its shape.
+     */
+    index("status_changes_user_id_job_application_id_changed_at_idx").on(
+      table.userId,
+      table.jobApplicationId,
+      table.changedAt,
+    ),
+  ],
+);
+
+export type StatusChangeRow = typeof statusChanges.$inferSelect;
+
+/**
  * A Requirement: one thing a Posting asks of a candidate, at the Necessity it
  * asks for it. One row per Requirement of one Job Application — which is what
  * a Job Application's asks are now, in place of the flat array of strings it

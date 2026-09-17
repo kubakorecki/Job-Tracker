@@ -361,17 +361,34 @@ export const Contact = z.object({
 });
 export type Contact = z.infer<typeof Contact>;
 
-export const ActivityEventType = z.enum(["status_change", "note", "follow_up"]);
-export type ActivityEventType = z.infer<typeof ActivityEventType>;
-
-export const ActivityEvent = z.object({
+/**
+ * A Status Change: that one Job Application came to stand at a Status, and
+ * when — moved there from another, or saved there in the first place.
+ *
+ * It is the history a Job Application's own `status` column cannot hold, which
+ * says only where the user has it today. An employer's answer belongs to the
+ * month it arrived in rather than the month the board is read, and this is
+ * what says which that was.
+ *
+ * Append-only, and there is deliberately no shape here for editing one: a
+ * Status Change is a record of something that happened at a moment, so a
+ * mistaken move and the move back are both in the history (ADR-0010). Nor is
+ * there a `createdAt` beside `changedAt` — the two would always be the same
+ * instant, because a row is written by the move it describes and never after.
+ */
+export const StatusChange = z.object({
   id: z.uuid(),
   jobApplicationId: z.uuid(),
-  type: ActivityEventType,
-  content: z.string(),
-  createdAt: z.iso.datetime(),
+  status: JobStatus,
+  /**
+   * When the Job Application came to stand there. Not the day the user says it
+   * happened: `applied_at` is the one date they can correct, and where the two
+   * disagree the Activity Report reads `applied` from that and every other
+   * Status from here (ADR-0010).
+   */
+  changedAt: z.iso.datetime(),
 });
-export type ActivityEvent = z.infer<typeof ActivityEvent>;
+export type StatusChange = z.infer<typeof StatusChange>;
 
 /**
  * Who said one Message. A closed set like the Statuses and Necessities above,
