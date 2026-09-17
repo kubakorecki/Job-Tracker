@@ -1,7 +1,7 @@
 "use client";
 
 import { useDraggable } from "@dnd-kit/core";
-import type { JobApplication } from "@repo/schema";
+import type { JobApplication, SalaryPeriod } from "@repo/schema";
 import Link from "next/link";
 import { todayInUtc } from "../../lib/day";
 import {
@@ -11,12 +11,17 @@ import {
 import { Ghost } from "../ghost";
 import { ClosingBadge } from "./closing-badge";
 import { FitRing } from "./fit-ring";
+import { SalaryFigure } from "./salary-figure";
 import { SilenceTag } from "./silence-tag";
 
 /**
  * What identifies a Job Application without opening it: the company, the job
  * title, and one line of marks — how much of what the Posting insists on the
  * user has (story 43), and the one thing with a clock on it.
+ *
+ * Under the job title, what it pays, restated over the period the dashboard
+ * reads salaries in — and no line at all where no salary is recorded, so a card
+ * without one is no taller for it.
  *
  * No Status badge and no applied date. The column the card is standing in says
  * the Status, and the date has been replaced by something that answers the
@@ -33,8 +38,11 @@ import { SilenceTag } from "./silence-tag";
  */
 export function JobApplicationCard({
   jobApplication,
+  period,
 }: {
   jobApplication: JobApplication;
+  /** The Salary Period the salary line reads in. */
+  period: SalaryPeriod;
 }) {
   const silence = silenceOf(jobApplication, todayInUtc());
   const tone = silence === null ? null : silence.kind;
@@ -64,6 +72,13 @@ export function JobApplicationCard({
         className={`truncate text-xs leading-[1.35] ${tone === "ghosted" ? "text-ink-faint" : "text-ink-muted"}`}
       >
         {jobApplication.jobTitle}
+      </span>
+      {/* Hidden rather than conditional, as the marks row below is: whether
+          there is a salary to show is the figure's own answer. */}
+      <span
+        className={`truncate text-xs leading-[1.35] empty:hidden ${tone === "ghosted" ? "text-ink-faint" : "text-ink-muted"}`}
+      >
+        <SalaryFigure period={period} salary={jobApplication} />
       </span>
 
       {/* Hidden rather than conditional: whether there is a ring to draw, and
@@ -108,8 +123,11 @@ const TONES: Record<SilenceKind | "live", string> = {
  */
 export function DraggableJobApplicationCard({
   jobApplication,
+  period,
 }: {
   jobApplication: JobApplication;
+  /** The Salary Period the card's salary line reads in. */
+  period: SalaryPeriod;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: jobApplication.id,
@@ -126,7 +144,7 @@ export function DraggableJobApplicationCard({
       {...listeners}
       {...attributes}
     >
-      <JobApplicationCard jobApplication={jobApplication} />
+      <JobApplicationCard jobApplication={jobApplication} period={period} />
     </Link>
   );
 }

@@ -12,7 +12,11 @@ import {
   type Announcements,
   type DragEndEvent,
 } from "@dnd-kit/core";
-import { JobStatus, type JobApplication } from "@repo/schema";
+import {
+  JobStatus,
+  type JobApplication,
+  type SalaryPeriod,
+} from "@repo/schema";
 import { JOB_STATUS_LABELS } from "@repo/ui/status-badge";
 import { useMemo, useState } from "react";
 import {
@@ -37,9 +41,12 @@ import type { Move } from "./use-job-applications";
  */
 export function Board({
   jobApplications,
+  period,
   onMove,
 }: {
   jobApplications: JobApplication[];
+  /** The Salary Period each card's salary line reads in. */
+  period: SalaryPeriod;
   onMove: (move: Move) => void;
 }) {
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -105,6 +112,7 @@ export function Board({
             <Column
               jobApplications={columns[status]}
               key={status}
+              period={period}
               status={status}
             />
           ))}
@@ -118,7 +126,7 @@ export function Board({
       <DragOverlay>
         {dragging === undefined ? null : (
           <div className="w-64 cursor-grabbing rounded-card ring-2 ring-spectre">
-            <JobApplicationCard jobApplication={dragging} />
+            <JobApplicationCard jobApplication={dragging} period={period} />
           </div>
         )}
       </DragOverlay>
@@ -136,9 +144,11 @@ const TERMINAL: ReadonlySet<JobStatus> = new Set(["rejected", "withdrawn"]);
 function Column({
   status,
   jobApplications,
+  period,
 }: {
   status: JobStatus;
   jobApplications: JobApplication[];
+  period: SalaryPeriod;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
 
@@ -170,6 +180,7 @@ function Column({
           <DraggableJobApplicationCard
             jobApplication={jobApplication}
             key={jobApplication.id}
+            period={period}
           />
         ))}
       </div>

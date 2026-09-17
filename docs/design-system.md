@@ -189,8 +189,9 @@ when there is no silence to report.
 ### Card
 
 `paper-raised`, 1px `line`, radius 9, padding 11/12/12. Company 13.5/600, job
-title 12/400 `ink-muted`, then a `marks` row holding the Coverage dial and the
-one tag.
+title 12/400 `ink-muted`, the salary in its short form in the same 12/400
+`ink-muted`, then a `marks` row holding the Coverage dial and the one tag. A
+card with no salary recorded has no salary line rather than a dash.
 
 The card fades toward the page as silence grows — **it never turns red.
 Ghosting is an absence, not an error.**
@@ -271,6 +272,18 @@ nobody has rated it. All five are always drawn, as the fit ring always draws
 its whole track: two hearts and five hearts are the same picture at different
 lengths, and nothing would say what the rating is out of.
 
+### Salary
+
+A salary on the dashboard is its Salary Equivalent in a short form, restated
+over the Salary Period the toolbar reads salaries in: `≈ 17–26.1k PLN / mo`.
+Thousands take a `k` from 10 000 up; the periods shorten to `yr`, `mo`, `day`,
+`h`. The `≈` is drawn only where the figure was restated, and it carries the
+hover text — the salary as the Posting stated it, and the working year it was
+restated on. The same sentence is in the page for a screen reader. The table
+cell is the row's plain 13/400 ink, with the `ink-faint` dash Location uses
+where none is recorded. The detail view and the side panel show the salary as
+stated.
+
 ### Buttons
 
 | Variant | Treatment |
@@ -308,16 +321,19 @@ card.
 - **App bar**: 60px, `paper-raised`, 1px `line` bottom, 64px gutters.
   Wordmark left (`ghosted` in `ink`, `.boo` in `ink-faint`), Your Profile /
   Track a job / avatar right.
-- **Board page**: tally → toolbar → count line → board. Six columns,
-  `minmax(0,1fr)`, 14px gap, 8px between cards. Column head is an eyebrow plus
-  a count over a 1.5px `line-strong` rule; terminal columns (Rejected,
-  Withdrawn) drop their head to `ink-faint`.
+- **Board page**: tally → toolbar → count line → board. The toolbar is the
+  search, the Status filter and the silence control on the left; the Salary
+  Period (Year / Month / Day / Hour, starting on Month) and the view on the
+  right, both segmented controls, both remembered in browser storage. Six
+  columns, `minmax(0,1fr)`, 14px gap, 8px between cards. Column head is an
+  eyebrow plus a count over a 1.5px `line-strong` rule; terminal columns
+  (Rejected, Withdrawn) drop their head to `ink-faint`.
 - **The tally** is the statement serif and the app's only piece of first-person
   arithmetic: *"14 tracked. 6 still in the air. 3 have gone quiet on you."*
   The quiet number is `spectre`; the words around the numbers are `ink-faint`.
-- **Table view** is the same data, unstyled prose weight, in a radius-10 wrap
-  with a `paper-sunk` header. It exists because six columns stop working
-  around fifty Job Applications.
+- **Table view** is the same data, unstyled prose weight, with a Salary
+  column after Location, in a radius-10 wrap with a `paper-sunk` header. It
+  exists because six columns stop working around fifty Job Applications.
 - **Job Application page**: two columns, `minmax(0,1fr) 396px`.
   Left is what you came to read — the fit banner, Requirements and Coverage,
   the Posting text and your notes. Right is the record and the machinery — the

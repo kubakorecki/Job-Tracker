@@ -1,6 +1,7 @@
 "use client";
 
-import { JobStatus, type JobApplication } from "@repo/schema";
+import { JobStatus, SalaryPeriod, type JobApplication } from "@repo/schema";
+import { SALARY_PERIOD_LABELS } from "@repo/ui/salary-period";
 import { JOB_STATUS_LABELS } from "@repo/ui/status-badge";
 import { useMemo, useState } from "react";
 import { describeFailure } from "../../lib/api/client";
@@ -23,7 +24,7 @@ import { Board } from "./board";
 import { JobApplicationTable } from "./job-application-table";
 import { MoveFailure } from "./move-failure";
 import { NothingToShow } from "./nothing-to-show";
-import { useDashboardView } from "./use-dashboard-view";
+import { useDashboardView, useSalaryPeriod } from "./use-dashboard-preferences";
 import {
   useJobApplications,
   useMoveJobApplication,
@@ -76,6 +77,7 @@ export function Dashboard({
   } = useJobApplications(initialJobApplications);
   const { failures, move, retry, dismiss } = useMoveJobApplication();
   const [view, chooseView] = useDashboardView();
+  const [period, choosePeriod] = useSalaryPeriod();
   const [filter, setFilter] = useState<JobApplicationFilter>(NO_FILTER);
   const [tracking, setTracking] = useState(false);
 
@@ -229,6 +231,20 @@ export function Dashboard({
 
               <div className="flex-1" />
 
+              {/* Beside the view rather than among the filters: it narrows
+                  nothing, and changes only how both views write a salary. */}
+              <Segmented
+                label="Salary Period"
+                onChoose={choosePeriod}
+                options={SalaryPeriod.options.map((option) => ({
+                  value: option,
+                  // The edit forms' own words, capitalised like the
+                  // toolbar's other choices rather than restated.
+                  label: capitalised(SALARY_PERIOD_LABELS[option]),
+                }))}
+                value={period}
+              />
+
               <Segmented
                 label="View"
                 onChoose={chooseView}
@@ -257,9 +273,9 @@ export function Dashboard({
             onTrackAJob={() => setTracking(true)}
           />
         ) : view === "board" ? (
-          <Board jobApplications={shown} onMove={move} />
+          <Board jobApplications={shown} onMove={move} period={period} />
         ) : (
-          <JobApplicationTable jobApplications={shown} />
+          <JobApplicationTable jobApplications={shown} period={period} />
         )}
       </PageBody>
     </Page>
@@ -350,6 +366,10 @@ function Segmented<Value extends string>({
       ))}
     </div>
   );
+}
+
+function capitalised(word: string): string {
+  return word.charAt(0).toUpperCase() + word.slice(1);
 }
 
 function Plus() {

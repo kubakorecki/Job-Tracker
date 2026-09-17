@@ -1,11 +1,12 @@
 "use client";
 
-import type { JobApplication } from "@repo/schema";
+import type { JobApplication, SalaryPeriod } from "@repo/schema";
 import { StatusBadge } from "@repo/ui/status-badge";
 import Link from "next/link";
 import { ClosingBadge } from "./closing-badge";
 import { ExcitementMarks } from "./excitement-marks";
 import { FitRing } from "./fit-ring";
+import { SalaryFigure } from "./salary-figure";
 import { SilenceOf } from "./silence-tag";
 
 const CELL = "px-3.5 py-[11px] align-middle";
@@ -19,6 +20,13 @@ const CELL = "px-3.5 py-[11px] align-middle";
  * whole reason it is here. Silence follows the Status, and Closes follows
  * Silence — the two axes side by side, and then the one date that says whether
  * either of them still means anything.
+ *
+ * Salary follows Location: the two are what the Posting offers, as against
+ * how the user fits it and where it stands, and they are read together — the
+ * same figure means a different thing in Warsaw and in London. It is the one
+ * number in the table that is not the record's own, restated over the period
+ * the toolbar reads salaries in, so it sits with the facts about the Posting
+ * rather than among the columns the pipeline decided.
  *
  * Applied has gone. The date it showed was being read as "how long have they
  * had this", which is the question Silence answers properly; the date itself
@@ -34,6 +42,7 @@ const COLUMNS = [
   "Company",
   "Job title",
   "Location",
+  "Salary",
   "Fit",
   "Status",
   "Silence",
@@ -56,8 +65,11 @@ const COLUMNS = [
  */
 export function JobApplicationTable({
   jobApplications,
+  period,
 }: {
   jobApplications: JobApplication[];
+  /** The Salary Period the Salary column reads salaries in. */
+  period: SalaryPeriod;
 }) {
   return (
     <div className="overflow-x-auto rounded-panel border border-line bg-paper-raised">
@@ -93,6 +105,15 @@ export function JobApplicationTable({
               <td className={CELL}>{jobApplication.jobTitle}</td>
               <td className={`${CELL} text-ink-faint`}>
                 {jobApplication.location ?? "—"}
+              </td>
+              {/* A dash where no salary is recorded, as Location has: it is a
+                  blank the user could fill in. */}
+              <td className={`${CELL} whitespace-nowrap`}>
+                <SalaryFigure
+                  period={period}
+                  salary={jobApplication}
+                  unrecorded={<span className="text-ink-faint">—</span>}
+                />
               </td>
               {/* Empty where there is no fraction, rather than the dash the
                   other columns use for a field nobody filled in: a mark in a
