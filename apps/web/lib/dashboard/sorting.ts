@@ -85,7 +85,8 @@ export function nextSort(
   return null;
 }
 
-function reversed(direction: SortDirection): SortDirection {
+/** The other way: what a heading's second click turns its first into. */
+export function reversed(direction: SortDirection): SortDirection {
   return direction === "ascending" ? "descending" : "ascending";
 }
 

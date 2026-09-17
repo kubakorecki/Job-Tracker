@@ -2,9 +2,10 @@ import type { JobApplication } from "@repo/schema";
 import { expect, test } from "@playwright/test";
 
 /**
- * The one end-to-end test. It exists to prove the dashboard, the API and the
- * database are wired together at all — the API tests carry the behavioural
- * coverage, and adding cases here would only make this slow and brittle.
+ * The end-to-end tests. They exist to prove the dashboard, the API, the
+ * database and browser storage are wired together at all — the API tests and
+ * the `lib` unit tests carry the behavioural coverage, and adding cases here
+ * would only make this slow and brittle.
  *
  * It needs the dev Supabase project awake (ADR-0003) and a dev server it can
  * reach; both are the config's business.
@@ -87,4 +88,46 @@ test("a Job Application added by hand keeps the Status it was moved to", async (
   await expect(
     page.getByRole("region", { name: "Interviewing" }).getByText(company),
   ).toBeVisible();
+});
+
+test("a sort chosen on the table outlives a reload", async ({
+  page,
+  request,
+}) => {
+  const run = Date.now();
+  // Created oldest first, so newest added — the order with no sort — puts
+  // Zulu above Alpha, and sorting A to Z has something to move.
+  const alpha = `${COMPANY_PREFIX} ${run} Alpha`;
+  const zulu = `${COMPANY_PREFIX} ${run} Zulu`;
+  for (const company of [alpha, zulu]) {
+    const created = await request.post("/api/job-applications", {
+      data: { company, jobTitle: "Staff Engineer" },
+    });
+    expect(created.ok()).toBe(true);
+  }
+
+  // Just the rows this test made, in the order the table draws them.
+  const companies = () =>
+    page
+      .getByRole("row")
+      .getByRole("link", { name: `${COMPANY_PREFIX} ${run}` })
+      .allTextContents();
+
+  await page.goto("/dashboard");
+  await page
+    .getByRole("group", { name: "View" })
+    .getByRole("button", { name: "Table" })
+    .click();
+  await expect.poll(companies).toEqual([zulu, alpha]);
+
+  await page.getByRole("button", { name: "Sort by Company, A to Z" }).click();
+  await expect.poll(companies).toEqual([alpha, zulu]);
+
+  // Nothing of the sort is in the URL or the database, so it can only still
+  // be applied if browser storage is where it came back from.
+  await page.reload();
+  await expect(
+    page.getByRole("columnheader", { name: "Sort by Company, Z to A" }),
+  ).toHaveAttribute("aria-sort", "ascending");
+  await expect.poll(companies).toEqual([alpha, zulu]);
 });

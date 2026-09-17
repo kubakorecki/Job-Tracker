@@ -3,6 +3,16 @@
 import type { JobApplication, SalaryPeriod } from "@repo/schema";
 import { StatusBadge } from "@repo/ui/status-badge";
 import Link from "next/link";
+import {
+  ariaSortOf,
+  headingAction,
+  SORT_COLUMN_LABELS,
+} from "../../lib/dashboard/sort-words";
+import type {
+  DashboardSort,
+  SortColumn,
+  SortDirection,
+} from "../../lib/dashboard/sorting";
 import { ClosingBadge } from "./closing-badge";
 import { ExcitementMarks } from "./excitement-marks";
 import { FitRing } from "./fit-ring";
@@ -38,16 +48,16 @@ const CELL = "px-3.5 py-[11px] align-middle";
  * user's own opinion, and putting it among the others would have it read as
  * another thing the pipeline decided about them.
  */
-const COLUMNS = [
-  "Company",
-  "Job title",
-  "Location",
-  "Salary",
-  "Fit",
-  "Status",
-  "Silence",
-  "Closes",
-  "Excitement",
+const COLUMNS: SortColumn[] = [
+  "company",
+  "jobTitle",
+  "location",
+  "salary",
+  "fit",
+  "status",
+  "silence",
+  "closes",
+  "excitement",
 ];
 
 /**
@@ -59,6 +69,10 @@ const COLUMNS = [
  * A row opens the very same detail view a card does — the company is the link,
  * since a table row cannot be an anchor.
  *
+ * Every heading sorts, and the sort is the dashboard's rather than the
+ * table's: the rows arrive already in order, so switching to the board and
+ * back keeps it, and nothing here orders anything.
+ *
  * There is no empty case here. A table of nothing but headings is the wrong
  * answer to both of the reasons a view comes back empty, and the dashboard
  * answers those in one place for the board and the table alike.
@@ -66,10 +80,16 @@ const COLUMNS = [
 export function JobApplicationTable({
   jobApplications,
   period,
+  sort,
+  onSort,
 }: {
+  /** In the order `sort` puts them in. */
   jobApplications: JobApplication[];
   /** The Salary Period the Salary column reads salaries in. */
   period: SalaryPeriod;
+  sort: DashboardSort;
+  /** Told which heading was pressed; what that does to the sort is not ours. */
+  onSort: (column: SortColumn) => void;
 }) {
   return (
     <div className="overflow-x-auto rounded-panel border border-line bg-paper-raised">
@@ -78,11 +98,16 @@ export function JobApplicationTable({
           <tr className="border-b border-line bg-paper-sunk text-left">
             {COLUMNS.map((column) => (
               <th
-                className={`${CELL} type-eyebrow text-ink-faint`}
+                aria-sort={ariaSortOf(sort, column)}
+                className={`${CELL} relative`}
                 key={column}
                 scope="col"
               >
-                {column}
+                <SortHeading
+                  column={column}
+                  onSort={() => onSort(column)}
+                  sort={sort}
+                />
               </th>
             ))}
           </tr>
@@ -156,5 +181,74 @@ export function JobApplicationTable({
         </tbody>
       </table>
     </div>
+  );
+}
+
+/**
+ * A heading as the button that sorts by it. Named for what pressing it does
+ * next, since the arrow and the heading's `aria-sort` already say what it is
+ * doing now.
+ *
+ * Only the sorted heading draws its arrow at rest. The rest draw a faint
+ * two-way one on hover and on focus — enough to say they can be pressed,
+ * without a table that reads as eight arrows. It is hidden rather than absent,
+ * so a heading does not widen under the pointer and nudge its neighbours.
+ */
+function SortHeading({
+  column,
+  sort,
+  onSort,
+}: {
+  column: SortColumn;
+  sort: DashboardSort;
+  onSort: () => void;
+}) {
+  const sorted = ariaSortOf(sort, column);
+
+  return (
+    <button
+      aria-label={headingAction(sort, column)}
+      // The `after` covers the whole heading cell, so the target is the cell
+      // rather than a line of 10.5px caps.
+      className={`group -mx-1 inline-flex items-center gap-1 rounded-tag px-1 py-0.5 type-eyebrow whitespace-nowrap after:absolute after:inset-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-spectre ${
+        sorted === undefined
+          ? "text-ink-faint hover:text-ink-muted"
+          : "text-ink"
+      }`}
+      onClick={onSort}
+      type="button"
+    >
+      {SORT_COLUMN_LABELS[column]}
+      <SortArrow direction={sorted} />
+    </button>
+  );
+}
+
+const ARROWS: Record<SortDirection | "either", string> = {
+  ascending: "M12 19V5M6 11l6-6 6 6",
+  descending: "M12 5v14M6 13l6 6 6-6",
+  either: "M8 9.5l4-4 4 4M8 14.5l4 4 4-4",
+};
+
+function SortArrow({ direction }: { direction: SortDirection | undefined }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={
+        direction === undefined
+          ? "invisible text-ink-faint group-hover:visible group-focus-visible:visible"
+          : ""
+      }
+      fill="none"
+      height="11"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      viewBox="0 0 24 24"
+      width="11"
+    >
+      <path d={ARROWS[direction ?? "either"]} />
+    </svg>
   );
 }

@@ -6,6 +6,16 @@ import { JOB_STATUS_LABELS } from "@repo/ui/status-badge";
 import { useMemo, useState } from "react";
 import { describeFailure } from "../../lib/api/client";
 import { todayInUtc } from "../../lib/day";
+import {
+  BOARD_SORT_OPTIONS,
+  boardSortOf,
+} from "../../lib/dashboard/sort-words";
+import {
+  nextSort,
+  ordered,
+  sortFrom,
+  storedSort,
+} from "../../lib/dashboard/sorting";
 import { tallyClauses, tallyOf } from "../../lib/dashboard/tally";
 import { DASHBOARD_VIEWS, type DashboardView } from "../../lib/dashboard/view";
 import {
@@ -24,7 +34,11 @@ import { Board } from "./board";
 import { JobApplicationTable } from "./job-application-table";
 import { MoveFailure } from "./move-failure";
 import { NothingToShow } from "./nothing-to-show";
-import { useDashboardView, useSalaryPeriod } from "./use-dashboard-preferences";
+import {
+  useDashboardSort,
+  useDashboardView,
+  useSalaryPeriod,
+} from "./use-dashboard-preferences";
 import {
   useJobApplications,
   useMoveJobApplication,
@@ -48,6 +62,10 @@ const SILENCE_LABELS: Record<SilenceFilter, string> = {
  * each handed what is left of it once the search, the Status filter and the
  * silence filter have had their say — so the two views and the toolbar can
  * never be looking at different data.
+ *
+ * The narrowed list is put in order here too, once, so the board and the table
+ * are handed the same order and switching between them keeps it. The table's
+ * headings and the board's dropdown both set that one sort.
  *
  * The tally above the toolbar is read from the whole list rather than the
  * narrowed one. It is a statement about the user's job hunt; a tally that
@@ -78,6 +96,7 @@ export function Dashboard({
   const { failures, move, retry, dismiss } = useMoveJobApplication();
   const [view, chooseView] = useDashboardView();
   const [period, choosePeriod] = useSalaryPeriod();
+  const [sort, chooseSort] = useDashboardSort();
   const [filter, setFilter] = useState<JobApplicationFilter>(NO_FILTER);
   const [tracking, setTracking] = useState(false);
 
@@ -88,6 +107,12 @@ export function Dashboard({
   const shown = useMemo(
     () => matching(jobApplications, filter, today),
     [jobApplications, filter, today],
+  );
+  // After the filters, never before: a sort orders what they admit. The period
+  // is a dependency because a salary sort ranks in it.
+  const sorted = useMemo(
+    () => ordered(shown, sort, { everything: jobApplications, period, today }),
+    [shown, sort, jobApplications, period, today],
   );
   const tally = useMemo(
     () => tallyOf(jobApplications, today),
@@ -231,6 +256,33 @@ export function Dashboard({
 
               <div className="flex-1" />
 
+              {/* With the board only: the table sorts from its headings. It
+                  orders rather than narrows, so it stands with the choices
+                  about how the list is read rather than among the filters.
+                  A sort the table left on Status reads as newest added,
+                  which is the order that leaves each column in. */}
+              {view === "board" && (
+                <div className="w-[220px] shrink-0">
+                  <select
+                    aria-label="Sort the board"
+                    className={SELECT}
+                    onChange={(event) =>
+                      chooseSort(sortFrom(event.target.value))
+                    }
+                    value={storedSort(boardSortOf(sort))}
+                  >
+                    {BOARD_SORT_OPTIONS.map((option) => (
+                      <option
+                        key={storedSort(option.sort)}
+                        value={storedSort(option.sort)}
+                      >
+                        Sort: {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               {/* Beside the view rather than among the filters: it narrows
                   nothing, and changes only how both views write a salary. */}
               <Segmented
@@ -273,9 +325,14 @@ export function Dashboard({
             onTrackAJob={() => setTracking(true)}
           />
         ) : view === "board" ? (
-          <Board jobApplications={shown} onMove={move} period={period} />
+          <Board jobApplications={sorted} onMove={move} period={period} />
         ) : (
-          <JobApplicationTable jobApplications={shown} period={period} />
+          <JobApplicationTable
+            jobApplications={sorted}
+            onSort={(column) => chooseSort(nextSort(sort, column))}
+            period={period}
+            sort={sort}
+          />
         )}
       </PageBody>
     </Page>

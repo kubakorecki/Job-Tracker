@@ -30,10 +30,15 @@ import type { Move } from "./use-job-applications";
  * fixed width — the board is a picture of a process, and a column that is
  * wider because it is fuller would be a picture of something else.
  *
- * The Job Applications arrive already narrowed by the dashboard's toolbar, out
- * of the one cached list, and are grouped here in the browser — so a card
- * dropped into another column is a change to that one list rather than a
- * second thing to keep in step with it.
+ * The Job Applications arrive already narrowed and put in order by the
+ * dashboard, out of the one cached list, and are grouped here in the browser —
+ * so a card dropped into another column is a change to that one list rather
+ * than a second thing to keep in step with it.
+ *
+ * Grouping keeps the order it was handed, so each column's cards run in the
+ * sort the dashboard chose and nothing here sorts anything. A card dropped
+ * into another column lands where that sort puts it rather than where it was
+ * let go: the move changes its Status, and the order follows.
  *
  * Dropping a card reports the move upwards rather than making it here: the
  * move outlives this component, which the user can unmount by switching to the
@@ -188,6 +193,7 @@ function Column({
   );
 }
 
+/** The list split by Status, each column keeping the order it was handed. */
 function groupByStatus(
   jobApplications: JobApplication[],
 ): Record<JobStatus, JobApplication[]> {

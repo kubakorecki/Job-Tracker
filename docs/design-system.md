@@ -322,18 +322,22 @@ card.
   Wordmark left (`ghosted` in `ink`, `.boo` in `ink-faint`), Your Profile /
   Track a job / avatar right.
 - **Board page**: tally → toolbar → count line → board. The toolbar is the
-  search, the Status filter and the silence control on the left; the Salary
-  Period (Year / Month / Day / Hour, starting on Month) and the view on the
-  right, both segmented controls, both remembered in browser storage. Six
-  columns, `minmax(0,1fr)`, 14px gap, 8px between cards. Column head is an
+  search, the Status filter and the silence control on the left. On the
+  right, a native "Sort: …" select at 220px (with the board only), then the
+  Salary Period (Year / Month / Day / Hour, starting on Month) and the view,
+  both segmented controls. All three are remembered in browser storage, and
+  the sort is the same one the table's headings set. Six columns, `minmax(0,1fr)`, 14px gap, 8px between cards. Column head is an
   eyebrow plus a count over a 1.5px `line-strong` rule; terminal columns
   (Rejected, Withdrawn) drop their head to `ink-faint`.
 - **The tally** is the statement serif and the app's only piece of first-person
   arithmetic: *"14 tracked. 6 still in the air. 3 have gone quiet on you."*
   The quiet number is `spectre`; the words around the numbers are `ink-faint`.
 - **Table view** is the same data, unstyled prose weight, with a Salary
-  column after Location, in a radius-10 wrap with a `paper-sunk` header. It
-  exists because six columns stop working around fifty Job Applications.
+  column after Location, in a radius-10 wrap with a `paper-sunk` header.
+  Every heading is a button that sorts: the sorted one in `ink` with an 11px
+  arrow for its direction, the rest `ink-faint` with a faint two-way arrow
+  drawn only on hover and focus, so a table at rest does not read as a row of
+  arrows. The whole heading cell is the button's target. It exists because six columns stop working around fifty Job Applications.
 - **Job Application page**: two columns, `minmax(0,1fr) 396px`.
   Left is what you came to read — the fit banner, Requirements and Coverage,
   the Posting text and your notes. Right is the record and the machinery — the
