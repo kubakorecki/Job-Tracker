@@ -20,10 +20,16 @@ page said that or whether we multiplied.
 ## Consequences
 
 Two Job Applications are only comparable once their periods agree, so anything
-that sorts or filters on a salary has to read the period beside it. Nothing
-does yet: salary is edited and displayed, never ranked. The day something
-ranks salaries, the conversion belongs there — at the point of comparison,
-where the assumption is visible and revisable — and not in the stored row.
+that sorts or filters on a salary has to read the period beside it. The
+dashboard now ranks salaries, and the conversion lives there — at the point of
+comparison, where the assumption is visible and revisable — and not in the
+stored row. It restates each salary as a Salary Equivalent over the period the
+user reads salaries in, on one fixed working year of 12 months, 260 days and
+2080 hours; marks every figure the arithmetic touched as approximate, with the
+Posting's own figure and the rule one hover away; and ranks by the middle of
+the range. It converts periods and never currencies: salaries are ranked within
+their currency, the user's most common currency first, because an exchange
+rate would be the same kind of silent guess this record refuses to store.
 
 The widest span is deliberately not the same claim as any one contract's range.
 A Posting offering 17 000–21 650 gross on an employment contract beside

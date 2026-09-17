@@ -63,6 +63,15 @@ contract work — and a bare figure means nothing without it. A Posting's own
 period is kept as stated and never converted (ADR-0006).
 _Avoid_: frequency, interval, per, cadence
 
+**Salary Equivalent**:
+A recorded salary restated over the Salary Period the user has chosen to read
+salaries in, so that Job Applications quoted over different periods can be set
+side by side and ranked. An approximation on one fixed working year — 12
+months, 260 days, 2080 hours — and never a fact about the Job Application
+(ADR-0006). It restates the period only, never the currency: two Salary
+Equivalents in different currencies are still not comparable.
+_Avoid_: normalised salary, converted salary, annualised salary
+
 **Excitement**:
 How much the user wants one Job Application, nought to five. Their own opinion
 and nothing the model or the pipeline has a say in — it is never read off a
