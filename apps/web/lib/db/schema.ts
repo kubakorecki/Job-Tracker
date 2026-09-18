@@ -178,15 +178,25 @@ export const statusChanges = pgTable(
   (table) => [
     /**
      * One user's history for one Job Application, oldest first, which is how
-     * it is read. It deliberately does not serve the Activity Report's own
-     * question — a month of one user's moves across every Job Application —
-     * because a btree cannot range-scan `changed_at` while skipping the column
-     * before it. That query belongs to the report, and so does the index it
-     * wants; adding one here now would be guessing at its shape.
+     * the thread on a Job Application's page reads it. It cannot serve the
+     * Activity Report's own question — a stretch of one user's moves across
+     * every Job Application — because a btree cannot range-scan `changed_at`
+     * while skipping the column before it.
      */
     index("status_changes_user_id_job_application_id_changed_at_idx").on(
       table.userId,
       table.jobApplicationId,
+      table.changedAt,
+    ),
+    /**
+     * That other question, which is the Activity Report's: everything one user
+     * recorded since a day, whichever Job Application it was about. The report
+     * reads a window wide enough for every month its selector offers and
+     * proposes each month's rows from it in the browser, so this is the index
+     * that one read runs on.
+     */
+    index("status_changes_user_id_changed_at_idx").on(
+      table.userId,
       table.changedAt,
     ),
   ],

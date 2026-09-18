@@ -164,3 +164,91 @@
     opacity: 0.45;
   }
 }
+
+/*
+ * The printed sheet.
+ *
+ * The one thing this app prints is the Activity Report, and it prints through
+ * the browser's own Save as PDF rather than through anything of ours: there is
+ * no PDF library here and nothing on the server draws a document. What makes
+ * that work is this block and the `print:` utilities on the page — everything
+ * of the application's own interface is taken off the sheet, and what is left
+ * is the three-column form the labour office asks for.
+ *
+ * Written outside `@layer` on purpose. Tailwind's utilities are layered, and
+ * an unlayered rule beats a layered one whatever the order, so the sizes and
+ * rules below win over the classes the same elements carry on screen without
+ * an `!important` anywhere.
+ */
+@media print {
+  @page {
+    size: A4;
+    /* Room for a hole punch on the left and for a printer's own dead margin. */
+    margin: 15mm;
+  }
+
+  /*
+   * The document, at the size a form is read at rather than the size a screen
+   * is. Points rather than pixels: this is paper.
+   */
+  .sheet {
+    font-size: 10pt;
+    line-height: 1.35;
+  }
+
+  .sheet table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  /*
+   * The headings repeat at the top of every page. `table-header-group` is what
+   * a `thead` is by default, and it is stated anyway because it is the whole
+   * of why the second page of a long month is readable — a form whose columns
+   * are only labelled on page one is a form somebody has to guess at.
+   */
+  .sheet thead {
+    display: table-header-group;
+  }
+
+  /*
+   * A row is one contact and is not split across two pages. A row taller than
+   * a page would have nowhere to go, so it is allowed to break rather than
+   * disappear — `avoid` is a request, and the browser honours it while it can.
+   */
+  .sheet tr {
+    break-inside: avoid;
+  }
+
+  .sheet th,
+  .sheet td {
+    border: 1px solid var(--ink);
+    padding: 5pt 6pt;
+    text-align: left;
+    vertical-align: top;
+    /* A long link with no spaces in it must not push the column wider than the
+       page. */
+    overflow-wrap: anywhere;
+  }
+
+  .sheet th {
+    font-size: 9pt;
+    font-weight: 600;
+  }
+
+  .sheet td {
+    font-size: 9.5pt;
+  }
+
+  /*
+   * The link stays a link: Chrome's Save as PDF writes an annotation over an
+   * anchor, so the address the cell shortened is still clickable in the file
+   * the office receives. It is printed in the page's own ink rather than in
+   * `spectre` — a blue underline is a screen's way of saying "press this", and
+   * on paper it is just a colour the office's printer may not have.
+   */
+  .sheet a {
+    color: var(--ink);
+    text-decoration: none;
+  }
+}

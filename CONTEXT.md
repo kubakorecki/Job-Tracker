@@ -95,7 +95,12 @@ The monthly account of the user's job search they hand to the labour office:
 one row per Job Application something happened on that month — what the user
 did and what the employer answered. Proposed from the Job Applications and
 their Status Changes, then the user's to reword before printing. Never stored:
-it is written for the month, sent, and remembered only by the office.
+it is written for the month, sent, and remembered only by the office. The month
+is the user's own — its boundaries are the browser's zone rather than the
+server's, because an answer that arrived late on the last night of September
+belongs to September's report. The unfinished document is kept in the browser
+alone, one per month and language, and is a Draft in every sense but the
+capitalised one: it becomes a sheet of paper rather than a record here.
 _Avoid_: report, IPD, contact report, job search report
 
 **Excitement**:

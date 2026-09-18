@@ -99,6 +99,13 @@
       "when": 1789674359092,
       "tag": "0013_panoramic_gabe_jones",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1789718762237,
+      "tag": "0014_narrow_scarlet_witch",
+      "breakpoints": true
     }
   ]
 }

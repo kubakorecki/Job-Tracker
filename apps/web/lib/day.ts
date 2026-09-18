@@ -41,6 +41,13 @@ const MONTH = new Intl.DateTimeFormat("en-GB", {
  * Here rather than beside the one thing that says a month — AI Usage's meter —
  * because this file is where every date the app shows is formatted, and a
  * second fixed-locale formatter elsewhere is how two of them come to disagree.
+ *
+ * The Activity Report's are the one exception, and they are an exception
+ * because they are not the app talking: a printed sheet says its dates in the
+ * language the user chose for the office, and Polish declines a month name
+ * after a number. They live in `activity-report/wording.ts` beside the rest of
+ * what that document says, and nothing formatted there is ever shown beside
+ * anything formatted here.
  */
 export function monthOf(iso: string): string {
   return MONTH.format(new Date(iso));
@@ -76,4 +83,62 @@ export function daysBetween(from: string, to: string): number {
 
 function midnightUtc(day: string): number {
   return Date.parse(`${day}T00:00:00.000Z`);
+}
+
+/**
+ * The zone the reader's browser is in — the one thing that can say which month
+ * an evening belongs to for them.
+ *
+ * It is the one reading in this file that is not UTC, and the exception is
+ * deliberate. Everything above formats in UTC because a record is rendered on
+ * the server and again in the browser, and a date that changed with the
+ * machine would be a different date in each. The Activity Report is not
+ * rendered on the server at all: it is proposed in the browser, from data the
+ * page was handed, because the month it is about is the user's own month — a
+ * rejection that arrived at half past eleven on the last night of September
+ * belongs to September's report, whatever UTC made of the hour (ADR-0012).
+ */
+export function browserZone(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone;
+}
+
+/**
+ * Any of the contract's instants, as the calendar day it falls on in one zone.
+ * `YYYY-MM-DD`, the form every day in this app is compared as.
+ *
+ * Assembled from the parts rather than formatted with a locale that happens to
+ * print ISO order: a locale is a rendering decision and this is an identifier.
+ */
+export function dayInZone(iso: string, zone: string): string {
+  const parts = partsIn(zone).formatToParts(new Date(iso));
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((one) => one.type === type)?.value ?? "";
+
+  return `${part("year")}-${part("month")}-${part("day")}`;
+}
+
+/** Today in one zone, which is the only place the report reads the clock. */
+export function todayInZone(zone: string): string {
+  return dayInZone(new Date().toISOString(), zone);
+}
+
+/**
+ * One formatter per zone, because building one costs more than formatting with
+ * it and the report asks for a day of every Status Change it reads.
+ */
+const IN_ZONE = new Map<string, Intl.DateTimeFormat>();
+
+function partsIn(zone: string): Intl.DateTimeFormat {
+  const held = IN_ZONE.get(zone);
+  if (held !== undefined) return held;
+
+  const made = new Intl.DateTimeFormat("en-GB", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    timeZone: zone,
+  });
+
+  IN_ZONE.set(zone, made);
+  return made;
 }

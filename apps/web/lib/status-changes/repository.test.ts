@@ -6,7 +6,7 @@ import {
   updateJobApplication,
 } from "../job-applications/repository";
 import { OTHER_TEST_USER, TEST_USER } from "../test-support/users";
-import { statusChangesFor } from "./repository";
+import { statusChangesFor, statusChangesSince } from "./repository";
 
 /**
  * The history behind a Status. Real rows in the real database — there is no
@@ -179,5 +179,54 @@ describe("deleting a Job Application", () => {
     // The one way a row ever disappears, and deliberate: ADR-0010's
     // Consequences are what withdrawing rather than deleting is for.
     expect(await historyOf(id)).toEqual([]);
+  });
+});
+
+describe("reading a stretch of history", () => {
+  it("answers with one user's moves across every Job Application, oldest first", async () => {
+    const before = new Date(Date.now() - 60_000);
+
+    const one = await save(TEST_USER, "applied");
+    const other = await save(TEST_USER, "bookmarked");
+    await moveTo(other, "rejected");
+
+    const changes = await statusChangesSince(TEST_USER.id, before);
+    const mine = changes.filter(
+      (change) =>
+        change.jobApplicationId === one || change.jobApplicationId === other,
+    );
+
+    expect(mine.map((change) => change.status)).toEqual([
+      "applied",
+      "bookmarked",
+      "rejected",
+    ]);
+  });
+
+  it("stops at the moment it was asked from", async () => {
+    const id = await save(TEST_USER, "applied");
+
+    // A moment after everything that has just been written, which is the same
+    // cut the page makes when it asks only for the months its selector offers.
+    const after = new Date(Date.now() + 60_000);
+
+    const changes = await statusChangesSince(TEST_USER.id, after);
+
+    expect(changes.some((change) => change.jobApplicationId === id)).toBe(
+      false,
+    );
+  });
+
+  it("is never another user's history", async () => {
+    const id = await save(TEST_USER, "applied");
+
+    const changes = await statusChangesSince(
+      OTHER_TEST_USER.id,
+      new Date(Date.now() - 60_000),
+    );
+
+    expect(changes.some((change) => change.jobApplicationId === id)).toBe(
+      false,
+    );
   });
 });

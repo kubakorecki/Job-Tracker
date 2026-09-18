@@ -13,7 +13,13 @@ a name or a constraint here looks arbitrary; they are where the reasons live.
 ## Apps and packages
 
 - `apps/web` — Next.js dashboard (App Router, Tailwind v4). Serves both the UI
-  and the API route handlers under `app/api` that the extension calls.
+  and the API route handlers under `app/api` that the extension calls. It also
+  holds the one page that is a document rather than a screen: the monthly
+  Activity Report at **/dashboard/report**, which is proposed in the browser
+  from the Job Applications and their Status Changes, edited there, and turned
+  into a PDF by the browser's own Save as PDF. Nothing about it is stored on
+  the server — the unfinished draft lives in `localStorage` and the printed
+  sheet is the office's copy.
 - `apps/extension` — Chrome extension (Manifest V3, built with
   [WXT](https://wxt.dev)). A side panel with no popup — the toolbar icon opens
   it directly. It asks for a Personal Access Token and an API base URL on first
@@ -275,7 +281,8 @@ identity has to be pinned rather than left to Chrome.
 - **[`docs/adr/`](docs/adr/)** — the decision records, for choices whose
   reasons would otherwise be invisible: the multi-tenant schema under
   single-tenant operation (0001), a Posting's identity being its normalized
-  URL (0002), and two cloud Supabase projects with no local stack (0003).
+  URL (0002), two cloud Supabase projects with no local stack (0003), and the
+  Activity Report being made in the browser, in the reader's own month (0012).
 - **[`docs/setup/`](docs/setup/)** — `supabase.md` and `deployment.md`, the
   long forms of the steps above.
 - **[`docs/agents/`](docs/agents/)** — how the agent skills consume all of the
@@ -290,7 +297,7 @@ identity has to be pinned rather than left to Chrome.
 ## Out of scope for v1
 
 Named here so the gaps read as decisions rather than oversights: contacts and
-recruiter tracking, follow-up reminders, status history, self-serve sign-up,
+recruiter tracking, follow-up reminders, self-serve sign-up,
 Row Level Security, a local Supabase stack, automatic merging of the same role
 posted on two boards, confidence scores on extraction, file attachments,
 skill-gap analysis, and Chrome Web Store, Firefox and Edge builds.

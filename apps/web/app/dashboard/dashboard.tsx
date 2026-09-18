@@ -28,6 +28,7 @@ import {
 } from "../../lib/job-applications/filtering";
 import { AppBar, Page, PageBody } from "../app-bar";
 import { PRIMARY_BUTTON, SELECT } from "../form";
+import { Segmented } from "../segmented";
 import { Failure } from "../states";
 import { AddJobApplicationForm } from "./add-job-application-form";
 import { Board } from "./board";
@@ -371,56 +372,6 @@ function Search({
         type="search"
         value={value}
       />
-    </div>
-  );
-}
-
-/**
- * One choice out of a short closed set, laid out as one control rather than as
- * a row of buttons: the options are alternatives, and a segmented control is
- * the shape that says so.
- */
-function Segmented<Value extends string>({
-  label,
-  value,
-  options,
-  onChoose,
-}: {
-  label: string;
-  value: Value;
-  options: { value: Value; label: string; count?: number }[];
-  onChoose: (value: Value) => void;
-}) {
-  return (
-    <div
-      aria-label={label}
-      className="inline-flex shrink-0 overflow-hidden rounded-control border border-line-strong bg-paper-raised"
-      role="group"
-    >
-      {options.map((option) => (
-        <button
-          aria-pressed={option.value === value}
-          className={`h-[32px] border-r border-line-strong px-3 text-[12.5px] font-medium last:border-r-0 ${
-            option.value === value
-              ? "bg-ink text-paper-raised hover:bg-ink-muted"
-              : "text-ink-muted hover:text-ink"
-          }`}
-          key={option.value}
-          onClick={() => onChoose(option.value)}
-          type="button"
-        >
-          {option.label}
-          {option.count !== undefined && (
-            <span
-              className={`ml-1.5 font-normal ${
-                option.value === value ? "text-paper-sunk" : "text-ink-faint"
-              }`}
-            >
-              {option.count}
-            </span>
-          )}
-        </button>
-      ))}
     </div>
   );
 }

@@ -70,10 +70,19 @@ export function rememberedChoice<Choice>({
 }
 
 /**
- * Storage can be unavailable — a browser set to refuse it, a private window —
- * and that is not worth failing a dashboard over.
+ * The three things anything in this app does with browser storage, each of
+ * them able to fail and none of it worth failing a page over: storage can be
+ * refused outright, and a private window can throw on the way in or come back
+ * empty on the way out.
+ *
+ * Exported because the Activity Report's draft goes through them too. It is
+ * not a remembered choice — a half-typed document is not a preference, and it
+ * is read and written at a key that changes with the month — but it is the
+ * same storage with the same ways of not being there, and two places wrapping
+ * `localStorage` in two different try/catches is how one of them comes to
+ * throw in a private window.
  */
-function stored(key: string): string | null {
+export function stored(key: string): string | null {
   try {
     return window.localStorage.getItem(key);
   } catch {
@@ -81,10 +90,19 @@ function stored(key: string): string | null {
   }
 }
 
-function remember(key: string, value: string): void {
+export function remember(key: string, value: string): void {
   try {
     window.localStorage.setItem(key, value);
   } catch {
     // Nothing to do and nothing to say: the choice still holds for this tab.
+  }
+}
+
+/** The same, for a draft the user has finished with. */
+export function forget(key: string): void {
+  try {
+    window.localStorage.removeItem(key);
+  } catch {
+    // As above: there is nothing stored to fail to remove.
   }
 }

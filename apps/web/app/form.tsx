@@ -57,6 +57,21 @@ export const FIELD_ON_RAISED = `${FIELD_BASE} ${CONTROL_HEIGHT} bg-paper`;
 export const QUIET_FIELD = `${FIELD_CORE} ${CONTROL_HEIGHT} border-transparent bg-transparent px-2 hover:border-line-strong focus:bg-paper`;
 
 /**
+ * The same quiet box, less its height, for a control that sizes itself to what
+ * is in it: the Activity Report's cells, which grow down the page as the user
+ * types, and the name and the link beside them, which are one line of whatever
+ * the line around them is set in.
+ *
+ * It states no height rather than overriding one, which is the whole reason it
+ * exists as a constant of its own. Tailwind emits `h-[34px]` after `h-auto`,
+ * and utilities of equal specificity are settled by the order of the
+ * stylesheet rather than the order of the `class` attribute — so
+ * `${QUIET_FIELD} h-auto` would quietly go on standing at 34px, exactly as
+ * `${FIELD} h-7` does.
+ */
+export const QUIET_BOX = `${FIELD_CORE} border-transparent bg-transparent px-1.5 py-1 hover:border-line-strong focus:bg-paper`;
+
+/**
  * The 28px control, for a field or a select that stands on a panel's own
  * header line — where a 34px one would make the header taller than the rule it
  * is a header for.

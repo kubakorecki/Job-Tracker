@@ -1,5 +1,5 @@
 import type { JobStatus, StatusChange } from "@repo/schema";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, gte } from "drizzle-orm";
 import { db, type Queryable } from "../db/client";
 import { statusChanges, type StatusChangeRow } from "../db/schema";
 
@@ -61,6 +61,44 @@ export async function statusChangesFor(
       and(
         eq(statusChanges.userId, userId),
         eq(statusChanges.jobApplicationId, jobApplicationId),
+      ),
+    )
+    .orderBy(asc(statusChanges.changedAt));
+
+  return rows.map(toStatusChange);
+}
+
+/**
+ * One user's whole history since a moment, across every Job Application they
+ * have, oldest first — which is what the Activity Report is made of.
+ *
+ * It is one read rather than one per Job Application because the report is
+ * about a month and not about a row: the page hands the browser everything
+ * inside the window the month selector can reach, and the report for whichever
+ * month is chosen is proposed from that without going back to the server.
+ *
+ * `since` is generous on purpose. The months a report is about have their
+ * boundaries in the browser's zone, which the server rendering this page does
+ * not know, so the window is cut well before the earliest month on offer
+ * rather than at it — the alternative is a page that quietly loses a day off
+ * the far end of the list for a reader east of UTC.
+ *
+ * Every row it answers with belongs to a Job Application that still exists:
+ * deleting one takes its history with it, which is why a past month's report
+ * no longer regenerates the way it printed, and why withdrawing rather than
+ * deleting is what keeps the history (ADR-0010).
+ */
+export async function statusChangesSince(
+  userId: string,
+  since: Date,
+): Promise<StatusChange[]> {
+  const rows = await db()
+    .select()
+    .from(statusChanges)
+    .where(
+      and(
+        eq(statusChanges.userId, userId),
+        gte(statusChanges.changedAt, since),
       ),
     )
     .orderBy(asc(statusChanges.changedAt));

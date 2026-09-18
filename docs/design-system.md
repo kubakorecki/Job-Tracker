@@ -360,11 +360,52 @@ The ghost mark is the wordmark's own glyph reused at three sizes: 21px in the
 bar, 34px dashed in empty states, 86px at 5% opacity bleeding off a ghosted
 card.
 
+### Activity Report sheet
+
+The one thing in this system that is a document rather than a page: the
+month's report, laid out as the three-column form the labour office asks for
+and printed through the browser's own Save as PDF.
+
+On screen it is a `paper-raised` panel at radius 11 with 22px of padding,
+holding the document's own header — the title in the section serif, then the
+month, the user's name and the day it was drawn up in 12.5/400 `ink-muted` —
+over a full-width table. Every cell is a quiet box that grows with what is
+typed into it, so a table of eight rows reads as a document being edited
+rather than as a form of twenty-four fields. The Posting's address sits under
+the employer in 11.5/400 `ink-faint`, and the row's only control is a 28px
+icon button at the top right of the first cell.
+
+**On paper it is a different drawing of the same thing**, and the difference
+is the whole design:
+
+- Nothing of the application prints. The bar, the toolbar, the shortfall
+  notice, the row controls and "Add a row" are all `print:hidden`, and each
+  cell renders its words a second time in a `print:block` div — a printed
+  textarea carries its own border and clips whatever did not fit.
+- The sheet is A4 with a 15mm margin, 10pt over 1.35, cells at 9.5pt with a
+  1px `ink` rule. The headings repeat at the top of every page and a row is
+  never split across two.
+- The address is a real anchor whose words are the shortened form and whose
+  `href` is the address itself, printed in `ink` with no underline. Chrome's
+  Save as PDF writes it into the file as a live link.
+- The `Uwagi` block prints only when it says something.
+- The palette is the day table whatever theme the reader is in, mapped back
+  onto the root under `@media print` — a dark theme printed would be pale ink
+  on a ground the printer declines to lay down.
+
+A month with fewer than three rows takes an `ember` notice above the sheet:
+`ember` border on `ember-tint`, 12.5/400 `ember`, `aria-live="polite"`. It is
+a thing to attend to rather than a fault — `rose` is what this system says
+errors and destruction in, and the office's minimum is between the user and
+the office. **It never blocks printing.**
+
 ## Layout
 
 - **App bar**: 60px, `paper-raised`, 1px `line` bottom, 64px gutters.
-  Wordmark left (`ghosted` in `ink`, `.boo` in `ink-faint`), Your Profile /
-  Track a job / avatar right.
+  Wordmark left (`ghosted` in `ink`, `.boo` in `ink-faint`), Activity Report /
+  Your Profile / Track a job / avatar right. The two links are destinations
+  and take the quiet button; the bar itself is `print:hidden`, because the one
+  thing this app prints is a sheet for somebody else.
 - **Board page**: tally → toolbar → count line → board. The toolbar is the
   search, the Status filter and the silence control on the left. On the
   right, a native "Sort: …" select at 220px (with the board only), then the
@@ -392,6 +433,12 @@ card.
   said, because they are what came of the asking. Like the Tailored CV's
   section, the panel saves nothing through the page's own Save: each meeting is
   its own request on the press.
+- **Activity Report page**: the statement, the toolbar — the month, the
+  language, then "Generate again" and "Print" at the right — the shortfall
+  notice, and the sheet at 880px. It is the one page in the app that renders
+  nothing until the browser has spoken: a month's boundaries are the reader's
+  own zone, so the server draws the wait and the browser draws the document
+  (`docs/adr/0012-the-activity-report-is-made-in-the-browser.md`).
 - **Sign-in** is two halves — the statement and the door — at
   `minmax(0,1.18fr) minmax(0,1fr)`, folding to one column on a phone. The
   statement is the app's only `.night` surface: the mark at 25px, a 57px serif

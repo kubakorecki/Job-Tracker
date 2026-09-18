@@ -23,25 +23,51 @@
  * the same table under the same names.
  */
 :root {
+  --day-paper: oklch(0.972 0.006 285);
+  --day-paper-raised: oklch(0.998 0.002 285);
+  --day-paper-sunk: oklch(0.951 0.008 285);
+  --day-line: oklch(0.905 0.008 285);
+  --day-line-strong: oklch(0.858 0.01 285);
+  --day-ink: oklch(0.215 0.022 285);
+  --day-ink-muted: oklch(0.42 0.018 285);
+  --day-ink-faint: oklch(0.53 0.014 285);
+
+  --day-spectre: oklch(0.52 0.12 298); /* brand · Applied · links · focus */
+  --day-spectre-tint: oklch(0.945 0.032 298);
+  --day-ember: oklch(0.52 0.12 62); /* Interviewing · going cold */
+  --day-ember-tint: oklch(0.951 0.036 68);
+  --day-vital: oklch(0.52 0.12 152); /* Offer · have it */
+  --day-vital-tint: oklch(0.949 0.036 155);
+  --day-rose: oklch(0.52 0.12 18); /* Rejected · missing · closing */
+  --day-rose-tint: oklch(0.953 0.03 20);
+}
+
+/*
+ * The day table, on the root. It is mapped rather than written out here for
+ * the reason the night one below is: paper is what a screen is showing most of
+ * the time, and it is also what every sheet coming out of a printer is,
+ * whichever theme the reader happens to be in.
+ */
+:root {
   color-scheme: light dark;
 
-  --paper: oklch(0.972 0.006 285);
-  --paper-raised: oklch(0.998 0.002 285);
-  --paper-sunk: oklch(0.951 0.008 285);
-  --line: oklch(0.905 0.008 285);
-  --line-strong: oklch(0.858 0.01 285);
-  --ink: oklch(0.215 0.022 285);
-  --ink-muted: oklch(0.42 0.018 285);
-  --ink-faint: oklch(0.53 0.014 285);
+  --paper: var(--day-paper);
+  --paper-raised: var(--day-paper-raised);
+  --paper-sunk: var(--day-paper-sunk);
+  --line: var(--day-line);
+  --line-strong: var(--day-line-strong);
+  --ink: var(--day-ink);
+  --ink-muted: var(--day-ink-muted);
+  --ink-faint: var(--day-ink-faint);
 
-  --spectre: oklch(0.52 0.12 298); /* brand · Applied · links · focus */
-  --spectre-tint: oklch(0.945 0.032 298);
-  --ember: oklch(0.52 0.12 62); /* Interviewing · going cold */
-  --ember-tint: oklch(0.951 0.036 68);
-  --vital: oklch(0.52 0.12 152); /* Offer · have it */
-  --vital-tint: oklch(0.949 0.036 155);
-  --rose: oklch(0.52 0.12 18); /* Rejected · missing · closing */
-  --rose-tint: oklch(0.953 0.03 20);
+  --spectre: var(--day-spectre);
+  --spectre-tint: var(--day-spectre-tint);
+  --ember: var(--day-ember);
+  --ember-tint: var(--day-ember-tint);
+  --vital: var(--day-vital);
+  --vital-tint: var(--day-vital-tint);
+  --rose: var(--day-rose);
+  --rose-tint: var(--day-rose-tint);
 }
 
 /*
@@ -94,6 +120,41 @@
     --vital-tint: var(--night-vital-tint);
     --rose: var(--night-rose);
     --rose-tint: var(--night-rose-tint);
+  }
+}
+
+/*
+ * Paper is paper. A reader who prefers a dark theme still prints on white,
+ * and the one thing this app prints — the Activity Report, which is handed to
+ * a labour office — has to come out of the printer legible rather than as pale
+ * ink on a ground the printer declines to lay down.
+ *
+ * It maps the day table back on rather than restating the values, so there is
+ * still one copy of every colour in this file. It comes after the dark block
+ * and before `.night`, which is a surface that means to be dark and is never
+ * printed anyway.
+ */
+@media print {
+  :root {
+    color-scheme: light;
+
+    --paper: var(--day-paper);
+    --paper-raised: var(--day-paper-raised);
+    --paper-sunk: var(--day-paper-sunk);
+    --line: var(--day-line);
+    --line-strong: var(--day-line-strong);
+    --ink: var(--day-ink);
+    --ink-muted: var(--day-ink-muted);
+    --ink-faint: var(--day-ink-faint);
+
+    --spectre: var(--day-spectre);
+    --spectre-tint: var(--day-spectre-tint);
+    --ember: var(--day-ember);
+    --ember-tint: var(--day-ember-tint);
+    --vital: var(--day-vital);
+    --vital-tint: var(--day-vital-tint);
+    --rose: var(--day-rose);
+    --rose-tint: var(--day-rose-tint);
   }
 }
 
