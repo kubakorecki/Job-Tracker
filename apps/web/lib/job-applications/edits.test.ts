@@ -24,6 +24,7 @@ const SAVED: JobApplication = {
   description: "Works on Basecamp and HEY.",
   closesOn: "2026-03-31",
   requirements: [asked("ruby", "required")],
+  interviews: [],
   status: "applied",
   source: "referral",
   appliedAt: "2026-02-14T10:30:00.000Z",

@@ -4,11 +4,12 @@ Every turn of a Conversation is sent with its context already built: the model
 is given no tools, no function declarations and no way to ask for a row it was
 not handed. A Conversation attached to a Job Application is sent that Job
 Application in full — its fields, its Posting description, its Requirements
-with their Necessity and resolved Coverage, and its Analysis's Rating and
-Feedback — plus the Profile's CV text and skill list. The general Conversation
-is sent the Profile and a one-line outline of every Job Application (company,
-title, status, fit fraction, closing) with the descriptions stripped, and never
-a Posting's prose. The attached Tailored CV is named but its text is never
+with their Necessity and resolved Coverage, its Interviews, and its Analysis's
+Rating and Feedback — plus the Profile's CV text and skill list. The general
+Conversation is sent the Profile and a one-line outline of every Job
+Application (company, title, status, fit fraction, closing, and the day of the
+next Interview still standing) with the descriptions stripped, and never a
+Posting's prose. The attached Tailored CV is named but its text is never
 sent: the Profile is already there, and ADR-0004 has the two answering
 different questions, which sending both invites the model to conflate.
 
@@ -30,6 +31,16 @@ The cost argument came out the same way by accident. An outline is about thirty
 tokens per Job Application, so two hundred of them is six thousand — less than
 a single tool round trip, which spends a whole extra Model Call and resends the
 conversation to use what it fetched.
+
+**The Interviews need no fence.** Everything else in an attached prompt that
+came from outside is fenced, because a Posting's description is text scraped
+from a stranger's website. An Interview is not: the stage is the user's word
+for the meeting and the notes are theirs about the employer, so it sits
+unfenced exactly as the Job Application's own notes do. The one piece of it
+that did come from the employer — the link out of the invitation — is left out
+altogether. The model cannot open it and the user has it on their own page, so
+its absence costs an answer nothing; that an online meeting is online is the
+part that matters, and that is what is said.
 
 ## Consequences
 

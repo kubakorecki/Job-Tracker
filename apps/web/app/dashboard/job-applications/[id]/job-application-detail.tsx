@@ -8,6 +8,7 @@ import {
   SalaryPeriod,
   UpdateJobApplication,
   type Coverage,
+  type Interview,
   type JobApplication,
 } from "@repo/schema";
 import { NECESSITY_LABELS } from "@repo/ui/necessity";
@@ -62,6 +63,7 @@ import {
 } from "./coverage-badge";
 import { Excitement } from "./excitement";
 import { FitBanner } from "./fit-banner";
+import { Interviews } from "./interviews";
 import { SilenceThread } from "./silence-thread";
 import { TailoredCvSection } from "./tailored-cv";
 import {
@@ -379,6 +381,53 @@ export function JobApplicationDetail({
     }
   }
 
+  /**
+   * The meetings as they now stand, after one was arranged, corrected, called
+   * off or removed.
+   *
+   * They are put back on the saved Job Application rather than kept in a state
+   * of their own, because the rail in the right column and the silence tag in
+   * the header read them from there — and a panel holding its own copy would
+   * leave both describing a recruitment that has since moved.
+   *
+   * Nothing in `edits` follows, because no box on this page holds a meeting:
+   * an Interview is written at its own address, and the patch this form sends
+   * cannot name one.
+   */
+  async function onInterviews(interviews: Interview[]): Promise<void> {
+    setSaved((current) => ({ ...current, interviews }));
+    // The board's cached list carries them too, and it is still alive behind
+    // this page: a card fades with a silence a meeting has just ended, and the
+    // tag beside it names the day.
+    await queryClient.invalidateQueries({ queryKey: JOB_APPLICATIONS_KEY });
+  }
+
+  /**
+   * The move to Interviewing, because the user answered the panel's question
+   * with a yes (ADR-0011). It is the page's own patch — the same one the Status
+   * select sends — and the panel does no more than ask.
+   *
+   * The select follows the answer. The form is measured against `saved`, so a
+   * box left reading Applied behind a Job Application that now stands at
+   * Interviewing would move it back on the next press of Save.
+   *
+   * It throws whatever the endpoint refused with, which the panel puts in front
+   * of the user in the endpoint's own words.
+   */
+  async function onMoveToInterviewing(): Promise<void> {
+    const updated = await patchJobApplication(saved.id, {
+      status: "interviewing",
+    });
+
+    setSaved(updated);
+    setEdits((current) => ({ ...current, status: updated.status }));
+    // Whatever the header was saying about the last save is now out of date.
+    // Only cleared, never set: the Status pill moving is the confirmation, as
+    // the hearts are for a rating.
+    setNotice(null);
+    await queryClient.invalidateQueries({ queryKey: JOB_APPLICATIONS_KEY });
+  }
+
   async function onDelete() {
     setProblems([]);
     setDeleting(true);
@@ -427,6 +476,7 @@ export function JobApplicationDetail({
               something the record does not yet say. */}
           <SilenceOf
             appliedAt={saved.appliedAt}
+            interviews={saved.interviews}
             status={saved.status}
             updatedAt={saved.updatedAt}
           />
@@ -489,6 +539,20 @@ export function JobApplicationDetail({
             onOverride={onOverride}
             requirements={requirements}
             stale={analysis?.stale === true}
+          />
+
+          {/* Under what the job asks for and above what the Posting said,
+              because it is what came of the asking. Like the Tailored CV's
+              section below, it saves nothing through the form it sits inside:
+              each meeting is its own request on the press, and a diary that
+              only took effect when somebody remembered to press Save would be
+              a way to lose an interview. */}
+          <Interviews
+            interviews={saved.interviews}
+            jobApplicationId={saved.id}
+            onChange={onInterviews}
+            onMoveToInterviewing={onMoveToInterviewing}
+            status={saved.status}
           />
 
           <Panel title="The Posting, and what you thought">

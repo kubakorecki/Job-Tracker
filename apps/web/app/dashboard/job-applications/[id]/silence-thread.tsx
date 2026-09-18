@@ -5,8 +5,8 @@ import { Panel } from "../../../panel";
 
 /**
  * Everything that has happened on this Job Application, as a rail down the
- * right column: the day it was saved, the day it was sent, and where it stands
- * now.
+ * right column: the day it was saved, the day it was sent, every meeting
+ * arranged and held, and where it stands now.
  *
  * The silence gets a beat of its own rather than being a tag in a corner. It
  * is the subject the whole app is arranged around, and on the one page with
@@ -20,7 +20,7 @@ export function SilenceThread({
 }: {
   jobApplication: Pick<
     JobApplication,
-    "status" | "appliedAt" | "createdAt" | "updatedAt"
+    "status" | "appliedAt" | "createdAt" | "updatedAt" | "interviews"
   >;
 }) {
   const beats = threadOf(jobApplication, todayInUtc());

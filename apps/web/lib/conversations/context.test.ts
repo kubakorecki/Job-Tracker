@@ -1,3 +1,4 @@
+import type { Interview } from "@repo/schema";
 import { describe, expect, it } from "vitest";
 import {
   attachedPrompt,
@@ -31,6 +32,22 @@ const profile: ProfileContext = {
   skills: ["Python", "Kubernetes"],
 };
 
+/** A meeting, with nothing recorded but what a case is about. */
+const interview = (
+  over: Partial<Interview> & { heldOn: string },
+): Interview => ({
+  id: `interview-${over.heldOn}`,
+  jobApplicationId: "00000000-0000-4000-8000-00000000000b",
+  heldAt: null,
+  stage: "Phone screen",
+  meetingUrl: null,
+  location: null,
+  notes: null,
+  arrangedOn: "2026-09-01",
+  cancelled: false,
+  ...over,
+});
+
 const jobApplication = (
   fields: Partial<AttachedJobApplication> = {},
 ): AttachedJobApplication => ({
@@ -49,6 +66,7 @@ const jobApplication = (
   excitement: 4,
   notes: "The recruiter said they move quickly.",
   description: DESCRIPTION,
+  interviews: [],
   requirements: [
     {
       skill: "Kubernetes",
@@ -78,6 +96,7 @@ const outlined = (
   jobTitle: "Platform Engineer",
   status: "applied",
   closesOn: "2026-09-14",
+  interviews: [],
   requirements: [
     {
       necessity: "required",
@@ -229,6 +248,83 @@ describe("attachedPrompt", () => {
     expect(prompt).toContain(
       "No Requirements have been read from this Posting",
     );
+  });
+
+  it("sends the meetings, in the order they are held, and how each stands", () => {
+    const prompt = attached({
+      jobApplication: jobApplication({
+        interviews: [
+          interview({
+            heldOn: "2026-09-04",
+            heldAt: "14:30",
+            stage: "Phone screen",
+            arrangedOn: "2026-09-01",
+            location: "Their office, 4th floor",
+          }),
+          interview({
+            heldOn: "2026-09-20",
+            stage: "Final round",
+            arrangedOn: "2026-09-08",
+            meetingUrl: "https://meet.example.com/abc",
+            notes: "Two engineers and the CTO.",
+          }),
+        ],
+      }),
+    });
+
+    expect(prompt).toContain(
+      "- Phone screen on 4 Sept 2026 at 14:30 — already held — arranged 1 Sept 2026 — at Their office, 4th floor",
+    );
+    expect(prompt).toContain(
+      "- Final round on 20 Sept 2026 — still to come — arranged 8 Sept 2026 — online — notes: Two engineers and the CTO.",
+    );
+  });
+
+  it("never sends the link out of an invitation, which it has no use for", () => {
+    const prompt = attached({
+      jobApplication: jobApplication({
+        interviews: [
+          interview({
+            heldOn: "2026-09-20",
+            meetingUrl: "https://meet.example.com/abc",
+          }),
+        ],
+      }),
+    });
+
+    expect(prompt).not.toContain("https://meet.example.com/abc");
+    expect(prompt).toContain("online");
+  });
+
+  it("marks a meeting that was called off, rather than dropping it", () => {
+    const prompt = attached({
+      jobApplication: jobApplication({
+        interviews: [
+          interview({
+            heldOn: "2026-09-04",
+            stage: "Phone screen",
+            cancelled: true,
+          }),
+        ],
+      }),
+    });
+
+    expect(prompt).toContain("- Phone screen on 4 Sept 2026 — called off");
+  });
+
+  it("says plainly that no meeting has been recorded rather than leaving a gap", () => {
+    const prompt = attached({
+      jobApplication: jobApplication({ interviews: [] }),
+    });
+
+    expect(prompt).toContain("No Interviews have been recorded");
+  });
+
+  it("does not offer to move the Status when a meeting is in the diary", () => {
+    // The prompt is part of the feature and the move is the user's own
+    // (ADR-0011), so the model is told where they do it rather than left to
+    // suggest that it could.
+    expect(attached()).toMatch(/You do not set a Status/);
   });
 
   it("sends the Analysis's Rating and Feedback where one has run", () => {
@@ -413,5 +509,37 @@ describe("generalPrompt", () => {
     expect(general({ jobApplications: [] })).toContain(
       "There are no Job Applications in this tracker yet",
     );
+  });
+
+  it("puts the next Interview's date on the line, and only that one", () => {
+    const prompt = general({
+      jobApplications: [
+        outlined({
+          interviews: [
+            interview({ heldOn: "2026-09-20", stage: "Phone screen" }),
+            interview({ heldOn: "2026-10-02", stage: "Final round" }),
+          ],
+        }),
+      ],
+    });
+
+    expect(prompt).toContain(
+      "- Acme — Platform Engineer — applied — fit 1 of 2 — Closes in 3 days — interview on 20 Sept 2026",
+    );
+    // One line per Job Application is what makes two hundred of them
+    // affordable (ADR-0008), so the outline says when the user is next in a
+    // room with somebody and nothing else about the recruitment.
+    expect(prompt).not.toContain("Final round");
+    expect(prompt).not.toContain("2 Oct 2026");
+  });
+
+  it("leaves the interview off a line whose meetings are all behind it", () => {
+    const prompt = general({
+      jobApplications: [
+        outlined({ interviews: [interview({ heldOn: "2026-09-01" })] }),
+      ],
+    });
+
+    expect(prompt).not.toContain("interview on");
   });
 });

@@ -30,6 +30,7 @@ const SAVED: JobApplication = {
   currency: "USD",
   description: "Works on Basecamp and HEY.",
   requirements: [asked("Ruby", "required"), asked("Rails", "preferred")],
+  interviews: [],
   status: "applied",
   source: "referral",
   appliedAt: "2026-02-14T10:30:00.000Z",

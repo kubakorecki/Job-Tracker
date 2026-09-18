@@ -1,6 +1,7 @@
 import {
   normalizeJobUrl,
   type CreateJobApplication,
+  type Interview,
   type JobApplication,
   type JobStatus,
   type Requirement,
@@ -19,6 +20,7 @@ import {
   requirements,
   type JobApplicationRow,
 } from "../db/schema";
+import { interviewsFor, interviewsOf } from "../interviews/repository";
 import { acceptedSkills } from "../profile/repository";
 import { recordStatusChange } from "../status-changes/repository";
 
@@ -92,7 +94,9 @@ export async function createJobApplication(
       throw error;
     });
 
-  return toJobApplication(created.row, created.asks);
+  // A Job Application that has just been saved has no meetings arranged on it:
+  // an Interview is added at its own address, and there has been no chance to.
+  return toJobApplication(created.row, created.asks, []);
 }
 
 /**
@@ -123,11 +127,18 @@ export async function listJobApplications(
     )
     .orderBy(desc(jobApplications.createdAt));
 
-  const asks = await requirementsOf(
-    userId,
-    rows.map((row) => row.id),
+  // Both lists in one query apiece, rather than two per row: the board reads
+  // every Job Application the user has, and each of them draws a fit ring off
+  // the Requirements and a silence off the Interviews.
+  const ids = rows.map((row) => row.id);
+  const [asks, held] = await Promise.all([
+    requirementsOf(userId, ids),
+    interviewsOf(userId, ids),
+  ]);
+
+  return rows.map((row) =>
+    toJobApplication(row, asks.get(row.id) ?? [], held.get(row.id) ?? []),
   );
-  return rows.map((row) => toJobApplication(row, asks.get(row.id) ?? []));
 }
 
 /**
@@ -148,7 +159,12 @@ export async function getJobApplication(
   const [row] = rows;
   if (row === undefined) return null;
 
-  return toJobApplication(row, await requirementsFor(userId, row.id));
+  const [asks, held] = await Promise.all([
+    requirementsFor(userId, row.id),
+    interviewsFor(userId, row.id),
+  ]);
+
+  return toJobApplication(row, asks, held);
 }
 
 /**
@@ -252,11 +268,16 @@ export async function updateJobApplication(
 
   // A patch that stated the Requirements has already had them written, and the
   // write answered with how each one reads; only one that left them alone has
-  // to go and look.
-  return toJobApplication(
-    updated.row,
-    updated.asks ?? (await requirementsFor(userId, updated.row.id)),
-  );
+  // to go and look. The Interviews are always read: no patch can name them —
+  // they are added and corrected one at a time at their own address — and the
+  // answer still has to carry them, because the page this answers reads a
+  // silence off them.
+  const [written, held] = await Promise.all([
+    updated.asks ?? requirementsFor(userId, updated.row.id),
+    interviewsFor(userId, updated.row.id),
+  ]);
+
+  return toJobApplication(updated.row, written, held);
 }
 
 /**
@@ -489,11 +510,12 @@ async function replaceRequirements(
 /**
  * A row as the shared contract describes it: timestamps as ISO strings, and no
  * `normalizedJobUrl`, which is the database's business rather than a client's.
- * The Requirements arrive alongside, from their own table.
+ * The Requirements and the Interviews arrive alongside, from their own tables.
  */
 function toJobApplication(
   row: JobApplicationRow,
   asks: RequirementWithCoverage[],
+  held: Interview[],
 ): JobApplication {
   return {
     id: row.id,
@@ -510,6 +532,7 @@ function toJobApplication(
     description: row.description,
     closesOn: row.closesOn,
     requirements: asks,
+    interviews: held,
     status: row.status,
     source: row.source,
     appliedAt: row.appliedAt?.toISOString() ?? null,

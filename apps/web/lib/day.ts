@@ -14,6 +14,22 @@ export function dayOf(iso: string): string {
   return DAY.format(new Date(iso));
 }
 
+const SHORT_DAY = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+  timeZone: "UTC",
+});
+
+/**
+ * A day with the year left off: "24 Sep". For a tag on a board card, which has
+ * room for a day and not for a year — and where the year is never in question,
+ * because the tag is only ever about a day within a few weeks of today. The
+ * sentence behind the tag says the whole date.
+ */
+export function shortDayOf(iso: string): string {
+  return SHORT_DAY.format(new Date(iso));
+}
+
 const MONTH = new Intl.DateTimeFormat("en-GB", {
   month: "long",
   year: "numeric",

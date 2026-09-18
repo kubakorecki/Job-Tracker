@@ -1,5 +1,6 @@
-import type { JobApplication } from "@repo/schema";
+import type { JobApplication, JobStatus } from "@repo/schema";
 import { dayIn, dayOf, daysBetween } from "../day";
+import { lastInterviewHeld, nextInterview } from "../interviews/reading";
 
 /**
  * How long it has been since anything happened on a Job Application the user
@@ -59,25 +60,49 @@ export const GOING_COLD_AFTER_DAYS = 21;
 export const GHOSTED_AFTER_DAYS = 45;
 
 /** As much of a Job Application as a reading is made from. */
-type Waiting = Pick<JobApplication, "status" | "appliedAt" | "updatedAt">;
+type Waiting = Pick<
+  JobApplication,
+  "status" | "appliedAt" | "updatedAt" | "interviews"
+>;
+
+/**
+ * Whether there is anybody to be waiting on at all.
+ *
+ * A `bookmarked` Job Application has nobody to hear from; an `offer`, a
+ * `rejected` or a `withdrawn` one has already been answered, and counting the
+ * days since would be the board sulking about a question that got its answer.
+ *
+ * It is exported because the thread asks the same question before it ends on a
+ * meeting still to come (`thread.ts`): a Job Application that has been answered
+ * ends on the answer, whatever somebody forgot to take out of the diary. Two
+ * copies of the list of four Statuses would be two things to change when one
+ * moves.
+ */
+export function waitingOnSomebody(status: JobStatus): boolean {
+  return status === "applied" || status === "interviewing";
+}
 
 /**
  * How this Job Application's wait reads today, or `null` where there is no
  * wait to report — which is not the same as a wait of zero days, and must not
  * draw anything.
  *
- * Only somebody the user is waiting on can go quiet. A `bookmarked` Job
- * Application has nobody to hear from; an `offer`, a `rejected` or a
- * `withdrawn` one has already been answered, and counting the days since would
- * be the board sulking about a question that got its answer.
+ * Only somebody the user is waiting on can go quiet, which is
+ * `waitingOnSomebody` above.
+ *
+ * A meeting still to come is the other way of having nothing to report, and the
+ * happier one: nobody has gone quiet on somebody they are seeing next week
+ * (ADR-0011). It is asked after the Status rather than before it, because a
+ * Job Application that has been rejected is answered whatever is in the diary.
  */
 export function silenceOf(
-  { status, appliedAt, updatedAt }: Waiting,
+  { status, appliedAt, updatedAt, interviews }: Waiting,
   today: string,
 ): Silence | null {
-  if (status !== "applied" && status !== "interviewing") return null;
+  if (!waitingOnSomebody(status)) return null;
+  if (nextInterview(interviews, today) !== null) return null;
 
-  const since = lastHeardOf({ appliedAt, updatedAt });
+  const since = lastHeardOf({ appliedAt, updatedAt, interviews }, today);
   const days = daysBetween(since, today);
 
   // A date the user put in the future counts as nothing having happened yet
@@ -88,26 +113,32 @@ export function silenceOf(
 }
 
 /**
- * The last day anything happened on this Job Application, as best the record
- * can say: the later of the day the user applied and the day the record last
- * changed.
+ * The last day anything happened on this Job Application: the day of the last
+ * meeting held, where one has been, and otherwise the later of the day the user
+ * applied and the day the record last changed.
  *
- * `updatedAt` is doing the work here, and it is worth being plain about what
- * that is and is not. Moving a card to Interviewing, correcting a Requirement
- * and fixing a typo in the company name are all one thing to the database, and
- * only the first of them is news. So a stray edit resets the count.
+ * A meeting held is the real "last heard from them" this function was written
+ * waiting for, and it outranks the other two outright rather than joining the
+ * comparison: an employer who saw the user three weeks ago has been heard from
+ * three weeks ago, whether or not a note was typed on the record since.
  *
- * That is the error to prefer. Resetting understates a silence, and the worst
- * it costs is a tag appearing a few days late; the other way round the board
- * would tell the user they had been ghosted by somebody who wrote back last
- * week, and a tracker that cries wolf about silence has lost the one thing it
- * was for. The day this record carries a real "last heard from them" is the
- * day this function changes and nothing else does.
+ * Where no meeting has been held, `updatedAt` still stands in, and it is worth
+ * being plain about what that is and is not. Moving a card to Interviewing,
+ * correcting a Requirement and fixing a typo in the company name are all one
+ * thing to the database, and only the first of them is news — so a stray edit
+ * resets the count. That is the error to prefer: resetting understates a
+ * silence, and the worst it costs is a tag appearing a few days late, where the
+ * other way round the board would tell the user they had been ghosted by
+ * somebody who wrote back last week. A tracker that cries wolf about silence
+ * has lost the one thing it was for.
  */
-export function lastHeardOf({
-  appliedAt,
-  updatedAt,
-}: Pick<Waiting, "appliedAt" | "updatedAt">): string {
+export function lastHeardOf(
+  { appliedAt, updatedAt, interviews }: Omit<Waiting, "status">,
+  today: string,
+): string {
+  const met = lastInterviewHeld(interviews, today);
+  if (met !== null) return met.heldOn;
+
   const changed = dayIn(updatedAt);
   if (appliedAt === null) return changed;
 

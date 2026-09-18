@@ -19,6 +19,7 @@ import {
   pgTable,
   primaryKey,
   text,
+  time,
   timestamp,
   uniqueIndex,
   uuid,
@@ -192,6 +193,92 @@ export const statusChanges = pgTable(
 );
 
 export type StatusChangeRow = typeof statusChanges.$inferSelect;
+
+/**
+ * An Interview: one meeting in one Job Application's recruitment. Several
+ * belong to one Job Application, because a recruitment is several meetings and
+ * the one `status` column could only ever say that some of it was happening.
+ *
+ * Unlike the Status Changes above, these are the user's own records and are
+ * edited freely: a rescheduled meeting is this row with another day on it, and
+ * a cancelled one is this row marked. That is why it carries `updated_at` where
+ * a Status Change deliberately does not — a Status Change says what happened at
+ * a moment, and an Interview says what is arranged.
+ *
+ * Carries `user_id` like every other table, so a query for an Interview can
+ * name its owner rather than inheriting one from the Job Application it hangs
+ * off (ADR-0001). The foreign key cascades: deleting a Job Application takes
+ * its meetings with it, as it takes its history.
+ */
+export const interviews = pgTable(
+  "interviews",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** No foreign key into `auth.users`, for the same reason as above. */
+    userId: uuid("user_id").notNull(),
+    jobApplicationId: uuid("job_application_id")
+      .notNull()
+      .references(() => jobApplications.id, { onDelete: "cascade" }),
+    /**
+     * The day it is held, and the time of day where the user knows it. A
+     * `date` and a `time` rather than one timestamp, for the reason
+     * `closes_on` is a date (ADR-0007): a meeting is arranged for a day, and
+     * folding an unknown time into an instant would store an hour nobody
+     * named. Both are read as strings — a `Date` is an instant in the reader's
+     * zone, and the day would move for anyone west of UTC.
+     */
+    heldOn: date("held_on", { mode: "string" }).notNull(),
+    heldAt: time("held_at"),
+    /** The user's own word for the stage this meeting is. Never blank. */
+    stage: text("stage").notNull(),
+    /** Where it is: a link for an online meeting, a place for one in a room. */
+    meetingUrl: text("meeting_url"),
+    location: text("location"),
+    notes: text("notes"),
+    /**
+     * The day it was arranged — a separate fact from the day it is held,
+     * because the invitation and the meeting often fall in different months
+     * and the Activity Report reports each in its own. Written by the endpoint
+     * from its own clock rather than defaulted here, so that the one place the
+     * app reads today is `lib/day.ts` and a test can name the day instead.
+     */
+    arrangedOn: date("arranged_on", { mode: "string" }).notNull(),
+    /**
+     * Whether it was called off. The row stays, marked, because arranging it
+     * was still something the employer did — and the Activity Report of the
+     * month it was arranged in says so.
+     */
+    cancelled: boolean("cancelled").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    /**
+     * One user's meetings, for one Job Application or for every Job
+     * Application on the board, in the order they are held — which is how the
+     * detail view lists them and how a silence finds the last one held and the
+     * next one standing.
+     *
+     * As with the Status Changes above, it deliberately does not serve the
+     * Activity Report's own question — a month of one user's meetings across
+     * every Job Application — because a btree cannot range-scan `held_on`
+     * while skipping the column before it. That query belongs to the report,
+     * and so does the index it wants.
+     */
+    index("interviews_user_id_job_application_id_held_on_idx").on(
+      table.userId,
+      table.jobApplicationId,
+      table.heldOn,
+    ),
+  ],
+);
+
+export type InterviewRow = typeof interviews.$inferSelect;
 
 /**
  * A Requirement: one thing a Posting asks of a candidate, at the Necessity it

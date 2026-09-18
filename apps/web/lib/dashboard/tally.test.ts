@@ -16,10 +16,7 @@ const daysAgo = (days: number): string =>
 
 let next = 0;
 
-const aJobApplication = (
-  status: JobStatus,
-  quietFor = 0,
-): JobApplication =>
+const aJobApplication = (status: JobStatus, quietFor = 0): JobApplication =>
   ({
     id: String((next += 1)),
     userId: "u",
@@ -35,6 +32,7 @@ const aJobApplication = (
     currency: null,
     description: null,
     requirements: [],
+    interviews: [],
     status,
     source: null,
     appliedAt: null,
@@ -104,7 +102,9 @@ describe("tallyOf", () => {
   });
 
   it("counts the offers", () => {
-    expect(tally([aJobApplication("offer"), aJobApplication("offer")]).offers).toBe(2);
+    expect(
+      tally([aJobApplication("offer"), aJobApplication("offer")]).offers,
+    ).toBe(2);
   });
 });
 
@@ -123,9 +123,7 @@ describe("tallyClauses", () => {
         aJobApplication("offer"),
         aJobApplication("bookmarked"),
       ]),
-    ).toBe(
-      "5 tracked. 3 still in the air. 2 have gone quiet on you. 1 offer.",
-    );
+    ).toBe("5 tracked. 3 still in the air. 2 have gone quiet on you. 1 offer.");
   });
 
   it("leaves out what would only report nothing", () => {

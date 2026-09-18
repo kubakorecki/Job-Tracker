@@ -157,6 +157,140 @@ export function groupedByNecessity<Asked extends { necessity: Necessity }>(
 export const EXCITEMENT_SCALE = [1, 2, 3, 4, 5] as const;
 
 /**
+ * The fields of one Interview a client owns, in their stored form. The three
+ * shapes below are derived from these, so a rule about what a meeting may say
+ * is written once.
+ *
+ * It stands here, above the Job Application, because a Job Application reads
+ * its Interviews and a shape has to exist before something can hold it. The
+ * record of what happened it belongs beside is `StatusChange`, at the foot of
+ * the file.
+ */
+const interviewFields = {
+  /**
+   * The day the meeting is held. A calendar day rather than an instant, for
+   * the reason a Closing Date is one (ADR-0007): an interview is arranged for
+   * a day, and a timestamp would have to choose a zone to hold it in — after
+   * which nothing could tell the invention from what the invitation said. It
+   * is `z.iso.date()`, which is the identical string an `<input type="date">`
+   * holds, so the form needs no conversion in either direction.
+   */
+  heldOn: z.iso.date(),
+  /**
+   * The time of day it starts, where the user knows it. Its own optional field
+   * beside the day rather than folded into it, which is the whole of what
+   * keeps the day above a day: a meeting whose time nobody wrote down would
+   * otherwise have to be stored at some invented hour, and "9am" and "we will
+   * confirm the time" would be indistinguishable afterwards.
+   *
+   * To the minute, and no finer. `z.iso.time({ precision: -1 })` is the
+   * `HH:MM` an `<input type="time">` emits, and no appointment was ever made
+   * to the second — which also keeps one canonical wording of a time, since
+   * the column it is read out of would otherwise answer `14:30:00`.
+   */
+  heldAt: z.iso.time({ precision: -1 }).nullable(),
+  /**
+   * What kind of meeting it is, in the user's own words — "phone screen",
+   * "take-home review", "final round with the CTO". Deliberately not a closed
+   * set: every employer has its own ladder and its own names for the rungs,
+   * and a vocabulary of ours would make the user translate theirs into it. It
+   * is what the Activity Report prints beside `Rozmowa kwalifikacyjna`, so it
+   * is the one field of an Interview that is never blank.
+   */
+  stage: z.string().min(1),
+  /** Where an online meeting is: the link out of the invitation. */
+  meetingUrl: z.url().nullable(),
+  /**
+   * Where a meeting in a room is. Its own field rather than the Job
+   * Application's `location`, which says where the job is: a Warsaw job holds
+   * its second round in London, and the first is on a video call from either.
+   */
+  location: z.string().nullable(),
+  /** Whatever the user noted about it — who they met, what was asked. */
+  notes: z.string().nullable(),
+  /**
+   * The day the meeting was arranged, which is a separate fact from the day it
+   * is held: the invitation and the interview often fall in different months,
+   * and the Activity Report has to report each in the month it happened in.
+   *
+   * The user's to correct, because an invitation that arrived last week is not
+   * news from today. A day rather than an instant, like the day held above.
+   */
+  arrangedOn: z.iso.date(),
+  /**
+   * Whether the meeting was called off. A meeting that was cancelled keeps its
+   * place, marked, because arranging it was still something the employer did —
+   * so this is a marker on the Interview rather than a reason to delete one.
+   *
+   * When it was called off is deliberately not recorded. Nobody is asked for
+   * that date, so the only honest thing to do with a cancelled meeting is stop
+   * counting from it: it neither ends a silence nor starts one.
+   */
+  cancelled: z.boolean(),
+};
+
+/**
+ * One meeting in one Job Application's recruitment: the day it is held, the
+ * user's own word for the stage it is, and the day it was arranged.
+ *
+ * Arranging one never moves the Status. The user is asked and answers, because
+ * a Status is where they put a Job Application and is never inferred — a coffee
+ * with a recruiter is a meeting and not a recruitment, and a call booked and
+ * then cancelled leaves a Job Application that never reached `interviewing`
+ * (ADR-0011).
+ */
+export const Interview = z.object({
+  id: z.uuid(),
+  jobApplicationId: z.uuid(),
+  ...interviewFields,
+});
+export type Interview = z.infer<typeof Interview>;
+
+/**
+ * What an omitted field means when an Interview is arranged: nothing recorded,
+ * and a meeting that is still on. `arrangedOn` is not in here and is not
+ * defaulted below — see `CreateInterview`.
+ */
+const CREATE_INTERVIEW_DEFAULTS = {
+  heldAt: null,
+  meetingUrl: null,
+  location: null,
+  notes: null,
+  cancelled: false,
+} satisfies Partial<{
+  [K in keyof typeof interviewFields]: z.infer<(typeof interviewFields)[K]>;
+}>;
+
+/**
+ * Arranging an Interview asks for the day and the stage, and will take the
+ * rest of what the invitation said.
+ *
+ * `arrangedOn` is optional rather than defaulted: today is not something a
+ * contract can know, and a client's clock could be anything — a browser two
+ * years slow would date every invitation wrong, which is the argument ADR-0007
+ * makes about reading a Closing Date's year. Omitted, it is the day the
+ * endpoint is asked on; the form states it, because it shows the day and lets
+ * the user correct it to the day the invitation actually arrived.
+ */
+export const CreateInterview = z.object({
+  ...withDefaults(interviewFields, CREATE_INTERVIEW_DEFAULTS),
+  arrangedOn: interviewFields.arrangedOn.optional(),
+});
+export type CreateInterview = z.infer<typeof CreateInterview>;
+
+/**
+ * A correction to one Interview: a rescheduled day, a time that has since been
+ * confirmed, a note after the meeting — and the cancellation, which is an edit
+ * like any other rather than an address of its own, because a meeting called
+ * off keeps its place and its details.
+ *
+ * Derived from the undefaulted fields, so an omitted field means "leave it as
+ * it is" rather than "put it back to nothing".
+ */
+export const UpdateInterview = z.object(interviewFields).partial();
+export type UpdateInterview = z.infer<typeof UpdateInterview>;
+
+/**
  * The fields of a Job Application a client owns, in their stored form — no
  * defaults, so that a persisted row missing one is an error rather than a
  * silent fill-in. Every other Job Application schema is derived from these, so
@@ -237,6 +371,22 @@ export const JobApplication = z.object({
    * is what makes the two shapes differ in the one field where they should.
    */
   requirements: z.array(RequirementWithCoverage),
+  /**
+   * The meetings this recruitment is made of, in the order they are held.
+   *
+   * Read here and written nowhere near here: `CreateJobApplication` and
+   * `UpdateJobApplication` below have no `interviews` field at all, because an
+   * Interview is added, corrected, called off and deleted one at a time at its
+   * own address. A patch that restated the list — the way one restates the
+   * Requirements — would make deleting a meeting something a stale form could
+   * do by leaving it out.
+   *
+   * It rides along with the Job Application rather than being fetched beside
+   * it because every surface that draws one needs them: a silence is read from
+   * the last meeting held and the next one standing, and the board reads a
+   * silence for every card it draws.
+   */
+  interviews: z.array(Interview),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
 });

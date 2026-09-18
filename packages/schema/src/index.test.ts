@@ -2,10 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   Basis,
   Coverage,
+  CreateInterview,
   CreateJobApplication,
   JobExtraction,
   ExtractJobResponse,
+  Interview,
   JobApplication,
+  UpdateInterview,
   groupedByNecessity,
   Message,
   MessageRole,
@@ -191,7 +194,11 @@ describe("CreateJobApplication", () => {
 
 describe("the create/update schemas track the field list", () => {
   const OWNED_BY_CLIENT = Object.keys(JobApplication.shape).filter(
-    (name) => !["id", "userId", "createdAt", "updatedAt"].includes(name),
+    // `interviews` is with the four the database owns rather than the fields a
+    // client states: a Job Application reads its Interviews, and each one is
+    // added, edited and cancelled at its own address.
+    (name) =>
+      !["id", "userId", "interviews", "createdAt", "updatedAt"].includes(name),
   );
 
   it("offers every client-owned field on create", () => {
@@ -281,6 +288,108 @@ describe("a Closing Date", () => {
   });
 });
 
+describe("Interview", () => {
+  const held = {
+    id: "00000000-0000-4000-8000-00000000000d",
+    jobApplicationId: "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+    heldOn: "2026-09-24",
+    heldAt: null,
+    stage: "Phone screen",
+    meetingUrl: null,
+    location: null,
+    notes: null,
+    arrangedOn: "2026-09-17",
+    cancelled: false,
+  };
+
+  it("is a day held, a stage the user worded, and the day it was arranged", () => {
+    expect(Interview.parse(held)).toEqual(held);
+  });
+
+  it("holds the day it is held as a day rather than an instant", () => {
+    expect(
+      Interview.safeParse({ ...held, heldOn: "2026-09-24T09:00:00.000Z" })
+        .success,
+    ).toBe(false);
+  });
+
+  it("takes a time of day beside it, to the minute", () => {
+    expect(Interview.parse({ ...held, heldAt: "14:30" }).heldAt).toBe("14:30");
+  });
+
+  it("refuses a time finer than a minute, which no appointment is made to", () => {
+    expect(Interview.safeParse({ ...held, heldAt: "14:30:00" }).success).toBe(
+      false,
+    );
+  });
+
+  it("insists on a stage, because it is the user's own word for the meeting", () => {
+    expect(Interview.safeParse({ ...held, stage: "" }).success).toBe(false);
+  });
+
+  it("says whether it was called off, on every one of them", () => {
+    expect(Interview.parse({ ...held, cancelled: true }).cancelled).toBe(true);
+
+    // Stated rather than left out where it stands: a reader that had to treat
+    // a missing field as a meeting still on would read one that had been
+    // called off the same way.
+    const { cancelled: _, ...unmarked } = held;
+    expect(Interview.safeParse(unmarked).success).toBe(false);
+  });
+});
+
+describe("CreateInterview", () => {
+  const ARRANGED = { heldOn: "2026-09-24", stage: "Phone screen" };
+
+  it("needs the day it is held and the stage, and nothing else", () => {
+    expect(CreateInterview.parse(ARRANGED)).toEqual({
+      heldOn: "2026-09-24",
+      heldAt: null,
+      stage: "Phone screen",
+      meetingUrl: null,
+      location: null,
+      notes: null,
+      cancelled: false,
+    });
+  });
+
+  it("leaves the day it was arranged out, for the endpoint's own clock to say", () => {
+    // Today is not a thing a contract can know, and a client's clock could be
+    // anything (ADR-0007). A caller that does know — the form, which shows the
+    // day and lets it be corrected — states it.
+    expect(CreateInterview.parse(ARRANGED)).not.toHaveProperty("arrangedOn");
+    expect(
+      CreateInterview.parse({ ...ARRANGED, arrangedOn: "2026-09-10" })
+        .arrangedOn,
+    ).toBe("2026-09-10");
+  });
+
+  it("refuses a meeting link that is not a URL", () => {
+    expect(
+      CreateInterview.safeParse({ ...ARRANGED, meetingUrl: "zoom, probably" })
+        .success,
+    ).toBe(false);
+  });
+});
+
+describe("UpdateInterview", () => {
+  it("accepts an empty patch and invents no defaults", () => {
+    expect(UpdateInterview.parse({})).toEqual({});
+  });
+
+  it("carries the cancellation on its own, because calling off is an edit", () => {
+    expect(UpdateInterview.parse({ cancelled: true })).toEqual({
+      cancelled: true,
+    });
+  });
+
+  it("carries the day it was arranged, which is the user's to correct", () => {
+    expect(UpdateInterview.parse({ arrangedOn: "2026-09-10" })).toEqual({
+      arrangedOn: "2026-09-10",
+    });
+  });
+});
+
 describe("JobApplication", () => {
   const stored = {
     id: "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
@@ -301,6 +410,7 @@ describe("JobApplication", () => {
     appliedAt: null,
     excitement: null,
     notes: null,
+    interviews: [],
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
   };
@@ -316,6 +426,31 @@ describe("JobApplication", () => {
         jobUrl: "https://example.com/jobs/1",
       }).success,
     ).toBe(true);
+  });
+
+  it("reads its Interviews, which are never stated back to it", () => {
+    const interview = {
+      id: "00000000-0000-4000-8000-00000000000d",
+      jobApplicationId: stored.id,
+      heldOn: "2026-09-24",
+      heldAt: "14:30",
+      stage: "Phone screen",
+      meetingUrl: null,
+      location: null,
+      notes: null,
+      arrangedOn: "2026-09-17",
+      cancelled: false,
+    };
+
+    expect(
+      JobApplication.parse({ ...stored, interviews: [interview] }).interviews,
+    ).toEqual([interview]);
+
+    // A list nothing states means the field is not optional on the way out:
+    // a Job Application with no meetings has an empty list, and a reader
+    // handed neither could not tell that from one it had not been told about.
+    const { interviews: _, ...unread } = stored;
+    expect(JobApplication.safeParse(unread).success).toBe(false);
   });
 });
 

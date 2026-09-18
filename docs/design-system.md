@@ -186,12 +186,54 @@ Application. A Bookmarked one has nobody to hear from; an Offer, a Rejection
 or a Withdrawal has already been answered. A closing date takes the tag slot
 when there is no silence to report.
 
+### Next Interview tag
+
+The same rectangle, at the `Quiet` treatment — `line-strong` border,
+`ink-muted` text — reading `Interview today`, `Interview tomorrow` or
+`Interview 24 Sep`. The day rather than a countdown, which is the other way
+round from a closing date: a closing date is a deadline, where what matters is
+how long is left, and a meeting is an appointment, where what matters is which
+day to keep free.
+
+It wears the silence tag's shape because it belongs to that axis — a meeting
+still to come is something that happened to the user, not something they set —
+and it takes no accent, because it asks nothing of them: the two accents a tag
+can take are for a clock running out and a wait going cold. It carries no
+Status colour either, `ember` least of all, since the Status pill is the only
+thing in the system that does.
+
+It never appears beside a silence tag, by construction rather than by
+arrangement: while a meeting stands there is no silence to report at all
+(`docs/adr/0011-an-interview-never-moves-the-status.md`).
+
+### Interviews panel
+
+The left column of a Job Application, under the Requirements. One meeting per
+row, ruled off from the row above with a 1px `line` rather than boxed — three
+meetings are a recruitment, and three bordered cards would read as a form
+somebody has to fill in. The day is 13/500 `ink`, the stage 12.5/400
+`ink-muted`, and whatever else was recorded runs under them in 11.5/400
+`ink-faint`.
+
+A meeting the employer called off keeps its row, its day struck through and its
+text dropped to `ink-faint`, with a `Called off` tag at the **Ghosted**
+treatment — dashed `ink-faint` border, `ink-muted` text. The dash is doing the
+same work it does for a silence that has run on: a thing wearing off rather
+than a thing alarming you. It is the one place a tag treatment is shared across
+two axes, and it is shared because both are absences.
+
+The box for arranging a meeting is a dashed `line-strong` rectangle at radius
+9 — dashed because it is not a record yet. The ADR-0011 prompt under it is a
+solid `line` rectangle on `paper-sunk`, because it is a question about
+something that now exists.
+
 ### Card
 
 `paper-raised`, 1px `line`, radius 9, padding 11/12/12. Company 13.5/600, job
 title 12/400 `ink-muted`, the salary in its short form in the same 12/400
-`ink-muted`, then a `marks` row holding the Coverage dial and the one tag. A
-card with no salary recorded has no salary line rather than a dash.
+`ink-muted`, then a `marks` row holding the Coverage dial, the next Interview
+where one is in the diary, and the one tag. A card with no salary recorded has
+no salary line rather than a dash.
 
 The card fades toward the page as silence grows — **it never turns red.
 Ghosting is an absence, not an error.**
@@ -247,11 +289,13 @@ system for it to be.
 ### Silence thread
 
 The right column's first panel on a Job Application: what has happened, in
-order, ending in where it stands today. A dot and a rule per beat, the dot on
-the last one `ember` in a 3px `ember-tint` ring. A **gap** — a silence that has
-run on — breaks its rule into a dashed one and sets its words in the display
-face, italic, in `ember`. It is made only of what the record holds; there is no
-event log behind it.
+order, ending in where it stands today — the day it was saved, the day it was
+sent, every meeting arranged and held, and the wait or the meeting still to
+come that it ends on. A dot and a rule per beat, the dot on the last one
+`ember` in a 3px `ember-tint` ring. A **gap** — a silence that has run on —
+breaks its rule into a dashed one and sets its words in the display face,
+italic, in `ember`. It is made only of what the record holds; there is no event
+log behind it, and nothing is drawn for a phone call nobody wrote down.
 
 ### Excitement
 
@@ -340,9 +384,14 @@ card.
   arrows. The whole heading cell is the button's target. It exists because six columns stop working around fifty Job Applications.
 - **Job Application page**: two columns, `minmax(0,1fr) 396px`.
   Left is what you came to read — the fit banner, Requirements and Coverage,
-  the Posting text and your notes. Right is the record and the machinery — the
-  silence thread, the Analysis panel, then the 14 fields. The fields did not
-  get fewer; they stopped being the first thing you see.
+  the Interviews, the Posting text and your notes. Right is the record and the
+  machinery — the silence thread, the Analysis panel, then the 14 fields. The
+  fields did not get fewer; they stopped being the first thing you see.
+
+  The Interviews sit under what the job asks for and above what the Posting
+  said, because they are what came of the asking. Like the Tailored CV's
+  section, the panel saves nothing through the page's own Save: each meeting is
+  its own request on the press.
 - **Sign-in** is two halves — the statement and the door — at
   `minmax(0,1.18fr) minmax(0,1fr)`, folding to one column on a phone. The
   statement is the app's only `.night` surface: the mark at 25px, a 57px serif

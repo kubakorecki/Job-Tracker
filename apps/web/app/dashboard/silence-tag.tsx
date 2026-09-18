@@ -32,13 +32,22 @@ export function SilenceTag({ silence }: { silence: Silence }) {
  * — the table row and the detail view, neither of which has any other use for
  * the days. The board's card reads it for itself, because the card fades with
  * the silence as well as labelling it and would otherwise ask twice.
+ *
+ * It is handed the four fields a silence is made of rather than a whole Job
+ * Application, for the reason `ClosingBadge` is handed two: nothing above it
+ * can then pair a wait with Interviews it did not come from, and every surface
+ * counts the days through the one function.
  */
 export function SilenceOf({
   status,
   appliedAt,
   updatedAt,
-}: Pick<JobApplication, "status" | "appliedAt" | "updatedAt">) {
-  const silence = silenceOf({ status, appliedAt, updatedAt }, todayInUtc());
+  interviews,
+}: Pick<JobApplication, "status" | "appliedAt" | "updatedAt" | "interviews">) {
+  const silence = silenceOf(
+    { status, appliedAt, updatedAt, interviews },
+    todayInUtc(),
+  );
 
   if (silence === null) return null;
 

@@ -1,7 +1,12 @@
-import type { JobApplication, RequirementWithCoverage } from "@repo/schema";
+import {
+  CreateInterview,
+  type JobApplication,
+  type RequirementWithCoverage,
+} from "@repo/schema";
 import { afterAll, afterEach, describe, expect, it } from "vitest";
 import { authenticatedRoute } from "../api/authenticated-route";
 import type { CurrentUser } from "../auth/current-user";
+import { addInterview } from "../interviews/repository";
 import {
   bearer,
   forgetTestTokens,
@@ -1083,6 +1088,40 @@ describe("GET /api/job-applications/:id", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual(created);
+  });
+
+  it("reads its Interviews in the order they are held", async () => {
+    const created = await save(TEST_USER, {
+      company: "Linear",
+      jobTitle: "Product Engineer",
+      status: "applied",
+    });
+
+    // Arranged in the wrong order on purpose: what a recruitment is made of is
+    // the order the meetings happen in, not the order the user typed them.
+    for (const interview of [
+      { heldOn: "2026-10-08", stage: "Final round" },
+      { heldOn: "2026-10-01", stage: "Phone screen" },
+    ]) {
+      expect(
+        await addInterview(
+          TEST_USER.id,
+          created.id,
+          CreateInterview.parse(interview),
+        ),
+      ).not.toBeNull();
+    }
+
+    const reloaded: JobApplication = await (
+      await read(TEST_USER, created.id)
+    ).json();
+
+    expect(
+      reloaded.interviews.map(({ heldOn, stage }) => ({ heldOn, stage })),
+    ).toEqual([
+      { heldOn: "2026-10-01", stage: "Phone screen" },
+      { heldOn: "2026-10-08", stage: "Final round" },
+    ]);
   });
 
   it("never returns another user's Job Application", async () => {

@@ -16,6 +16,7 @@ import type {
 import { ClosingBadge } from "./closing-badge";
 import { ExcitementMarks } from "./excitement-marks";
 import { FitRing } from "./fit-ring";
+import { NextInterviewTag } from "./next-interview-tag";
 import { SalaryFigure } from "./salary-figure";
 import { SilenceOf } from "./silence-tag";
 
@@ -29,7 +30,8 @@ const CELL = "px-3.5 py-[11px] align-middle";
  * Fit sits before the Status rather than at the end: scanning down it is the
  * whole reason it is here. Silence follows the Status, and Closes follows
  * Silence — the two axes side by side, and then the one date that says whether
- * either of them still means anything.
+ * either of them still means anything. The next Interview's day is in the
+ * Silence cell rather than a column of its own, for the reason given there.
  *
  * Salary follows Location: the two are what the Posting offers, as against
  * how the user fits it and where it stands, and they are read together — the
@@ -152,10 +154,23 @@ export function JobApplicationTable({
               </td>
               {/* Empty for the same reason the Fit cell is: a fresh Job
                   Application has no silence, which is not a blank the user
-                  could fill in. */}
+                  could fill in.
+
+                  The next Interview's day shares this cell with the silence
+                  rather than the Closes cell beside it. It is the same axis —
+                  what happened to the user, as against the Status they set —
+                  and the two can never both draw, because nothing has gone
+                  quiet while a meeting is still in the diary, so neither ever
+                  crowds the other out. It shares a cell rather than taking a
+                  column of its own because every heading in this table sorts,
+                  and a column would be inventing an order nobody asked to read
+                  their pipeline in. On a card, where there are no columns, it
+                  sits in the marks row beside the Closing. */}
               <td className={CELL}>
+                <NextInterviewTag interviews={jobApplication.interviews} />
                 <SilenceOf
                   appliedAt={jobApplication.appliedAt}
+                  interviews={jobApplication.interviews}
                   status={jobApplication.status}
                   updatedAt={jobApplication.updatedAt}
                 />

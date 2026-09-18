@@ -11,6 +11,7 @@ import {
 import { Ghost } from "../ghost";
 import { ClosingBadge } from "./closing-badge";
 import { FitRing } from "./fit-ring";
+import { NextInterviewTag } from "./next-interview-tag";
 import { SalaryFigure } from "./salary-figure";
 import { SilenceTag } from "./silence-tag";
 
@@ -32,6 +33,10 @@ import { SilenceTag } from "./silence-tag";
  * news — a clock running somewhere the user is not — and they cannot both be
  * urgent at once: only a Job Application still waiting can go quiet, and only
  * a bookmarked one can be hurried by a Closing Date (ADR-0007).
+ *
+ * The next Interview's day stands beside them, and is the only thing in the
+ * marks row that is not a warning: it is where the user has to be, and while it
+ * stands there is no silence to report at all (ADR-0011).
  *
  * The card fades toward the page as the silence grows, and never turns red.
  * Ghosting is an absence, not an error.
@@ -81,12 +86,18 @@ export function JobApplicationCard({
         <SalaryFigure period={period} salary={jobApplication} />
       </span>
 
-      {/* Hidden rather than conditional: whether there is a ring to draw, and
-          whether there is a Closing to name, are each their own component's
-          answer, and asking here would be a second copy of both rules. The row
-          is empty exactly when all of them drew nothing. */}
+      {/* Hidden rather than conditional: whether there is a ring to draw,
+          whether a meeting is coming, and whether there is a Closing to name,
+          are each their own component's answer, and asking here would be a
+          second copy of all three rules. The row is empty exactly when all of
+          them drew nothing. */}
       <div className="mt-[7px] flex flex-wrap items-center gap-1.5 empty:hidden">
         <FitRing requirements={jobApplication.requirements} />
+        {/* A meeting still to come stands beside the tag slot rather than in
+            it: it is the one piece of news on a card that is not a warning,
+            and it can never crowd the silence tag out, because nothing has
+            gone quiet while a meeting is in the diary. */}
+        <NextInterviewTag interviews={jobApplication.interviews} />
         {silence !== null ? (
           <SilenceTag silence={silence} />
         ) : (

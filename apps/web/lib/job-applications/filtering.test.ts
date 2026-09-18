@@ -27,6 +27,7 @@ const A_JOB_APPLICATION: JobApplication = {
   currency: null,
   description: null,
   requirements: [],
+  interviews: [],
   status: "bookmarked",
   source: null,
   appliedAt: null,
@@ -77,9 +78,9 @@ describe("matching", () => {
   });
 
   it("matches part of a company name, whatever case it was typed in", () => {
-    expect(companies(matching(ALL, { ...NO_FILTER, search: "sTRI" }, TODAY))).toEqual([
-      "Stripe",
-    ]);
+    expect(
+      companies(matching(ALL, { ...NO_FILTER, search: "sTRI" }, TODAY)),
+    ).toEqual(["Stripe"]);
   });
 
   it("matches part of a job title", () => {
@@ -89,7 +90,9 @@ describe("matching", () => {
   });
 
   it("finds nothing when nothing carries the search", () => {
-    expect(matching(ALL, { ...NO_FILTER, search: "plumber" }, TODAY)).toEqual([]);
+    expect(matching(ALL, { ...NO_FILTER, search: "plumber" }, TODAY)).toEqual(
+      [],
+    );
   });
 
   it("ignores whitespace around the search", () => {
@@ -111,20 +114,25 @@ describe("matching", () => {
 
   it("asks for the search and the Status together, not either one", () => {
     expect(
-      matching(ALL, { ...NO_FILTER, search: "engineer", status: "interviewing" }, TODAY),
+      matching(
+        ALL,
+        { ...NO_FILTER, search: "engineer", status: "interviewing" },
+        TODAY,
+      ),
     ).toEqual([SHOPIFY]);
-    expect(matching(ALL, { ...NO_FILTER, search: "basecamp", status: "applied" }, TODAY)).toEqual(
-      [],
-    );
+    expect(
+      matching(
+        ALL,
+        { ...NO_FILTER, search: "basecamp", status: "applied" },
+        TODAY,
+      ),
+    ).toEqual([]);
   });
 
   it("leaves the order it was given alone", () => {
-    expect(companies(matching(ALL, { ...NO_FILTER, search: "e" }, TODAY))).toEqual([
-      "Basecamp",
-      "Stripe",
-      "Shopify",
-      "Linear",
-    ]);
+    expect(
+      companies(matching(ALL, { ...NO_FILTER, search: "e" }, TODAY)),
+    ).toEqual(["Basecamp", "Stripe", "Shopify", "Linear"]);
   });
 
   it("keeps only the ones going cold when asked for those", () => {
@@ -161,9 +169,9 @@ describe("emptiness", () => {
   });
 
   it("still says none at all when a filter is up but there is nothing to filter", () => {
-    expect(emptiness([], [], { ...NO_FILTER, search: "plumber", status: "applied" })).toEqual(
-      { kind: "nothing-yet" },
-    );
+    expect(
+      emptiness([], [], { ...NO_FILTER, search: "plumber", status: "applied" }),
+    ).toEqual({ kind: "nothing-yet" });
   });
 
   it("tells a search that found nothing apart from having nothing", () => {
@@ -182,7 +190,11 @@ describe("emptiness", () => {
 
   it("names both when both are narrowing", () => {
     expect(
-      emptiness(ALL, [], { ...NO_FILTER, search: "basecamp", status: "applied" }),
+      emptiness(ALL, [], {
+        ...NO_FILTER,
+        search: "basecamp",
+        status: "applied",
+      }),
     ).toEqual({ kind: "nothing-matches", narrowedBy: ["status", "search"] });
   });
 
@@ -196,7 +208,9 @@ describe("emptiness", () => {
   });
 
   it("does not count a search of nothing but whitespace as a search", () => {
-    expect(emptiness(ALL, [], { ...NO_FILTER, search: "   ", status: "offer" })).toEqual({
+    expect(
+      emptiness(ALL, [], { ...NO_FILTER, search: "   ", status: "offer" }),
+    ).toEqual({
       kind: "nothing-matches",
       narrowedBy: ["status"],
     });

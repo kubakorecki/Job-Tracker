@@ -38,6 +38,7 @@ const aJobApplication = (fields: Partial<JobApplication>): JobApplication => {
     currency: null,
     description: null,
     requirements: [],
+    interviews: [],
     status: "bookmarked",
     source: null,
     appliedAt: null,
