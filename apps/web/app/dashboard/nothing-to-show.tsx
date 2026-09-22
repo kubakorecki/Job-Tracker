@@ -69,8 +69,8 @@ export function NothingToShow({
  * button below clears all of them.
  *
  * Composed from the parts rather than written out per combination: there are
- * three controls and seven ways to have narrowed with them, and seven
- * sentences kept in step with one another is six too many.
+ * four controls and fifteen ways to have narrowed with them, and fifteen
+ * sentences kept in step with one another is fourteen too many.
  */
 function missed(narrowedBy: NarrowedBy[]): string {
   const clauses = narrowedBy.map((part) => MISSED[part]);
@@ -83,4 +83,5 @@ const MISSED: Record<NarrowedBy, string> = {
   status: "sits at that Status",
   silence: "has been quiet that long",
   search: "carries what you searched for",
+  closed: "is still open",
 };

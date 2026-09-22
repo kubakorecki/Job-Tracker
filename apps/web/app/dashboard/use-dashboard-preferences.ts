@@ -1,5 +1,9 @@
 "use client";
 
+import {
+  DASHBOARD_HIDE_CLOSED_KEY,
+  hideClosedFrom,
+} from "../../lib/dashboard/closed";
 import { DASHBOARD_PERIOD_KEY, periodFrom } from "../../lib/dashboard/period";
 import {
   DASHBOARD_SORT_KEY,
@@ -26,4 +30,10 @@ export const useDashboardSort = rememberedChoice({
   key: DASHBOARD_SORT_KEY,
   from: sortFrom,
   written: storedSort,
+});
+
+/** Whether the user last chose to put the closed Job Applications away. */
+export const useHideClosed = rememberedChoice({
+  key: DASHBOARD_HIDE_CLOSED_KEY,
+  from: hideClosedFrom,
 });

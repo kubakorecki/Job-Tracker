@@ -30,6 +30,7 @@ import { AppBar, Page, PageBody } from "../app-bar";
 import { PRIMARY_BUTTON, SELECT } from "../form";
 import { Segmented } from "../segmented";
 import { Failure } from "../states";
+import { Switch } from "../switch";
 import { AddJobApplicationForm } from "./add-job-application-form";
 import { Board } from "./board";
 import { JobApplicationTable } from "./job-application-table";
@@ -38,6 +39,7 @@ import { NothingToShow } from "./nothing-to-show";
 import {
   useDashboardSort,
   useDashboardView,
+  useHideClosed,
   useSalaryPeriod,
 } from "./use-dashboard-preferences";
 import {
@@ -98,7 +100,12 @@ export function Dashboard({
   const [view, chooseView] = useDashboardView();
   const [period, choosePeriod] = useSalaryPeriod();
   const [sort, chooseSort] = useDashboardSort();
-  const [filter, setFilter] = useState<JobApplicationFilter>(NO_FILTER);
+  const [hideClosed, chooseHideClosed] = useHideClosed();
+  // The switch is remembered and the rest of the filter is not, so the two are
+  // kept apart and put together here, where both views are narrowed from.
+  const [narrowing, setFilter] =
+    useState<Omit<JobApplicationFilter, "hideClosed">>(NO_FILTER);
+  const filter: JobApplicationFilter = { ...narrowing, hideClosed };
   const [tracking, setTracking] = useState(false);
 
   // One day for the whole render, so a card, a tag and the tally cannot fall
@@ -106,8 +113,8 @@ export function Dashboard({
   const today = todayInUtc();
 
   const shown = useMemo(
-    () => matching(jobApplications, filter, today),
-    [jobApplications, filter, today],
+    () => matching(jobApplications, { ...narrowing, hideClosed }, today),
+    [jobApplications, narrowing, hideClosed, today],
   );
   // After the filters, never before: a sort orders what they admit. The period
   // is a dependency because a salary sort ranks in it.
@@ -122,10 +129,15 @@ export function Dashboard({
 
   const nothingToShow = emptiness(jobApplications, shown, filter);
 
-  const narrow = <Part extends keyof JobApplicationFilter>(
+  const narrow = <Part extends keyof typeof narrowing>(
     part: Part,
     value: JobApplicationFilter[Part],
   ) => setFilter((current) => ({ ...current, [part]: value }));
+
+  const showEverything = () => {
+    setFilter(NO_FILTER);
+    chooseHideClosed(false);
+  };
 
   return (
     <Page>
@@ -255,6 +267,15 @@ export function Dashboard({
                 value={filter.silence}
               />
 
+              {/* Among the filters, because it narrows both views; unlike
+                  them it is remembered, because a user who has put the closed
+                  ones away wants them away next time too. */}
+              <Switch
+                label="Hide closed"
+                on={hideClosed}
+                onChange={chooseHideClosed}
+              />
+
               <div className="flex-1" />
 
               {/* With the board only: the table sorts from its headings. It
@@ -322,11 +343,16 @@ export function Dashboard({
         {nothingToShow !== null ? (
           <NothingToShow
             emptiness={nothingToShow}
-            onShowEverything={() => setFilter(NO_FILTER)}
+            onShowEverything={showEverything}
             onTrackAJob={() => setTracking(true)}
           />
         ) : view === "board" ? (
-          <Board jobApplications={sorted} onMove={move} period={period} />
+          <Board
+            hideClosed={hideClosed}
+            jobApplications={sorted}
+            onMove={move}
+            period={period}
+          />
         ) : (
           <JobApplicationTable
             jobApplications={sorted}

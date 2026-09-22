@@ -33,13 +33,32 @@ export type JobApplicationFilter = {
   status: JobStatus | null;
   /** The one silence reading the user is looking at, or all of them. */
   silence: SilenceFilter;
+  /** Whether the Job Applications that are over are left off. */
+  hideClosed: boolean;
 };
+
+/**
+ * The Statuses a Job Application is over at: the employer said no, or the user
+ * did. Nothing leaves them in the ordinary run of things, which is why the
+ * board draws their columns fainter and why a user can put them out of sight
+ * altogether. `offer` is not among them — an offer is a question still waiting
+ * on the user's answer.
+ */
+export const CLOSED_STATUSES: ReadonlySet<JobStatus> = new Set([
+  "rejected",
+  "withdrawn",
+]);
+
+export function isClosed(status: JobStatus): boolean {
+  return CLOSED_STATUSES.has(status);
+}
 
 /** Everything, in the order it arrived: the dashboard before it is narrowed. */
 export const NO_FILTER: JobApplicationFilter = {
   search: "",
   status: null,
   silence: "all",
+  hideClosed: false,
 };
 
 /**
@@ -53,7 +72,7 @@ export const NO_FILTER: JobApplicationFilter = {
  */
 export function matching(
   jobApplications: JobApplication[],
-  { search, status, silence }: JobApplicationFilter,
+  { search, status, silence, hideClosed }: JobApplicationFilter,
   today: string,
 ): JobApplication[] {
   const wanted = search.trim().toLowerCase();
@@ -62,6 +81,7 @@ export function matching(
   return jobApplications.filter(
     (jobApplication) =>
       (status === null || jobApplication.status === status) &&
+      !(hideClosed && isClosed(jobApplication.status)) &&
       (wanted === "" || carries(jobApplication, wanted)) &&
       (reading === null || silenceOf(jobApplication, today)?.kind === reading),
   );
@@ -99,12 +119,12 @@ export type Emptiness =
  * same reason `matching` admits everything on one: clearing it would change
  * nothing.
  */
-export type NarrowedBy = "search" | "status" | "silence";
+export type NarrowedBy = "search" | "status" | "silence" | "closed";
 
 export function emptiness(
   jobApplications: JobApplication[],
   shown: JobApplication[],
-  { search, status, silence }: JobApplicationFilter,
+  { search, status, silence, hideClosed }: JobApplicationFilter,
 ): Emptiness | null {
   if (shown.length > 0) return null;
   if (jobApplications.length === 0) return { kind: "nothing-yet" };
@@ -112,6 +132,7 @@ export function emptiness(
   const narrowedBy: NarrowedBy[] = [];
   if (status !== null) narrowedBy.push("status");
   if (silence !== "all") narrowedBy.push("silence");
+  if (hideClosed) narrowedBy.push("closed");
   if (search.trim() !== "") narrowedBy.push("search");
 
   // A view narrowed to nothing was narrowed by something: with no part of the

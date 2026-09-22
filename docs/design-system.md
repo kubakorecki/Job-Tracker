@@ -407,7 +407,10 @@ the office. **It never blocks printing.**
   and take the quiet button; the bar itself is `print:hidden`, because the one
   thing this app prints is a sheet for somebody else.
 - **Board page**: tally → toolbar → count line → board. The toolbar is the
-  search, the Status filter and the silence control on the left. On the
+  search, the Status filter, the silence control and a "Hide closed" switch
+  (28×16 pill track, `ink` when on — never an accent) on the left. The switch
+  is remembered in browser storage and, on the board, takes the Rejected and
+  Withdrawn columns away with their cards, leaving four. On the
   right, a native "Sort: …" select at 220px (with the board only), then the
   Salary Period (Year / Month / Day / Hour, starting on Month) and the view,
   both segmented controls. All three are remembered in browser storage, and

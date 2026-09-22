@@ -19,6 +19,7 @@ import {
 } from "@repo/schema";
 import { JOB_STATUS_LABELS } from "@repo/ui/status-badge";
 import { useMemo, useState } from "react";
+import { isClosed } from "../../lib/job-applications/filtering";
 import {
   DraggableJobApplicationCard,
   JobApplicationCard,
@@ -47,11 +48,18 @@ import type { Move } from "./use-job-applications";
 export function Board({
   jobApplications,
   period,
+  hideClosed,
   onMove,
 }: {
   jobApplications: JobApplication[];
   /** The Salary Period each card's salary line reads in. */
   period: SalaryPeriod;
+  /**
+   * Whether the closed ones have been put away. Their columns go with them
+   * rather than standing empty: two columns that can hold nothing are room
+   * taken from the four still doing work.
+   */
+  hideClosed: boolean;
   onMove: (move: Move) => void;
 }) {
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -60,6 +68,9 @@ export function Board({
     () => groupByStatus(jobApplications),
     [jobApplications],
   );
+  const statuses = hideClosed
+    ? JobStatus.options.filter((status) => !isClosed(status))
+    : JobStatus.options;
   const find = (id: string) => jobApplications.find((one) => one.id === id);
   const dragging = draggingId === null ? undefined : find(draggingId);
 
@@ -112,8 +123,14 @@ export function Board({
           `-mx-1` here puts the columns back on the page's own gutter, so
           nothing moves but the scrollbar. */}
       <div className="-mx-1 overflow-x-auto px-1 pb-2">
-        <div className="grid min-w-[980px] grid-cols-6 items-start gap-3.5">
-          {JobStatus.options.map((status) => (
+        <div
+          className={`grid items-start gap-3.5 ${
+            hideClosed
+              ? "min-w-[660px] grid-cols-4"
+              : "min-w-[980px] grid-cols-6"
+          }`}
+        >
+          {statuses.map((status) => (
             <Column
               jobApplications={columns[status]}
               key={status}
@@ -139,13 +156,6 @@ export function Board({
   );
 }
 
-/**
- * The two columns nothing leaves. Their headings drop to `ink-faint`, because
- * a pipeline is read left to right and these are where it stops — they are
- * still part of the picture, and no longer part of the work.
- */
-const TERMINAL: ReadonlySet<JobStatus> = new Set(["rejected", "withdrawn"]);
-
 function Column({
   status,
   jobApplications,
@@ -163,8 +173,11 @@ function Column({
       className="flex min-w-0 flex-col gap-[9px]"
     >
       <div className="flex items-baseline justify-between gap-1.5 border-b-[1.5px] border-line-strong pb-[7px]">
+        {/* The closed columns' headings drop to `ink-faint`, because a
+            pipeline is read left to right and these are where it stops — they
+            are still part of the picture, and no longer part of the work. */}
         <h3
-          className={`type-eyebrow ${TERMINAL.has(status) ? "text-ink-faint" : "text-ink-muted"}`}
+          className={`type-eyebrow ${isClosed(status) ? "text-ink-faint" : "text-ink-muted"}`}
         >
           {JOB_STATUS_LABELS[status]}
         </h3>

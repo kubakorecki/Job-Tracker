@@ -154,6 +154,27 @@ describe("matching", () => {
       ).not.toContain("Basecamp");
     }
   });
+
+  it("leaves off the rejected and the withdrawn when closed ones are hidden", () => {
+    const WITH_CLOSED = [
+      ...ALL,
+      aJobApplication({ id: "5", company: "Vercel", status: "rejected" }),
+      aJobApplication({ id: "6", company: "Figma", status: "withdrawn" }),
+      aJobApplication({ id: "7", company: "Notion", status: "offer" }),
+    ];
+
+    expect(
+      companies(
+        matching(WITH_CLOSED, { ...NO_FILTER, hideClosed: true }, TODAY),
+      ),
+    ).toEqual(["Basecamp", "Stripe", "Shopify", "Linear", "Notion"]);
+  });
+
+  it("keeps the closed ones while they are not hidden", () => {
+    const REJECTED = aJobApplication({ id: "5", status: "rejected" });
+
+    expect(matching([REJECTED], NO_FILTER, TODAY)).toEqual([REJECTED]);
+  });
 });
 
 describe("emptiness", () => {
@@ -213,6 +234,13 @@ describe("emptiness", () => {
     ).toEqual({
       kind: "nothing-matches",
       narrowedBy: ["status"],
+    });
+  });
+
+  it("names the hidden closed ones when that is what emptied the view", () => {
+    expect(emptiness(ALL, [], { ...NO_FILTER, hideClosed: true })).toEqual({
+      kind: "nothing-matches",
+      narrowedBy: ["closed"],
     });
   });
 });
