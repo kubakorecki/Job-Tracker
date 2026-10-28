@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  closestCorners,
   DndContext,
   DragOverlay,
   KeyboardSensor,
@@ -10,6 +9,7 @@ import {
   useSensor,
   useSensors,
   type Announcements,
+  type CollisionDetection,
   type DragEndEvent,
 } from "@dnd-kit/core";
 import {
@@ -19,6 +19,7 @@ import {
 } from "@repo/schema";
 import { JOB_STATUS_LABELS } from "@repo/ui/status-badge";
 import { useMemo, useState } from "react";
+import { laneAt } from "../../lib/dashboard/lane";
 import { isClosed } from "../../lib/job-applications/filtering";
 import {
   DraggableJobApplicationCard,
@@ -105,7 +106,7 @@ export function Board({
   return (
     <DndContext
       accessibility={{ announcements: announcementsFor(find) }}
-      collisionDetection={closestCorners}
+      collisionDetection={columnUnderCard}
       onDragCancel={() => setDraggingId(null)}
       onDragEnd={onDragEnd}
       onDragStart={({ active }) => setDraggingId(String(active.id))}
@@ -205,6 +206,30 @@ function Column({
     </section>
   );
 }
+
+/**
+ * The column a card is over is the one it is across from: under the cursor
+ * for a pointer drag, and under the card's middle for a keyboard one, which
+ * has no cursor and moves the card itself.
+ */
+const columnUnderCard: CollisionDetection = ({
+  collisionRect,
+  droppableContainers,
+  droppableRects,
+  pointerCoordinates,
+}) => {
+  const x =
+    pointerCoordinates?.x ?? collisionRect.left + collisionRect.width / 2;
+  const lanes = droppableContainers.flatMap((container) => {
+    const rect = droppableRects.get(container.id);
+    return rect === undefined
+      ? []
+      : [{ id: container.id, left: rect.left, right: rect.right }];
+  });
+  const id = laneAt(x, lanes);
+
+  return id === undefined ? [] : [{ id }];
+};
 
 /** The list split by Status, each column keeping the order it was handed. */
 function groupByStatus(
